@@ -1,0 +1,1 @@
+global using Atc.Kusto.Extensions.Internal;
