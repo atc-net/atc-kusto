@@ -54,4 +54,6 @@ dotnet_diagnostic.SA1133.severity = none            # https://github.com/atc-net
 # Custom - Code Analyzers Rules
 ##########################################
 
+dotnet_diagnostic.CA1002.severity = none            #
+dotnet_diagnostic.CA1034.severity = none            #
 dotnet_diagnostic.CA1062.severity = none            #
