@@ -18,6 +18,6 @@ internal sealed class QueryIdProvider : IQueryIdProvider
 
         return string
             .Concat(queryType.Name, finalSessionId)
-            .ToAlphaNumeric();
+            .ToAlphanumeric();
     }
 }

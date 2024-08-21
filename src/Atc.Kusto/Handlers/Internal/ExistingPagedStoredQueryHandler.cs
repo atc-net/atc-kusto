@@ -44,7 +44,7 @@ internal sealed class ExistingPagedStoredQueryHandler<T> : IScriptHandler<PagedR
             return null;
         }
 
-        var queryId = split[0].ToAlphaNumeric();
+        var queryId = split[0].ToAlphanumeric();
 
         if (!long.TryParse(split[1], GlobalizationConstants.EnglishCultureInfo, out var itemsReturned))
         {

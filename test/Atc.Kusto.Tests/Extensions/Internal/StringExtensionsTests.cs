@@ -21,7 +21,7 @@ public sealed class StringExtensionsTests
         string expected)
     {
         // Arrange & Act
-        var actual = input.ToAlphaNumeric();
+        var actual = input.ToAlphanumeric();
 
         // Assert
         Assert.Equal(expected, actual);
@@ -34,7 +34,7 @@ public sealed class StringExtensionsTests
         var input = string.Empty;
 
         // Act
-        var actual = input.ToAlphaNumeric();
+        var actual = input.ToAlphanumeric();
 
         // Assert
         Assert.Equal(string.Empty, actual);
