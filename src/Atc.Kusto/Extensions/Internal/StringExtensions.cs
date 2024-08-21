@@ -13,7 +13,7 @@ internal static partial class StringExtensions
     /// <returns>A <see cref="Regex"/> instance that can be used to replace non-alphanumeric characters.</returns>
 
     [GeneratedRegex("[^a-zA-Z0-9]", RegexOptions.Singleline, 1000)]
-    private static partial Regex AlphaNumericRegex();
+    private static partial Regex AlphanumericRegex();
 
     /// <summary>
     /// Removes all non-alphanumeric characters from the input string, leaving only letters and digits.
@@ -21,7 +21,7 @@ internal static partial class StringExtensions
     /// </summary>
     /// <param name="str">The input string to be filtered.</param>
     /// <returns>A new string containing only alphanumeric characters from the input string.</returns>
-    public static string ToAlphaNumeric(
+    public static string ToAlphanumeric(
         this string str)
-        => AlphaNumericRegex().Replace(str, string.Empty);
+        => AlphanumericRegex().Replace(str, string.Empty);
 }
