@@ -2,7 +2,7 @@
 namespace Atc.Kusto;
 
 /// <summary>
-/// Provides extension methods for handling Kusto scripts in the IoT Insights domain,
+/// Provides extension methods for handling Kusto scripts and
 /// simplifying interaction with Kusto by preparing query parameters and request properties.
 /// </summary>
 public static class KustoScriptExtensions
