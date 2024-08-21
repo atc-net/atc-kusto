@@ -2,10 +2,9 @@ namespace Atc.Kusto.Tests.Providers.Internal;
 
 public sealed class QueryIdProviderTests
 {
-    private readonly QueryIdProvider sut = new();
-
     [Theory, AutoNSubstituteData]
-    public void Create_WithValidSessionId_ReturnsExpectedQueryId(
+    internal void Create_WithValidSessionId_ReturnsExpectedQueryId(
+        QueryIdProvider sut,
         Type queryType,
         string sessionId)
     {
@@ -19,7 +18,8 @@ public sealed class QueryIdProviderTests
     }
 
     [Theory, AutoNSubstituteData]
-    public void Create_WithNullSessionId_ReturnsQueryIdWithNewGuid(
+    internal void Create_WithNullSessionId_ReturnsQueryIdWithNewGuid(
+        QueryIdProvider sut,
         Type queryType)
     {
         // Arrange & Act
