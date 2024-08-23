@@ -14,7 +14,7 @@ public sealed class QueryIdProviderTests
         // Assert
         actual
             .Should()
-            .Be($"{queryType.Name}{sessionId.ToAlphaNumeric()}");
+            .Be($"{queryType.Name}{sessionId.ToAlphanumeric()}");
     }
 
     [Theory, AutoNSubstituteData]
