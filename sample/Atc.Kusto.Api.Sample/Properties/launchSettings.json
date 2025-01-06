@@ -1,0 +1,13 @@
+﻿{
+  "profiles": {
+    "Atc.Kusto.Api.Sample": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "launchUrl": "swagger",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:46612;http://localhost:46611"
+    }
+  }
+}

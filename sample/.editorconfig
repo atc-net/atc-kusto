@@ -1,8 +1,8 @@
 # ATC coding rules - https://github.com/atc-net/atc-coding-rules
 # Version: 1.0.0
-# Updated: 25-09-2023
+# Updated: 03-06-2024
 # Location: sample
-# Distribution: DotNet8
+# Distribution: DotNet9
 # Inspired by: https://docs.microsoft.com/en-us/dotnet/fundamentals/code-analysis/code-style-rule-options
 
 ##########################################
@@ -45,6 +45,7 @@
 # https://rules.sonarsource.com/csharp
 
 dotnet_diagnostic.S1075.severity = none             # Refactor your code not to use hardcoded absolute paths or URIs
+
 
 ##########################################
 # Custom - Code Analyzers Rules
