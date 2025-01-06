@@ -1,0 +1,20 @@
+@Atc.Kusto.Api.Sample_HostAddress = https://localhost:7256
+@customerId=143
+
+### GetCustomers
+
+GET {{Atc.Kusto.Api.Sample_HostAddress}}/customers
+Accept: application/json
+
+### GetCustomerById
+
+GET {{Atc.Kusto.Api.Sample_HostAddress}}/customers/{{customerId}}
+Accept: application/json
+
+
+### GetCustomerSales
+
+GET {{Atc.Kusto.Api.Sample_HostAddress}}/customer-sales
+Accept: application/json
+
+###
