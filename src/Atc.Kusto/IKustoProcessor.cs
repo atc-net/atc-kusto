@@ -1,4 +1,4 @@
-﻿namespace Atc.Kusto;
+namespace Atc.Kusto;
 
 /// <summary>
 /// Provides functionality to process and execute Kusto commands and queries.
