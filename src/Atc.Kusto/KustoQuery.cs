@@ -5,9 +5,9 @@ namespace Atc.Kusto;
 /// Inherits from <see cref="KustoScript"/> and implements <see cref="IKustoQuery{T}"/>.
 /// </summary>
 /// <typeparam name="T">The type of the result returned by the query.</typeparam>
-public abstract record KustoQuery<T> : KustoScript, IKustoQuery<T>
+public abstract record KustoQuery<T> : KustoScript, IKustoQuery<T[]>
 {
     /// <inheritdoc />>
-    public abstract T? ReadResult(
-        IDataReader reader);
+    public virtual T[]? ReadResult(IDataReader reader)
+        => reader.ReadObjects<T>();
 }
