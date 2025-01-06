@@ -26,11 +26,15 @@ public static class DataReaderExtensions
     /// <returns>An array of objects of type <typeparamref name="T"/> representing the data read from the reader.</returns>
     public static T[] ReadObjects<T>(
         this IDataReader reader)
-        => reader
+    {
+        ArgumentNullException.ThrowIfNull(reader);
+
+        return reader
             .ToJObjects()
             .Select(o => o.ToObject<T>(Serializer))
             .OfType<T>()
             .ToArray();
+    }
 
     /// <summary>
     /// Advances the <see cref="IDataReader"/> to the next result set, if available, and converts the resulting rows into an array of strongly-typed objects of type <typeparamref name="T"/>.
