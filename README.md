@@ -18,7 +18,7 @@ The library provides a streamlined interface for handling Kusto operations, maki
 
 # Requirements
 
-* [.NET 8 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
+* [.NET 9 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/9.0)
 
 # How to contribute
 
