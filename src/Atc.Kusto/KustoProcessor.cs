@@ -6,8 +6,7 @@ public sealed class KustoProcessor : IKustoProcessor
 {
     private readonly IScriptHandlerFactory factory;
 
-    public KustoProcessor(
-        IScriptHandlerFactory factory)
+    public KustoProcessor(IScriptHandlerFactory factory)
     {
         this.factory = factory;
     }
