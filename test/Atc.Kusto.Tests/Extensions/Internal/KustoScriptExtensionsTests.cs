@@ -2,10 +2,6 @@ namespace Atc.Kusto.Tests.Extensions.Internal;
 
 public sealed class KustoScriptExtensionsTests
 {
-#pragma warning disable S2094
-    public record TestRecord();
-#pragma warning restore S2094
-
     public static TheoryData<object, string> CslValueTestData => new()
     {
         { true, "true" },
