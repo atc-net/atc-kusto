@@ -1,6 +1,8 @@
 global using System.Data;
 global using System.Text.Json;
 global using Atc.Kusto.Extensions.Internal;
+global using Atc.Kusto.Factories.Internal;
+global using Atc.Kusto.Handlers.Internal;
 global using Atc.Kusto.Providers.Internal;
 global using Atc.Kusto.Serialization.Internal;
 global using Atc.Serialization;

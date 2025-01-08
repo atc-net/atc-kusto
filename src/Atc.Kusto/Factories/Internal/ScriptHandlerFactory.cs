@@ -1,4 +1,4 @@
-﻿namespace Atc.Kusto.Factories.Internal;
+namespace Atc.Kusto.Factories.Internal;
 
 /// <inheritdoc />
 internal sealed class ScriptHandlerFactory : IScriptHandlerFactory
