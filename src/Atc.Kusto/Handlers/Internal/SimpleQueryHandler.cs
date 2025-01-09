@@ -25,8 +25,7 @@ internal sealed class SimpleQueryHandler<T> : IScriptHandler<T>
     /// A task that represents the asynchronous operation.
     /// The task result contains the query result of type <typeparamref name="T"/> or null if the result is not available.
     /// </returns>
-    public async Task<T?> Execute(
-        CancellationToken cancellationToken)
+    public async Task<T?> Execute(CancellationToken cancellationToken)
     {
         using var reader = await queryProvider
             .ExecuteQueryAsync(

@@ -22,8 +22,7 @@ internal sealed class NewPagedStoredQueryHandler<T> : IScriptHandler<PagedResult
         this.pageSize = pageSize;
     }
 
-    public async Task<PagedResult<T>?> Execute(
-        CancellationToken cancellationToken)
+    public async Task<PagedResult<T>?> Execute(CancellationToken cancellationToken)
     {
         var queryId = queryIdProvider.Create(
             query.GetType(),
