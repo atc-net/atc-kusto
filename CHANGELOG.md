@@ -1,0 +1,19 @@
+# Changelog
+
+## [2.0.0](https://github.com/atc-net/atc-kusto/compare/v1.0.8...v2.0.0) (2025-01-09)
+
+
+### ⚠ BREAKING CHANGES
+
+* change KustoQuery.ReadResult to virtual method
+* upgrade to .net9
+
+### Features
+
+* add dark mode for swagger in sample api ([5a63e22](https://github.com/atc-net/atc-kusto/commit/5a63e22e71ec2572da0ffb6e955cfea3a71a49aa))
+* add sample api ([0e44013](https://github.com/atc-net/atc-kusto/commit/0e440138873fabe37f017813fefbd654826236a5))
+* add sample to coding-rules configuration and update static code analyzers and coding-rules ([b509549](https://github.com/atc-net/atc-kusto/commit/b509549641a0cd8d205510300f52aaf7bda765cf))
+* add several ServiceCollectionExtension overloads to ease configuration of AzureDataExplorer ([3f699c5](https://github.com/atc-net/atc-kusto/commit/3f699c52d27b0b615f9b35ce854299171a7295df))
+* change KustoQuery.ReadResult to virtual method ([106c942](https://github.com/atc-net/atc-kusto/commit/106c94230fbf0a0ccb13c0022ff5e638a9e944b8))
+* **sample:** add console sample application ([8f91808](https://github.com/atc-net/atc-kusto/commit/8f91808f9fa245256f9312182225adc0c85b7453))
+* upgrade to .net9 ([f8adf71](https://github.com/atc-net/atc-kusto/commit/f8adf7151a58b7c0673e961d357fae795a337a0e))
