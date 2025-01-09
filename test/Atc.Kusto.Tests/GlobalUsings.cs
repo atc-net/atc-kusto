@@ -9,3 +9,4 @@ global using Atc.Kusto.Providers.Internal;
 global using Atc.Kusto.Serialization.Internal;
 global using Atc.Serialization;
 global using Kusto.Cloud.Platform.Utils;
+global using Kusto.Data.Common;
