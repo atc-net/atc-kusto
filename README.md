@@ -15,6 +15,10 @@ The library provides a streamlined interface for handling Kusto operations, maki
       - [Setup with Pre-Configured Options](#setup-with-pre-configured-options)
       - [Setup with Configuration Delegate](#setup-with-configuration-delegate)
     - [Adding a Kusto query](#adding-a-kusto-query)
+    - [Kusto query examples](#kusto-query-examples)
+      - [Single](#single)
+      - [List](#list)
+      - [Complex with multiple result sets](#complex-with-multiple-result-sets)
     - [Executing a Kusto query](#executing-a-kusto-query)
   - [Sample](#sample)
 - [Requirements](#requirements)
@@ -96,7 +100,7 @@ The .NET record should to derive from one of the following base types:
 | `KustoCommand`  | Used for Kusto commands that do not produce an output. |
 | `KustoQuery<T>` | Used for Kusto queries that returns a result.          |
 
-_Note: The base types handles the loading of the embedded `.kusto` script file, passing of parameters and deserialization of the output._
+> Note: The base types handles the loading of the embedded `.kusto` script file, passing of parameters and deserialization of the output._
 
 Parameters are specified by adding them to record, and declare them at the top of the `.kusto` script, like this:
 
@@ -136,6 +140,111 @@ public record Team(
 ```csharp
 public record GetTeamQuery(long TeamId)
     : KustoQuery<Team>;
+```
+
+### Kusto query examples
+
+The following examples demonstrate different types of queries, showcasing single result queries, list queries, and more complex queries with multiple result sets.
+
+#### Single
+
+> The following C# record is defined in the [CustomerByIdQuery.cs](./sample/Atc.Kusto.Sample/Queries/CustomerByIdQuery.cs) file:
+
+```csharp
+public record CustomerByIdQuery(long CustomerId)
+    : KustoQuery<Customer>;
+```
+
+> The following KQL query is defined in the [CustomerByIdQuery.kusto](./sample/Atc.Kusto.Sample/Queries/CustomerByIdQuery.kusto) file:
+
+```json
+declare query_parameters (
+    customerId:long
+);
+Customers
+| where customerId == CustomerKey
+| project
+    CustomerKey,
+    FirstName,
+    LastName,
+    CompanyName,
+    CityName,
+    StateProvinceName,
+    RegionCountryName,
+    ContinentName,
+    Gender,
+    MaritalStatus,
+    Education,
+    Occupation
+```
+
+#### List
+
+> The following C# record is defined in the [CustomerSalesQuery.cs](./sample/Atc.Kusto.Sample/Queries/CustomerSalesQuery.cs) file:
+
+```csharp
+public record CustomerSalesQuery
+    : KustoQuery<CustomerSales>;
+```
+
+> The following KQL query is defined in the [CustomerSalesQuery.kusto](./sample/Atc.Kusto.Sample/Queries/CustomerSalesQuery.kusto) file:
+
+```json
+Customers
+| join kind=inner SalesFact on CustomerKey
+| extend CustomerName = strcat(FirstName, ' ', LastName)
+| summarize
+    SalesAmount = round(sum(SalesAmount), 2),
+    TotalCost = round(sum(TotalCost), 2)
+  by CustomerKey, CustomerName
+```
+
+#### Complex with multiple result sets
+
+> The following C# record is defined in the [CustomersSplitByGenderQuery.cs](./sample/Atc.Kusto.Sample/Queries/CustomersSplitByGenderQuery.cs) file:
+
+```csharp
+public record CustomersSplitByGenderQuery
+    : KustoScript, IKustoQuery<CustomersByGender>
+{
+    public CustomersByGender ReadResult(IDataReader reader)
+        => new(
+            reader.ReadObjects<Customer>(),
+            reader.ReadObjectsFromNextResult<Customer>(),
+            reader.ReadObjectsFromNextResult<CustomerGenderCount>());
+}
+```
+
+> The following KQL query is defined in the [CustomersSplitByGenderQuery.kusto](./sample/Atc.Kusto.Sample/Queries/CustomersSplitByGenderQuery.kusto) file:
+
+```json
+// Create materialized result with rows from customers
+let customers = materialize(Customers
+| project
+    CustomerKey,
+    FirstName,
+    LastName,
+    CompanyName,
+    CityName,
+    StateProvinceName,
+    RegionCountryName,
+    ContinentName,
+    Gender,
+    MaritalStatus,
+    Education,
+    Occupation)
+;
+// Female Customers
+customers
+| where Gender == "F"
+;
+// Male Customers
+customers
+| where Gender == "M"
+;
+// Customer count by gender
+customers
+| summarize Count = count() by Gender
 ```
 
 ### Executing a Kusto query
@@ -188,7 +297,9 @@ The optional `sessionId` can be provided to optimize the use of storage on the A
 
 ## Sample
 
-See the [sample api](./sample/Atc.Kusto.Api.Sample/) for an example on how to configure the Atc.Kusto library. The sample api is querying the "ContosoSales" database of the Microsoft ADX sample cluster.
+See the [sample api](./sample/Atc.Kusto.Api.Sample/) for an example on how to configure the Atc.Kusto library. Also see the [sample console application](./sample/Atc.Kusto.Sample/) for an example of utilizing the library directly without being wrapped in an API.
+
+Both samples are querying the "ContosoSales" database of the Microsoft ADX sample cluster.
 
 # Requirements
 
