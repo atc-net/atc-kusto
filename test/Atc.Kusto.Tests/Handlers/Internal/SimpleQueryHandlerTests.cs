@@ -37,7 +37,7 @@ public sealed class SimpleQueryHandlerTests
             .Should()
             .Be(expectedResult);
 
-        await queryProvider
+        _ = queryProvider
             .Received(1)
             .ExecuteQueryAsync(
                 databaseName: default,
@@ -79,7 +79,7 @@ public sealed class SimpleQueryHandlerTests
         // Assert
         Assert.Null(result);
 
-        await queryProvider
+        _ = queryProvider
             .Received(1)
             .ExecuteQueryAsync(
                 databaseName: default,
