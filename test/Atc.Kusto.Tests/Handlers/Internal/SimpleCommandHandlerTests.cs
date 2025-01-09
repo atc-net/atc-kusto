@@ -25,7 +25,7 @@ public sealed class SimpleCommandHandlerTests
         await sut.Execute(cancellationToken);
 
         // Assert
-        await adminProvider
+        _ = adminProvider
             .Received(1)
             .ExecuteControlCommandAsync(
                 databaseName: null,
