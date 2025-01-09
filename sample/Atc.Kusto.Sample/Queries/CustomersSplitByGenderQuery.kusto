@@ -1,0 +1,27 @@
+// Create materialized result with rows from customers
+let customers = materialize(Customers
+| project
+    CustomerKey,
+    FirstName,
+    LastName,
+    CompanyName,
+    CityName,
+    StateProvinceName,
+    RegionCountryName,
+    ContinentName,
+    Gender,
+    MaritalStatus,
+    Education,
+    Occupation)
+;
+// Female Customers
+customers
+| where Gender == "F"
+;
+// Male Customers
+customers
+| where Gender == "M"
+;
+// Customer count by gender
+customers
+| summarize Count = count() by Gender

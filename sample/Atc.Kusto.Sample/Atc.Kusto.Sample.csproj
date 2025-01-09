@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="Queries\CustomersSplitByGenderQuery.kusto" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Queries\CustomerByIdQuery.kusto" />
+    <EmbeddedResource Include="Queries\CustomerSalesQuery.kusto" />
+    <EmbeddedResource Include="Queries\CustomersSplitByGenderQuery.kusto" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Atc.Kusto\Atc.Kusto.csproj" />
+  </ItemGroup>
+
+</Project>
