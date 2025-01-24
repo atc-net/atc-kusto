@@ -22,14 +22,14 @@ app.MapGet(
         "/customers",
         async static (
                 [FromHeader(Name = "x-client-session-id")] string? sessionId,
-                [FromHeader(Name = "x-max-item-count")] int? maxItemCount,
+                [FromHeader(Name = "x-pageSize")] int? pageSize,
                 [FromHeader(Name = "x-continuation-token")] string? continuationToken,
                 IKustoProcessor processor,
                 CancellationToken cancellationToken)
             => await processor.ExecutePagedQuery(
                 new CustomersQuery(),
                 sessionId,
-                maxItemCount ?? 100,
+                pageSize ?? 100,
                 continuationToken,
                 cancellationToken))
     .WithName("GetCustomers")

@@ -157,7 +157,7 @@ public record CustomerByIdQuery(long CustomerId)
 
 > The following KQL query is defined in the [CustomerByIdQuery.kusto](./sample/Atc.Kusto.Sample/Queries/CustomerByIdQuery.kusto) file:
 
-```json
+```kusto
 declare query_parameters (
     customerId:long
 );
@@ -189,7 +189,7 @@ public record CustomerSalesQuery
 
 > The following KQL query is defined in the [CustomerSalesQuery.kusto](./sample/Atc.Kusto.Sample/Queries/CustomerSalesQuery.kusto) file:
 
-```json
+```kusto
 Customers
 | join kind=inner SalesFact on CustomerKey
 | extend CustomerName = strcat(FirstName, ' ', LastName)
@@ -217,7 +217,7 @@ public record CustomersSplitByGenderQuery
 
 > The following KQL query is defined in the [CustomersSplitByGenderQuery.kusto](./sample/Atc.Kusto.Sample/Queries/CustomersSplitByGenderQuery.kusto) file:
 
-```json
+```kusto
 // Create materialized result with rows from customers
 let customers = materialize(Customers
 | project
@@ -277,21 +277,21 @@ app.MapGet(
     "/customers",
     async static (
         [FromHeader(Name = "x-client-session-id")] string? sessionId,
-        [FromHeader(Name = "x-max-item-count")] int? maxItemCount,
+        [FromHeader(Name = "x-pageSize")] int? pageSize,
         [FromHeader(Name = "x-continuation-token")] string? continuationToken,
         IKustoProcessor processor,
         CancellationToken cancellationToken)
         => await processor.ExecutePagedQuery(
             new CustomersQuery(),
             sessionId,
-            maxItemCount ?? 100,
+            pageSize ?? 100,
             continuationToken,
             cancellationToken))
     .WithName("GetCustomers")
     .WithOpenApi();
 ```
 
-The `maxItemCount` specifies how many items to return for each page. Each page is returned with a `continuationToken` that can be specified to fetch the next page.
+The `pageSize` specifies how many items to return for each page. Each page is returned with a `continuationToken` that can be specified to fetch the next page.
 
 The optional `sessionId` can be provided to optimize the use of storage on the ADX. If the same `sessionId` is specified for two calls they will share the underlying storage for pagination results.
 
