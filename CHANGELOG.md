@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.0.1](https://github.com/atc-net/atc-kusto/compare/v2.0.0...v2.0.1) (2025-01-26)
+
+
+### Bug Fixes
+
+* ensure credential is an optional part of KustoConnectionStringBuilder to be able to connect to kustainer container image ([db7cf8a](https://github.com/atc-net/atc-kusto/commit/db7cf8a81251311bcabb88de69646d41d94bec72))
+* set IsPackable to false on sample project to avoid nuget package generation ([4a2f7cd](https://github.com/atc-net/atc-kusto/commit/4a2f7cd360cfa279eee2108c48c61522ffdab522))
+
 ## [2.0.0](https://github.com/atc-net/atc-kusto/compare/v1.0.8...v2.0.0) (2025-01-09)
 
 
