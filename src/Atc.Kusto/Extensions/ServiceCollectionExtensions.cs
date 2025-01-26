@@ -90,6 +90,8 @@ public static class ServiceCollectionExtensions
             options.HostAddress,
             options.DatabaseName);
 
-        return connectionString.WithAadAzureTokenCredentialsAuthentication(options.Credential);
+        return options.Credential is null
+            ? connectionString
+            : connectionString.WithAadAzureTokenCredentialsAuthentication(options.Credential);
     }
 }
