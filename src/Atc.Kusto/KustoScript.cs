@@ -14,7 +14,7 @@ public abstract record KustoScript : IKustoScript
     }
 
     /// <inheritdoc />
-    public string GetQueryText()
+    public virtual string GetQueryText()
     {
         var resourcePath = $"{type.FullName}.kusto";
 
@@ -27,7 +27,7 @@ public abstract record KustoScript : IKustoScript
     }
 
     /// <inheritdoc />
-    public IDictionary<string, object> GetParameters()
+    public virtual IDictionary<string, object> GetParameters()
         => new Dictionary<string, object>(GetPropertyValues(), StringComparer.Ordinal);
 
     /// <summary>
