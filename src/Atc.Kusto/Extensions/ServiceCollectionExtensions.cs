@@ -21,7 +21,7 @@ public static class ServiceCollectionExtensions
             .AddOptions<AtcKustoOptions>()
             .Configure(o =>
             {
-                o.HostAddress = hostAddress.AbsoluteUri;
+                o.HostAddress = hostAddress;
                 o.DatabaseName = databaseName;
                 o.Credential = tokenCredential;
             });
@@ -73,25 +73,8 @@ public static class ServiceCollectionExtensions
     private static IServiceCollection AddKustoServices(
         this IServiceCollection services)
         => services
-            .AddSingleton(sp => KustoClientFactory.CreateCslQueryProvider(sp.GetKustoConnectionStringBuilder()))
-            .AddSingleton(sp => KustoClientFactory.CreateCslAdminProvider(sp.GetKustoConnectionStringBuilder()))
+            .AddSingleton<IKustoClientProvider, KustoClientProvider>()
             .AddSingleton<IQueryIdProvider, QueryIdProvider>()
             .AddSingleton<IScriptHandlerFactory, ScriptHandlerFactory>()
             .AddSingleton<IKustoProcessor, KustoProcessor>();
-
-    private static KustoConnectionStringBuilder GetKustoConnectionStringBuilder(
-        this IServiceProvider serviceProvider)
-    {
-        var options = serviceProvider
-            .GetRequiredService<IOptions<AtcKustoOptions>>()
-            .Value;
-
-        var connectionString = new KustoConnectionStringBuilder(
-            options.HostAddress,
-            options.DatabaseName);
-
-        return options.Credential is null
-            ? connectionString
-            : connectionString.WithAadAzureTokenCredentialsAuthentication(options.Credential);
-    }
 }
