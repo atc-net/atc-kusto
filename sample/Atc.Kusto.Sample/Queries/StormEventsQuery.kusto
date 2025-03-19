@@ -1,0 +1,1 @@
+StormEvents | limit 10 | project StartTime, EventType, State | as SampleRecords

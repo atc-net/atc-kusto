@@ -8,12 +8,14 @@
 
   <ItemGroup>
     <None Remove="Queries\CustomersSplitByGenderQuery.kusto" />
+    <None Remove="Queries\StormEventsQuery.kusto" />
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="Queries\CustomerByIdQuery.kusto" />
     <EmbeddedResource Include="Queries\CustomerSalesQuery.kusto" />
     <EmbeddedResource Include="Queries\CustomersSplitByGenderQuery.kusto" />
+    <EmbeddedResource Include="Queries\StormEventsQuery.kusto" />
   </ItemGroup>
 
   <ItemGroup>
