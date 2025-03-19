@@ -10,21 +10,35 @@ public static class ServiceCollectionExtensions
     /// <param name="hostAddress">The URI of the Azure Data Explorer cluster.</param>
     /// <param name="databaseName">The name of the database within Azure Data Explorer.</param>
     /// <param name="tokenCredential">The token credential used for Azure AD authentication.</param>
+    /// <param name="configurationName">
+    /// An optional name for the options instance. If provided, the named options will be registered.
+    /// </param>
     /// <returns>The same instance as <paramref name="services"/>.</returns>
     public static IServiceCollection ConfigureAzureDataExplorer(
         this IServiceCollection services,
         Uri hostAddress,
         string databaseName,
-        TokenCredential tokenCredential)
+        TokenCredential tokenCredential,
+        string? configurationName = null)
     {
-        services
-            .AddOptions<AtcKustoOptions>()
-            .Configure(o =>
+        if (string.IsNullOrWhiteSpace(configurationName))
+        {
+            services.AddOptions<AtcKustoOptions>().Configure(o =>
             {
                 o.HostAddress = hostAddress;
                 o.DatabaseName = databaseName;
                 o.Credential = tokenCredential;
             });
+        }
+        else
+        {
+            services.AddOptions<AtcKustoOptions>(configurationName).Configure(o =>
+            {
+                o.HostAddress = hostAddress;
+                o.DatabaseName = databaseName;
+                o.Credential = tokenCredential;
+            });
+        }
 
         return services.AddKustoServices();
     }
@@ -35,19 +49,33 @@ public static class ServiceCollectionExtensions
     /// </summary>
     /// <param name="services">The IServiceCollection instance to augment.</param>
     /// <param name="kustoOptions">The pre-configured AtcKustoOptions.</param>
+    /// <param name="configurationName">
+    /// An optional name for the options instance. If provided, the named options will be registered.
+    /// </param>
     /// <returns>The same instance as services.</returns>
     public static IServiceCollection ConfigureAzureDataExplorer(
         this IServiceCollection services,
-        AtcKustoOptions kustoOptions)
+        AtcKustoOptions kustoOptions,
+        string? configurationName = null)
     {
-        services
-            .AddOptions<AtcKustoOptions>()
-            .Configure(o =>
+        if (string.IsNullOrWhiteSpace(configurationName))
+        {
+            services.AddOptions<AtcKustoOptions>().Configure(o =>
             {
                 o.HostAddress = kustoOptions.HostAddress;
                 o.DatabaseName = kustoOptions.DatabaseName;
                 o.Credential = kustoOptions.Credential;
             });
+        }
+        else
+        {
+            services.AddOptions<AtcKustoOptions>(configurationName).Configure(o =>
+            {
+                o.HostAddress = kustoOptions.HostAddress;
+                o.DatabaseName = kustoOptions.DatabaseName;
+                o.Credential = kustoOptions.Credential;
+            });
+        }
 
         return services.AddKustoServices();
     }
@@ -58,14 +86,23 @@ public static class ServiceCollectionExtensions
     /// </summary>
     /// <param name="services">The IServiceCollection instance to augment.</param>
     /// <param name="configureOptions">An Action delegate to configure the AtcKustoOptions.</param>
+    /// <param name="configurationName">
+    /// An optional name for the options instance. If provided, the named options will be registered.
+    /// </param>
     /// <returns>The same instance as services.</returns>
     public static IServiceCollection ConfigureAzureDataExplorer(
         this IServiceCollection services,
-        Action<AtcKustoOptions> configureOptions)
+        Action<AtcKustoOptions> configureOptions,
+        string? configurationName = null)
     {
-        services
-            .AddOptions<AtcKustoOptions>()
-            .Configure(configureOptions);
+        if (string.IsNullOrWhiteSpace(configurationName))
+        {
+            services.AddOptions<AtcKustoOptions>().Configure(configureOptions);
+        }
+        else
+        {
+            services.AddOptions<AtcKustoOptions>(configurationName).Configure(configureOptions);
+        }
 
         return services.AddKustoServices();
     }
