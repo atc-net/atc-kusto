@@ -16,16 +16,24 @@ internal sealed class ScriptHandlerFactory : IScriptHandlerFactory
 
     /// <inheritdoc />
     public IScriptHandler Create(
-        IKustoCommand command)
+        IKustoCommand command,
+        string? connectionName = null,
+        string? databaseName = null)
         => new SimpleCommandHandler(
-            clientProvider.GetAdminClient(),
+            clientProvider.GetAdminClient(
+                connectionName,
+                databaseName),
             command);
 
     /// <inheritdoc />
     public IScriptHandler<T> Create<T>(
-        IKustoQuery<T> query)
+        IKustoQuery<T> query,
+        string? connectionName = null,
+        string? databaseName = null)
         => new SimpleQueryHandler<T>(
-            clientProvider.GetQueryClient(),
+            clientProvider.GetQueryClient(
+                connectionName,
+                databaseName),
             query);
 
     /// <inheritdoc />
@@ -33,16 +41,22 @@ internal sealed class ScriptHandlerFactory : IScriptHandlerFactory
         IKustoQuery<IReadOnlyList<T>> query,
         string? sessionId,
         int pageSize,
-        string? continuationToken)
+        string? continuationToken,
+        string? connectionName = null,
+        string? databaseName = null)
         => continuationToken is null
             ? new NewPagedStoredQueryHandler<T>(
                 queryIdProvider,
-                clientProvider.GetAdminClient(),
+                clientProvider.GetAdminClient(
+                    connectionName,
+                    databaseName),
                 query,
                 sessionId,
                 pageSize)
             : new ExistingPagedStoredQueryHandler<T>(
-                clientProvider.GetQueryClient(),
+                clientProvider.GetQueryClient(
+                    connectionName,
+                    databaseName),
                 query,
                 pageSize,
                 continuationToken);

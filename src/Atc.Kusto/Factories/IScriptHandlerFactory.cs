@@ -9,18 +9,36 @@ public interface IScriptHandlerFactory
     /// Creates an <see cref="IScriptHandler"/> for executing a Kusto command.
     /// </summary>
     /// <param name="command">The Kusto command to be executed.</param>
+    /// <param name="connectionName">
+    /// An optional connection name that identifies which Kusto cluster to connect to.
+    /// If <see langword="null"/>, the default connection is used.
+    /// </param>
+    /// <param name="databaseName">
+    /// An optional database name for command execution. If <see langword="null"/>, the default database is used.
+    /// </param>
     /// <returns>An instance of <see cref="IScriptHandler"/> capable of executing the command.</returns>
     IScriptHandler Create(
-        IKustoCommand command);
+        IKustoCommand command,
+        string? connectionName = null,
+        string? databaseName = null);
 
     /// <summary>
     /// Creates an <see cref="IScriptHandler{T}"/> for executing a Kusto query that returns a result of type <typeparamref name="T"/>.
     /// </summary>
     /// <typeparam name="T">The type of the result returned by the query.</typeparam>
     /// <param name="query">The Kusto query to be executed.</param>
+    /// <param name="connectionName">
+    /// An optional connection name that identifies which Kusto cluster to connect to.
+    /// If <see langword="null"/>, the default connection is used.
+    /// </param>
+    /// <param name="databaseName">
+    /// An optional database name for command execution. If <see langword="null"/>, the default database is used.
+    /// </param>
     /// <returns>An instance of <see cref="IScriptHandler{T}"/> capable of executing the query and returning the result.</returns>
     IScriptHandler<T> Create<T>(
-        IKustoQuery<T> query);
+        IKustoQuery<T> query,
+        string? connectionName = null,
+        string? databaseName = null);
 
     /// <summary>
     /// Creates an <see cref="IScriptHandler{T}"/> for executing a Kusto query that returns a paginated result set.
@@ -30,10 +48,19 @@ public interface IScriptHandlerFactory
     /// <param name="sessionId">An optional session ID for tracking the query execution.</param>
     /// <param name="pageSize">The number of items per page in the result set.</param>
     /// <param name="continuationToken">An optional token to continue fetching results from a previous query execution.</param>
+    /// <param name="connectionName">
+    /// An optional connection name that identifies which Kusto cluster to connect to.
+    /// If <see langword="null"/>, the default connection is used.
+    /// </param>
+    /// <param name="databaseName">
+    /// An optional database name for command execution. If <see langword="null"/>, the default database is used.
+    /// </param>
     /// <returns>An instance of <see cref="IScriptHandler{T}"/> capable of executing the query and returning a paginated result.</returns>
     IScriptHandler<PagedResult<T>> Create<T>(
         IKustoQuery<IReadOnlyList<T>> query,
         string? sessionId,
         int pageSize,
-        string? continuationToken);
+        string? continuationToken,
+        string? connectionName = null,
+        string? databaseName = null);
 }
