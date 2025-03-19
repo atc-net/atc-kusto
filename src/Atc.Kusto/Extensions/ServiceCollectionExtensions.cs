@@ -76,5 +76,6 @@ public static class ServiceCollectionExtensions
             .AddSingleton<IKustoClientProvider, KustoClientProvider>()
             .AddSingleton<IQueryIdProvider, QueryIdProvider>()
             .AddSingleton<IScriptHandlerFactory, ScriptHandlerFactory>()
-            .AddSingleton<IKustoProcessor, KustoProcessor>();
+            .AddSingleton<IKustoProcessorFactory, KustoProcessorFactory>()
+            .AddSingleton(s => s.GetRequiredService<IKustoProcessorFactory>().Create());
 }

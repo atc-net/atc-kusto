@@ -6,17 +6,29 @@ public sealed class KustoProcessor : IKustoProcessor
 {
     private readonly IScriptHandlerFactory factory;
 
-    public KustoProcessor(IScriptHandlerFactory factory)
+    public KustoProcessor(
+        IScriptHandlerFactory factory,
+        string? connectionName,
+        string? databaseName)
     {
         this.factory = factory;
+        ConnectionName = connectionName;
+        DatabaseName = databaseName;
     }
+
+    public string? ConnectionName { get; }
+
+    public string? DatabaseName { get; }
 
     /// <inheritdoc />
     public async Task ExecuteCommand(
         IKustoCommand command,
         CancellationToken cancellationToken)
         => await factory
-            .Create(command)
+            .Create(
+                command,
+                ConnectionName,
+                DatabaseName)
             .Execute(cancellationToken);
 
     /// <inheritdoc />
@@ -24,7 +36,10 @@ public sealed class KustoProcessor : IKustoProcessor
         IKustoQuery<T> query,
         CancellationToken cancellationToken)
         => await factory
-            .Create(query)
+            .Create(
+                query,
+                ConnectionName,
+                DatabaseName)
             .Execute(cancellationToken);
 
     /// <inheritdoc />
@@ -39,6 +54,8 @@ public sealed class KustoProcessor : IKustoProcessor
                 query,
                 sessionId,
                 pageSize,
-                continuationToken)
+                continuationToken,
+                ConnectionName,
+                DatabaseName)
             .Execute(cancellationToken);
 }

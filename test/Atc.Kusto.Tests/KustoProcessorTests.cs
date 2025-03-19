@@ -3,6 +3,21 @@ namespace Atc.Kusto.Tests;
 public sealed class KustoProcessorTests
 {
     [Theory, AutoNSubstituteData]
+    public void Can_Specify_Connection_And_Database(
+        IScriptHandlerFactory factory,
+        string connectionName,
+        string databaseName)
+    {
+        var sut = new KustoProcessor(
+            factory,
+            connectionName,
+            databaseName);
+
+        sut.ConnectionName.Should().Be(connectionName);
+        sut.DatabaseName.Should().Be(databaseName);
+    }
+
+    [Theory, AutoNSubstituteData]
     internal async Task ExecuteCommand_ShouldCallScriptHandlerExecute(
         [Frozen] IScriptHandlerFactory factory,
         IKustoCommand command,
@@ -12,7 +27,7 @@ public sealed class KustoProcessorTests
     {
         // Arrange
         factory
-            .Create(command)
+            .Create(command, sut.ConnectionName, sut.DatabaseName)
             .Returns(scriptHandler);
 
         // Act
@@ -21,7 +36,10 @@ public sealed class KustoProcessorTests
         // Assert
         factory
             .Received(1)
-            .Create(command);
+            .Create(
+                command,
+                sut.ConnectionName,
+                sut.DatabaseName);
 
         await scriptHandler
             .Received(1)
@@ -39,7 +57,7 @@ public sealed class KustoProcessorTests
     {
         // Arrange
         factory
-            .Create(query)
+            .Create(query, sut.ConnectionName, sut.DatabaseName)
             .Returns(scriptHandler);
 
         scriptHandler
@@ -56,7 +74,10 @@ public sealed class KustoProcessorTests
 
         factory
             .Received(1)
-            .Create(query);
+            .Create(
+                query,
+                sut.ConnectionName,
+                sut.DatabaseName);
 
         await scriptHandler
             .Received(1)
@@ -81,7 +102,9 @@ public sealed class KustoProcessorTests
                 query,
                 sessionId,
                 pageSize,
-                continuationToken)
+                continuationToken,
+                sut.ConnectionName,
+                sut.DatabaseName)
             .Returns(scriptHandler);
 
         scriptHandler
@@ -107,7 +130,9 @@ public sealed class KustoProcessorTests
                 query,
                 sessionId,
                 pageSize,
-                continuationToken);
+                continuationToken,
+                sut.ConnectionName,
+                sut.DatabaseName);
 
         await scriptHandler
             .Received(1)
