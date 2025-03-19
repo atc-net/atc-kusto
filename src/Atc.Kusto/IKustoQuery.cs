@@ -14,6 +14,5 @@ public interface IKustoQuery<out T> : IKustoScript
     /// </summary>
     /// <param name="reader">The <see cref="IDataReader"/> instance used to read the query results.</param>
     /// <returns>An instance of <typeparamref name="T"/> representing the processed query result, or null if no result is available.</returns>
-    T? ReadResult(
-        IDataReader reader);
+    T? ReadResult(IDataReader reader);
 }

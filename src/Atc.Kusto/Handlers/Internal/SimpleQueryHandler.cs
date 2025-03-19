@@ -9,17 +9,20 @@ internal sealed partial class SimpleQueryHandler<T> : IScriptHandler<T>
     private readonly ResiliencePipeline resiliencePipeline;
     private readonly ICslQueryProvider queryProvider;
     private readonly IKustoQuery<T> query;
+    private readonly AtcQueryOptions queryOptions;
 
     public SimpleQueryHandler(
         ILogger<SimpleQueryHandler<T>> logger,
         [FromKeyedServices(Constants.ResiliencePipelineKey)] ResiliencePipeline resiliencePipeline,
         ICslQueryProvider queryProvider,
-        IKustoQuery<T> query)
+        IKustoQuery<T> query,
+        AtcQueryOptions queryOptions)
     {
         this.logger = logger;
         this.resiliencePipeline = resiliencePipeline;
         this.queryProvider = queryProvider;
         this.query = query;
+        this.queryOptions = queryOptions;
     }
 
     /// <summary>
@@ -34,6 +37,10 @@ internal sealed partial class SimpleQueryHandler<T> : IScriptHandler<T>
     {
         try
         {
+            var clientRequestProperties = query.GetClientRequestProperties();
+
+            clientRequestProperties.SetQueryOptions(queryOptions);
+
             return await resiliencePipeline.ExecuteAsync(
                 async context =>
                 {
@@ -41,7 +48,7 @@ internal sealed partial class SimpleQueryHandler<T> : IScriptHandler<T>
                         .ExecuteQueryAsync(
                             databaseName: null,
                             query.GetQueryText(),
-                            query.GetClientRequestProperties(),
+                            clientRequestProperties,
                             context);
 
                     return query.ReadResult(reader);

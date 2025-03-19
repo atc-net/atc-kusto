@@ -20,6 +20,9 @@ The library provides a streamlined interface for handling Kusto operations, maki
       - [List](#list)
       - [Complex with multiple result sets](#complex-with-multiple-result-sets)
     - [Executing a Kusto query](#executing-a-kusto-query)
+    - [Executing streaming queries](#executing-streaming-queries)
+      - [Direct streaming](#direct-streaming)
+      - [Buffered streaming](#buffered-streaming)
   - [Sample](#sample)
 - [Requirements](#requirements)
 - [How to contribute](#how-to-contribute)
@@ -30,6 +33,9 @@ The library extends the official .NET SDK, and adds the following add-on functio
 
 - **Kusto Query and Command Execution**: Simplifies the execution of Kusto queries and commands with asynchronous support through embedded .kusto scripts.
 - **Paged Query Support**: Efficient handling of large datasets with built-in support for paginated query results through stored query results.
+- **Streaming Query Support**: Two approaches for streaming large result sets:
+  - **Direct Streaming**: Immediately yield rows as they become available, minimizing memory usage and latency.
+  - **Buffered Streaming**: Buffer results with additional metadata like schemas and completion information.
 
 ## Getting started
 
@@ -294,6 +300,67 @@ app.MapGet(
 The `pageSize` specifies how many items to return for each page. Each page is returned with a `continuationToken` that can be specified to fetch the next page.
 
 The optional `sessionId` can be provided to optimize the use of storage on the ADX. If the same `sessionId` is specified for two calls they will share the underlying storage for pagination results.
+
+### Executing streaming queries
+
+Streaming queries allow you to process large result sets more efficiently by streaming results as they become available. Atc.Kusto provides two approaches for streaming:
+
+#### Direct streaming
+
+Direct streaming yields rows immediately as they are processed from Kusto, providing the lowest latency and minimal memory usage. This approach is suitable when you need to process a large number of results as quickly as possible and don't require metadata about the query execution:
+
+```csharp
+// Define your streaming query
+public record CustomersStreamingQuery()
+    : KustoStreamingQuery<Customer>;
+```
+
+```csharp
+// Execute the streaming query and process results as they arrive
+await foreach (var customer in kustoProcessor.ExecuteStreamingQuery(
+    new CustomersStreamingQuery(), 
+    cancellationToken))
+{
+    // Process each customer as it arrives
+    Console.WriteLine($"{customer.FirstName} {customer.LastName}");
+}
+```
+
+#### Buffered streaming
+
+Buffered streaming provides additional metadata like table schemas and completion information, while still allowing you to stream the results:
+
+```csharp
+// Execute buffered streaming query
+var streamingResult = await kustoProcessor.ExecuteBufferedStreamingQuery(
+    new CustomersStreamingQuery(),
+    cancellationToken);
+
+// Access metadata if needed
+Console.WriteLine($"Has errors: {streamingResult.Completion?.HasErrors}");
+
+// Stream the results
+await foreach (var customer in streamingResult.Rows.WithCancellation(cancellationToken))
+{
+    // Process each customer
+    Console.WriteLine($"{customer.FirstName} {customer.LastName}");
+}
+```
+
+In a web API scenario, you can return the stream directly to the client:
+
+```csharp
+app.MapGet(
+    "/customers/stream",
+    (IKustoProcessorFactory processorFactory, CancellationToken cancellationToken) => 
+        Task.FromResult(processorFactory.Create("DatabaseName")
+            .ExecuteStreamingQuery(
+                new CustomersStreamingQuery(),
+                cancellationToken)))
+    .WithName("GetCustomersStream");
+```
+
+This returns a streamed response to the client, which can be processed as it arrives.
 
 ## Sample
 

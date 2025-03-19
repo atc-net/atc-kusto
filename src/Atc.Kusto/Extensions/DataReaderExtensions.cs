@@ -8,16 +8,6 @@ namespace Atc.Kusto;
 public static class DataReaderExtensions
 {
     /// <summary>
-    /// A custom JSON serializer configured with a converter that handles the deserialization
-    /// of objects from Newtonsoft.Json to System.Text.Json format.
-    /// </summary>
-    private static readonly Newtonsoft.Json.JsonSerializer Serializer = Newtonsoft.Json.JsonSerializer.CreateDefault(
-        new()
-        {
-            Converters = { new NewtonsoftObjectConverter() },
-        });
-
-    /// <summary>
     /// Reads all rows from the <see cref="IDataReader"/> and converts them into an array of strongly-typed objects of type <typeparamref name="T"/>.
     /// The conversion is handled using Newtonsoft.Json with a custom converter to facilitate the transition between Newtonsoft.Json and System.Text.Json.
     /// </summary>
@@ -31,7 +21,7 @@ public static class DataReaderExtensions
 
         return reader
             .ToJObjects()
-            .Select(o => o.ToObject<T>(Serializer))
+            .Select(o => o.ToObject<T>(KustoJsonSerializerHelper.Serializer))
             .OfType<T>()
             .ToArray();
     }

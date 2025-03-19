@@ -1,0 +1,21 @@
+nyc_taxi
+| take 500001
+| project 
+    DropoffDatetime = dropoff_datetime,
+    DropoffLatitude = dropoff_latitude,
+    DropoffLongitude = dropoff_longitude,
+    FareAmount = fare_amount,
+    MtaTax = mta_tax,
+    PassengerCount = passenger_count,
+    PaymentType = payment_type,
+    PickupDatetime = pickup_datetime,
+    PickupLatitude = pickup_latitude,
+    PickupLongitude = pickup_longitude,
+    RateCode = rate_code,
+    StoreAndFwdFlag = store_and_fwd_flag,
+    Surcharge = surcharge,
+    TipAmount = tip_amount,
+    TollsAmount = tolls_amount,
+    TotalAmount = total_amount,
+    TripDistance = trip_distance,
+    VendorId = vendor_id

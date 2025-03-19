@@ -35,14 +35,20 @@ internal sealed class ScriptHandlerFactory : IScriptHandlerFactory
     public IScriptHandler<T> Create<T>(
         IKustoQuery<T> query,
         string? connectionName = null,
-        string? databaseName = null)
-        => new SimpleQueryHandler<T>(
+        string? databaseName = null,
+        AtcQueryOptions? options = null)
+    {
+        options ??= new AtcQueryOptions();
+
+        return new SimpleQueryHandler<T>(
             loggerFactory.CreateLogger<SimpleQueryHandler<T>>(),
             resiliencePipeline,
             clientProvider.GetQueryClient(
                 connectionName,
                 databaseName),
-            query);
+            query,
+            options);
+    }
 
     /// <inheritdoc />
     public IScriptHandler<PagedResult<T>> Create<T>(
@@ -70,4 +76,40 @@ internal sealed class ScriptHandlerFactory : IScriptHandlerFactory
                 query,
                 pageSize,
                 continuationToken);
+
+    /// <inheritdoc />
+    public IScriptHandler<StreamingQueryResult<T>?> CreateBuffered<T>(
+        IKustoStreamingQuery<T> query,
+        string? connectionName = null,
+        string? databaseName = null,
+        AtcStreamingQueryOptions? options = null)
+    {
+        options ??= new AtcStreamingQueryOptions();
+
+        return new BufferedStreamingQueryHandler<T>(
+            loggerFactory.CreateLogger<BufferedStreamingQueryHandler<T>>(),
+            clientProvider.GetQueryClient(
+                connectionName,
+                databaseName),
+            query,
+            options);
+    }
+
+    /// <inheritdoc />
+    public IStreamingScriptHandler<T?> Create<T>(
+        IKustoStreamingQuery<T> query,
+        string? connectionName = null,
+        string? databaseName = null,
+        AtcStreamingQueryOptions? options = null)
+    {
+        options ??= new AtcStreamingQueryOptions();
+
+        return new StreamingQueryHandler<T?>(
+            loggerFactory.CreateLogger<StreamingQueryHandler<T?>>(),
+            clientProvider.GetQueryClient(
+                connectionName,
+                databaseName),
+            query,
+            options);
+    }
 }

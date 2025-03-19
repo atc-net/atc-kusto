@@ -23,7 +23,7 @@ public sealed class KustoProcessor : IKustoProcessor
     /// <inheritdoc />
     public async Task ExecuteCommand(
         IKustoCommand command,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
         => await factory
             .Create(
                 command,
@@ -34,12 +34,14 @@ public sealed class KustoProcessor : IKustoProcessor
     /// <inheritdoc />
     public async Task<T?> ExecuteQuery<T>(
         IKustoQuery<T> query,
-        CancellationToken cancellationToken)
+        AtcQueryOptions? options = null,
+        CancellationToken cancellationToken = default)
         => await factory
             .Create(
                 query,
                 ConnectionName,
-                DatabaseName)
+                DatabaseName,
+                options)
             .Execute(cancellationToken);
 
     /// <inheritdoc />
@@ -48,7 +50,7 @@ public sealed class KustoProcessor : IKustoProcessor
         string? sessionId,
         int? pageSize,
         string? continuationToken,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
         => pageSize is { } pageSizeValue
             ? await factory
                 .Create(
@@ -60,6 +62,70 @@ public sealed class KustoProcessor : IKustoProcessor
                     DatabaseName)
                 .Execute(cancellationToken)
             : new PagedResult<T>(
-                Items: await ExecuteQuery(query, cancellationToken) ?? [],
+                Items: await ExecuteQuery(query, options: null, cancellationToken) ?? [],
                 ContinuationToken: null);
+
+    /// <inheritdoc />
+    public async Task<StreamingQueryResult<T>?> ExecuteBufferedStreamingQuery<T>(
+        IKustoStreamingQuery<T> query,
+        AtcStreamingQueryOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        options ??= new AtcStreamingQueryOptions();
+
+        if (options.OptionalFrames == FrameHeaders.None)
+        {
+            options.OptionalFrames = FrameHeaders.All;
+        }
+
+        return await factory
+            .CreateBuffered(
+                query,
+                ConnectionName,
+                DatabaseName,
+                options)
+            .Execute(cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<StreamingQueryResult<T>?> ExecuteBufferedStreamingQuery<T>(
+        IKustoStreamingQuery<T> query,
+        CancellationToken cancellationToken = default)
+        => await ExecuteBufferedStreamingQuery(
+            query,
+            new AtcStreamingQueryOptions(),
+            cancellationToken);
+
+    /// <inheritdoc />
+    public async IAsyncEnumerable<T> ExecuteStreamingQuery<T>(
+        IKustoStreamingQuery<T> query,
+        AtcStreamingQueryOptions? options = null,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        options ??= new AtcStreamingQueryOptions();
+        options.OptionalFrames = FrameHeaders.None;
+
+        var stream = factory
+            .Create(query, ConnectionName, DatabaseName, options)
+            .Execute(cancellationToken);
+
+        await foreach (var row in stream.WithCancellation(cancellationToken))
+        {
+            if (row is not null)
+            {
+                yield return row;
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public async IAsyncEnumerable<T> ExecuteStreamingQuery<T>(
+        IKustoStreamingQuery<T> query,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        await foreach (var row in ExecuteStreamingQuery(query, options: null, cancellationToken))
+        {
+            yield return row;
+        }
+    }
 }

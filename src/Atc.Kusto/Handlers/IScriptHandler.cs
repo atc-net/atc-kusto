@@ -27,3 +27,17 @@ public interface IScriptHandler
     /// <returns>A task that represents the asynchronous operation.</returns>
     Task Execute(CancellationToken cancellationToken);
 }
+
+/// <summary>
+/// Defines a handler for executing a script that streams results of type <typeparamref name="T"/> as they become available.
+/// </summary>
+/// <typeparam name="T">The type of the results streamed by the script.</typeparam>
+public interface IStreamingScriptHandler<out T>
+{
+    /// <summary>
+    /// Executes the script asynchronously and streams results of type <typeparamref name="T"/> as they become available.
+    /// </summary>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>An asynchronous stream of results of type <typeparamref name="T"/> that can be enumerated as they are produced.</returns>
+    IAsyncEnumerable<T?> Execute(CancellationToken cancellationToken);
+}

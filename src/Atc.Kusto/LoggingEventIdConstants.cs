@@ -22,4 +22,18 @@ public static class LoggingEventIdConstants
     {
         public const int Retry = 30_000;
     }
+
+    internal static class BufferedStreamingQueryHandler
+    {
+        public const int UnhandledException = 40_000;
+        public const int SchemaNullInDataTableDataSetFrame = 40_010;
+        public const int ReceivedTableFragmentForUnknownTable = 40_020;
+        public const int ProgressiveDataSetIsNull = 40_030;
+    }
+
+    internal static class StreamingQueryHandler
+    {
+        public const int SchemaNullInDataTableDataSetFrame = 50_000;
+        public const int ReceivedTableFragmentForUnknownTable = 50_010;
+    }
 }
