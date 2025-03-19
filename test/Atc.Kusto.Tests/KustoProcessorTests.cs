@@ -65,7 +65,7 @@ public sealed class KustoProcessorTests
             .Returns(expectedResult);
 
         // Act
-        var actualResult = await sut.ExecuteQuery(query, cancellationToken);
+        var actualResult = await sut.ExecuteQuery(query, cancellationToken: cancellationToken);
 
         // Assert
         actualResult
@@ -133,6 +133,97 @@ public sealed class KustoProcessorTests
                 continuationToken,
                 sut.ConnectionName,
                 sut.DatabaseName);
+
+        await scriptHandler
+            .Received(1)
+            .Execute(cancellationToken);
+    }
+
+    [Theory, AutoNSubstituteData]
+    internal async Task ExecuteStreamingQuery_ShouldCallStreamingScriptHandlerExecute(
+        [Frozen] IScriptHandlerFactory factory,
+        IKustoStreamingQuery<TestRecord> query,
+        IStreamingScriptHandler<TestRecord?> scriptHandler,
+        KustoProcessor sut,
+        CancellationToken cancellationToken)
+    {
+        // Arrange
+        factory
+            .Create(
+                query,
+                sut.ConnectionName,
+                sut.DatabaseName,
+                Arg.Any<AtcStreamingQueryOptions?>())
+            .Returns(scriptHandler);
+
+        var testRecords = new List<TestRecord?> { new() };
+
+        scriptHandler
+            .Execute(cancellationToken)
+            .Returns(testRecords.ToAsyncEnumerable(cancellationToken));
+
+        // Act
+        var results = new List<TestRecord>();
+        await foreach (var item in sut.ExecuteStreamingQuery(query, cancellationToken))
+        {
+            results.Add(item);
+        }
+
+        // Assert
+        Assert.NotEmpty(results);
+
+        factory
+            .Received(1)
+            .Create(
+                Arg.Is(query),
+                Arg.Is(sut.ConnectionName),
+                Arg.Is(sut.DatabaseName),
+                Arg.Any<AtcStreamingQueryOptions?>());
+
+        scriptHandler
+            .Received(1)
+            .Execute(cancellationToken);
+    }
+
+    [Theory, AutoNSubstituteData]
+    internal async Task ExecuteBufferedStreamingQuery_ShouldCallScriptHandlerExecute(
+        [Frozen] IScriptHandlerFactory factory,
+        IKustoStreamingQuery<TestRecord> query,
+        IScriptHandler<StreamingQueryResult<TestRecord>?> scriptHandler,
+        KustoProcessor sut,
+        StreamingQueryResult<TestRecord> expectedResult,
+        CancellationToken cancellationToken)
+    {
+        // Arrange
+        factory
+            .CreateBuffered(
+                Arg.Is(query),
+                Arg.Is(sut.ConnectionName),
+                Arg.Is(sut.DatabaseName),
+                Arg.Any<AtcStreamingQueryOptions?>())
+            .Returns(scriptHandler);
+
+        scriptHandler
+            .Execute(Arg.Is(cancellationToken))
+            .Returns(expectedResult);
+
+        // Act
+        var actualResult = await sut.ExecuteBufferedStreamingQuery(
+            query,
+            cancellationToken: cancellationToken);
+
+        // Assert
+        actualResult
+            .Should()
+            .Be(expectedResult);
+
+        factory
+            .Received(1)
+            .CreateBuffered(
+                Arg.Is(query),
+                Arg.Is(sut.ConnectionName),
+                Arg.Is(sut.DatabaseName),
+                Arg.Any<AtcStreamingQueryOptions?>());
 
         await scriptHandler
             .Received(1)

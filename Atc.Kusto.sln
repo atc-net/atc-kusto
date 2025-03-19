@@ -22,6 +22,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atc.Kusto.Api.Sample", "sam
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atc.Kusto.Sample", "sample\Atc.Kusto.Sample\Atc.Kusto.Sample.csproj", "{FFC0C181-BBE9-42B9-9FD6-0AC8D2AA9B69}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atc.Kusto.Api.Client.Sample", "sample\Atc.Kusto.Api.Client.Sample\Atc.Kusto.Api.Client.Sample.csproj", "{5936E9DF-110D-495C-B60A-512F98C42138}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -44,6 +46,10 @@ Global
 		{FFC0C181-BBE9-42B9-9FD6-0AC8D2AA9B69}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FFC0C181-BBE9-42B9-9FD6-0AC8D2AA9B69}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FFC0C181-BBE9-42B9-9FD6-0AC8D2AA9B69}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5936E9DF-110D-495C-B60A-512F98C42138}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5936E9DF-110D-495C-B60A-512F98C42138}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5936E9DF-110D-495C-B60A-512F98C42138}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5936E9DF-110D-495C-B60A-512F98C42138}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -53,6 +59,7 @@ Global
 		{60006371-9F5A-4413-A776-98804C985B78} = {58BC6728-197C-484C-A8EC-38BC2F0B58C4}
 		{CB49BF27-B9A7-4BF6-A2EC-719CCBDA52AA} = {AE2967D9-4B6B-461A-9897-C20E88FC6D54}
 		{FFC0C181-BBE9-42B9-9FD6-0AC8D2AA9B69} = {AE2967D9-4B6B-461A-9897-C20E88FC6D54}
+		{5936E9DF-110D-495C-B60A-512F98C42138} = {AE2967D9-4B6B-461A-9897-C20E88FC6D54}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {04120463-05C5-417B-8D7A-2D7D35B71A07}

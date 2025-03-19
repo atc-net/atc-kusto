@@ -7,8 +7,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Queries\CustomerByIdQuery.kusto" />
+    <None Remove="Queries\CustomerSalesQuery.kusto" />
     <None Remove="Queries\CustomersSplitByGenderQuery.kusto" />
     <None Remove="Queries\StormEventsQuery.kusto" />
+    <None Remove="Queries\CustomersStreamingQuery.kusto" />
   </ItemGroup>
 
   <ItemGroup>
@@ -16,6 +19,7 @@
     <EmbeddedResource Include="Queries\CustomerSalesQuery.kusto" />
     <EmbeddedResource Include="Queries\CustomersSplitByGenderQuery.kusto" />
     <EmbeddedResource Include="Queries\StormEventsQuery.kusto" />
+    <EmbeddedResource Include="Queries\CustomersStreamingQuery.kusto" />
   </ItemGroup>
 
   <ItemGroup>

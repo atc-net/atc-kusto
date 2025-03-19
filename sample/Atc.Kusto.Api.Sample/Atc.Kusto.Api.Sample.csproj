@@ -7,11 +7,14 @@
   <ItemGroup>
     <None Remove="Queries\CustomerSalesQuery.kusto" />
     <None Remove="Queries\CustomersQuery.kusto" />
+    <None Remove="Queries\CustomersStreamingQuery.kusto" />
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="Queries\CustomerSalesQuery.kusto" />
     <EmbeddedResource Include="Queries\CustomersQuery.kusto" />
+    <EmbeddedResource Include="Queries\NycTaxiTripsStreamingQuery.kusto" />
+    <EmbeddedResource Include="Queries\CustomersStreamingQuery.kusto" />
   </ItemGroup>
 
   <ItemGroup>

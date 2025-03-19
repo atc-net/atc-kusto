@@ -39,25 +39,25 @@ var samplesKustoProcessor = kustoProcessorFactory.Create("Samples");
 
 logger.LogInformation("Querying by existing customer");
 var customerByIdQueryExisting = new CustomerByIdQuery(145);
-var customerByIdQueryResult = await contosoSalesKustoProcessor.ExecuteQuery(customerByIdQueryExisting, CancellationToken.None);
+var customerByIdQueryResult = await contosoSalesKustoProcessor.ExecuteQuery(customerByIdQueryExisting, cancellationToken: CancellationToken.None);
 logger.LogInformation("\tCustomer Name for Id 145: {CustomerName}", customerByIdQueryResult?.FirstOrDefault()?.FirstName ?? "Unknown");
 
 logger.LogInformation("Querying by non-existing customer");
 var customerByIdQueryNonExisting = new CustomerByIdQuery(long.MaxValue);
-var customerByIdQueryNonExistingResult = await contosoSalesKustoProcessor.ExecuteQuery(customerByIdQueryNonExisting, CancellationToken.None);
+var customerByIdQueryNonExistingResult = await contosoSalesKustoProcessor.ExecuteQuery(customerByIdQueryNonExisting, cancellationToken: CancellationToken.None);
 logger.LogInformation(customerByIdQueryNonExistingResult?.Length > 1
     ? "\tIncorrectly found non-existing customer"
     : "\tDid not find non-existing customer as expected");
 
 logger.LogInformation("Querying for customer genders and counts");
-var customersSplitByGenderQueryResult = await contosoSalesKustoProcessor.ExecuteQuery(new CustomersSplitByGenderQuery(), CancellationToken.None);
+var customersSplitByGenderQueryResult = await contosoSalesKustoProcessor.ExecuteQuery(new CustomersSplitByGenderQuery(), cancellationToken: CancellationToken.None);
 foreach (var customerGenderCount in customersSplitByGenderQueryResult!.Counts)
 {
     logger.LogInformation("\tFound {Count} {Gender}", customerGenderCount.Count, customerGenderCount.Gender);
 }
 
 logger.LogInformation("Querying for customer sales");
-var customersSalesQueryResult = await contosoSalesKustoProcessor.ExecuteQuery(new CustomerSalesQuery(), CancellationToken.None);
+var customersSalesQueryResult = await contosoSalesKustoProcessor.ExecuteQuery(new CustomerSalesQuery(), cancellationToken: CancellationToken.None);
 var customerSales = customersSalesQueryResult!.SingleOrDefault(x => x.CustomerKey == 145);
 if (customerSales is not null)
 {
@@ -65,7 +65,7 @@ if (customerSales is not null)
 }
 
 logger.LogInformation("Querying storm events");
-var stormEventsResult = await samplesKustoProcessor.ExecuteQuery(new StormEventsQuery(), CancellationToken.None);
+var stormEventsResult = await samplesKustoProcessor.ExecuteQuery(new StormEventsQuery(), cancellationToken: CancellationToken.None);
 if (stormEventsResult is not null)
 {
     logger.LogInformation("\tFound {Count} storm events.", stormEventsResult.Length);
@@ -79,6 +79,70 @@ if (stormEventsResult is not null)
             stormEvent.State);
     }
 }
+
+var streamingQuery = new CustomersStreamingQuery();
+
+logger.LogInformation("Streaming customers without streaming query result..");
+
+var countWithoutStreamingQueryResult = 0;
+await foreach (var customer in contosoSalesKustoProcessor.ExecuteStreamingQuery(streamingQuery, CancellationToken.None))
+{
+    logger.LogInformation("\t {FirstName} {LastName}", customer.FirstName, customer.LastName);
+    countWithoutStreamingQueryResult++;
+}
+
+logger.LogInformation("Streamed {CountWithoutStreamingQueryResult} customers without streaming query result", countWithoutStreamingQueryResult);
+logger.LogInformation("Streaming without streaming query result complete.");
+
+logger.LogInformation("Executing streaming query with streaming query result");
+
+var streamingResult = await contosoSalesKustoProcessor.ExecuteBufferedStreamingQuery(
+    streamingQuery,
+    CancellationToken.None);
+
+if (streamingResult is null)
+{
+    logger.LogInformation("No streaming result received.");
+    return;
+}
+
+var countWithStreamingQueryResult = 0;
+await foreach (var customer in streamingResult.Rows.WithCancellation(CancellationToken.None))
+{
+    logger.LogInformation("\t {FirstName} {LastName}", customer.FirstName, customer.LastName);
+    countWithStreamingQueryResult++;
+}
+
+logger.LogInformation("Streamed {CountWithStreamingQueryResult} customers with frames.", countWithStreamingQueryResult);
+
+logger.LogInformation(streamingResult.Header is not null
+    ? $"Header: Version={streamingResult.Header.Version}, Progressive={streamingResult.Header.IsProgressive}"
+    : "No header received.");
+
+if (streamingResult.TableSchemas is not null && streamingResult.TableSchemas.Count > 0)
+{
+    foreach (var schema in streamingResult.TableSchemas)
+    {
+        logger.LogInformation($"Schema for table '{schema.TableName}':");
+        foreach (var col in schema.Columns)
+        {
+            logger.LogInformation($"\tColumn: {col.Name} (Type: {col.Type})");
+        }
+    }
+}
+else
+{
+    logger.LogInformation("No table schema information received.");
+}
+
+logger.LogInformation(streamingResult.Completion is not null
+    ? $"Completion: HasErrors={streamingResult.Completion.HasErrors}" +
+      (!string.IsNullOrEmpty(streamingResult.Completion.ErrorMessage)
+          ? $", Error Message: {streamingResult.Completion.ErrorMessage}"
+          : string.Empty)
+    : "No completion summary received.");
+
+logger.LogInformation("Streaming with streaming query result complete.");
 
 logger.LogInformation("Press any key to exit");
 Console.ReadLine();

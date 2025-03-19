@@ -22,15 +22,15 @@ public sealed class DataReaderExtensionsTests
             .Returns(fieldNames.Length);
 
         dataReader
-            .GetName(default)
+            .GetName(0)
             .ReturnsForAnyArgs(c => fieldNames[c.Arg<int>()]);
 
         dataReader
             .Read()
-            .Returns(c => ++index < data.Count);
+            .Returns(_ => ++index < data.Count);
 
         dataReader
-            .GetValues(default!)
+            .GetValues(null!)
             .ReturnsForAnyArgs(c => c.Arg<object[]>().CopyFrom(values[index], 0));
 
         // Act
@@ -55,7 +55,7 @@ public sealed class DataReaderExtensionsTests
             .Returns(fieldNames.Length);
 
         dataReader
-            .GetName(default)
+            .GetName(0)
             .ReturnsForAnyArgs(c => fieldNames[c.Arg<int>()]);
 
         dataReader
@@ -63,7 +63,7 @@ public sealed class DataReaderExtensionsTests
             .Returns(c => ++index < data.Count);
 
         dataReader
-            .GetValues(default!)
+            .GetValues(null!)
             .ReturnsForAnyArgs(c => c.Arg<object[]>().CopyFrom(values[index], 0));
 
         dataReader

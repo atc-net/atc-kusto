@@ -16,7 +16,8 @@ public sealed class SimpleQueryHandlerTests
             new NullLogger<SimpleQueryHandler<string>>(),
             ResiliencePipeline.Empty,
             queryProvider,
-            query);
+            query,
+            new AtcQueryOptions());
     }
 
     [Theory, AutoNSubstituteData]

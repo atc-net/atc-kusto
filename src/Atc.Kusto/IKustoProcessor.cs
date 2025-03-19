@@ -13,19 +13,21 @@ public interface IKustoProcessor
     /// <returns>A task representing the asynchronous operation.</returns>
     Task ExecuteCommand(
         IKustoCommand command,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Executes a Kusto query asynchronously using a script handler created by the factory, and returns the result of type <typeparamref name="T"/>.
     /// </summary>
     /// <typeparam name="T">The type of the result returned by the query.</typeparam>
     /// <param name="query">The Kusto query to be executed.</param>
+    /// <param name="options">Optional streaming options. If null, default options are used.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation.
     /// The task result contains the query result of type <typeparamref name="T"/> or null if no result is available.</returns>
     Task<T?> ExecuteQuery<T>(
         IKustoQuery<T> query,
-        CancellationToken cancellationToken);
+        AtcQueryOptions? options = null,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Executes a Kusto query asynchronously using a script handler created by the factory, and returns a paginated result set.
@@ -42,5 +44,67 @@ public interface IKustoProcessor
         string? sessionId,
         int? pageSize,
         string? continuationToken,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Executes a streaming query and returns a result containing both the rows and optional frame data
+    /// (e.g. header, table schema, and completion summary).
+    /// </summary>
+    /// <typeparam name="T">The type to which each row is mapped.</typeparam>
+    /// <param name="query">The Kusto streaming query to execute.</param>
+    /// <param name="options">Optional streaming options. If null, default options are used.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>
+    /// A task representing the asynchronous operation. The task result contains a <see cref="StreamingQueryResult{T}"/>
+    /// with the rows and additional frame data, or null if no result is available.
+    /// </returns>
+    Task<StreamingQueryResult<T>?> ExecuteBufferedStreamingQuery<T>(
+        IKustoStreamingQuery<T> query,
+        AtcStreamingQueryOptions? options = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Executes a streaming query using the default streaming options and returns a result containing both
+    /// the rows and optional frame data (e.g. header, table schema, and completion summary).
+    /// </summary>
+    /// <typeparam name="T">The type to which each row is mapped.</typeparam>
+    /// <param name="query">The Kusto streaming query to execute.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>
+    /// A task representing the asynchronous operation. The task result contains a <see cref="StreamingQueryResult{T}"/>
+    /// with the rows and additional frame data, or null if no result is available.
+    /// </returns>
+    Task<StreamingQueryResult<T>?> ExecuteBufferedStreamingQuery<T>(
+        IKustoStreamingQuery<T> query,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Executes a streaming query and returns an asynchronous stream of rows.
+    /// This overload returns only the rows, without any additional frame data.
+    /// </summary>
+    /// <typeparam name="T">The type to which each row is mapped.</typeparam>
+    /// <param name="query">The Kusto streaming query to execute.</param>
+    /// <param name="options">Optional streaming options. If null, default options are used.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>
+    /// An asynchronous stream of rows mapped to type <typeparamref name="T"/>.
+    /// </returns>
+    IAsyncEnumerable<T> ExecuteStreamingQuery<T>(
+        IKustoStreamingQuery<T> query,
+        AtcStreamingQueryOptions? options = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Executes a streaming query and returns an asynchronous stream of rows.
+    /// This overload returns only the rows, without any additional frame data.
+    /// </summary>
+    /// <typeparam name="T">The type to which each row is mapped.</typeparam>
+    /// <param name="query">The Kusto streaming query to execute.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>
+    /// An asynchronous stream of rows mapped to type <typeparamref name="T"/>.
+    /// </returns>
+    IAsyncEnumerable<T> ExecuteStreamingQuery<T>(
+        IKustoStreamingQuery<T> query,
+        CancellationToken cancellationToken = default);
 }

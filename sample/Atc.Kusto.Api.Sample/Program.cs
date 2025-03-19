@@ -1,11 +1,22 @@
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.ConfigureAzureDataExplorer(o =>
-{
-    o.HostAddress = new Uri("https://help.kusto.windows.net/");
-    o.DatabaseName = "ContosoSales";
-    o.Credential = new DefaultAzureCredential();
-});
+builder.Services.ConfigureAzureDataExplorer(
+    o =>
+    {
+        o.HostAddress = new Uri("https://help.kusto.windows.net/");
+        o.DatabaseName = "ContosoSales";
+        o.Credential = new DefaultAzureCredential();
+    },
+    "ContosoSales");
+
+builder.Services.ConfigureAzureDataExplorer(
+    o =>
+    {
+        o.HostAddress = new Uri("https://help.kusto.windows.net/");
+        o.DatabaseName = "Samples";
+        o.Credential = new DefaultAzureCredential();
+    },
+    "Samples");
 
 builder.Services.AddAuthorization();
 
@@ -24,41 +35,129 @@ app.MapGet(
                 [FromHeader(Name = "x-client-session-id")] string? sessionId,
                 [FromHeader(Name = "x-pageSize")] int? pageSize,
                 [FromHeader(Name = "x-continuation-token")] string? continuationToken,
-                IKustoProcessor processor,
+                IKustoProcessorFactory processorFactory,
                 CancellationToken cancellationToken)
-            => await processor.ExecutePagedQuery(
-                new CustomersQuery(),
-                sessionId,
-                pageSize ?? 100,
-                continuationToken,
-                cancellationToken))
+            => await processorFactory
+                .Create("ContosoSales")
+                .ExecutePagedQuery(
+                    new CustomersQuery(),
+                    sessionId,
+                    pageSize ?? 100,
+                    continuationToken,
+                    cancellationToken))
     .WithName("GetCustomers")
+    .WithDescription("Get all customers")
     .WithOpenApi();
 
 app.MapGet(
         "/customers/{customerId}",
         async static (
-                long customerId,
-                IKustoProcessor processor,
-                CancellationToken cancellationToken)
-            => (IResult)(await processor.ExecuteQuery(
-                    new CustomersQuery(customerId),
-                    cancellationToken)
+            long customerId,
+            IKustoProcessorFactory processorFactory,
+            CancellationToken cancellationToken)
+            => (IResult)(await processorFactory.Create("ContosoSales")
+                    .ExecuteQuery(
+                        new CustomersQuery(customerId),
+                        cancellationToken: cancellationToken)
                 switch
                 {
                     [{ } customer] => TypedResults.Ok((object?)customer),
                     _ => TypedResults.NotFound(),
                 }))
     .WithName("GetCustomerById")
+    .WithDescription("Get customer by id")
     .WithOpenApi();
 
-app.MapGet("/customer-sales", (
-            IKustoProcessor processor,
+app.MapGet(
+        "/customers/sales",
+        (
+            IKustoProcessorFactory processorFactory,
             CancellationToken cancellationToken)
-        => processor.ExecuteQuery(
-            new CustomerSalesQuery(),
-            cancellationToken))
+            => processorFactory.Create("ContosoSales")
+                .ExecuteQuery(
+                    new CustomerSalesQuery(),
+                    new AtcQueryOptions
+                    {
+                        QueryTakeMaxRecords = 10,
+                        TruncationMaxRecords = 20,
+                    },
+                    cancellationToken: cancellationToken))
     .WithName("GetCustomerSales")
+    .WithDescription("Get summarized sales amounts per customer")
+    .WithOpenApi();
+
+app.MapGet(
+        "/customers/stream-with-streaming-query-result",
+        async static (
+            [FromHeader(Name = "x-client-session-id")] string? sessionId,
+            IKustoProcessorFactory processorFactory,
+            CancellationToken cancellationToken)
+            =>
+            {
+                var streamingQueryResult = await processorFactory.Create("ContosoSales")
+                    .ExecuteBufferedStreamingQuery(
+                        new CustomersStreamingQuery(),
+                        cancellationToken);
+
+                return TypedResults.Ok(streamingQueryResult);
+            })
+    .WithName("GetCustomersStreamWithStreamingQueryResult")
+    .WithDescription("Streaming customers with streaming query result")
+    .WithOpenApi();
+
+app.MapGet(
+        "/customers/stream",
+        (
+            [FromHeader(Name = "x-client-session-id")] string? sessionId,
+            IKustoProcessorFactory processorFactory,
+            CancellationToken cancellationToken)
+            => Task.FromResult(processorFactory.Create("ContosoSales")
+                .ExecuteStreamingQuery(
+                    new CustomersStreamingQuery(),
+                    cancellationToken)))
+    .WithName("GetCustomersStream")
+    .WithDescription("Streaming customers")
+    .WithOpenApi();
+
+app.MapGet(
+        "/nyctaxitrips/stream-with-streaming-query-result",
+        async static (
+            [FromHeader(Name = "x-client-session-id")] string? sessionId,
+            IKustoProcessorFactory processorFactory,
+            CancellationToken cancellationToken)
+            =>
+            {
+                var streamingQueryResult = await processorFactory.Create("Samples")
+                    .ExecuteBufferedStreamingQuery(
+                        new NycTaxiTripsStreamingQuery(),
+                        new AtcStreamingQueryOptions
+                        {
+                            NoTruncation = true,
+                        },
+                        cancellationToken);
+
+                return TypedResults.Ok(streamingQueryResult);
+            })
+    .WithName("GetNycTaxiTripsStreamWithStreamingQueryResult")
+    .WithDescription("Streaming nyc taxi trips with streaming query result")
+    .WithOpenApi();
+
+app.MapGet(
+        "/nyctaxitrips/stream",
+        (
+            [FromHeader(Name = "x-client-session-id")] string? sessionId,
+            IKustoProcessorFactory processorFactory,
+            CancellationToken cancellationToken)
+            => Task.FromResult(processorFactory.Create("Samples")
+                .ExecuteStreamingQuery(
+                    new NycTaxiTripsStreamingQuery(),
+                    new AtcStreamingQueryOptions
+                    {
+                        NoTruncation = true,
+                    },
+                    cancellationToken)))
+    .WithName("GetNycTaxiTripsStream")
+    .WithDescription("Streaming nyc taxi trips")
     .WithOpenApi();
 
 await app.RunAsync();
