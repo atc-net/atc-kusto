@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.1.0](https://github.com/atc-net/atc-kusto/compare/v2.0.1...v2.1.0) (2025-03-19)
+
+
+### Features
+
+* extend ServiceCollectionExtensions for ConfigureAzureDataExplorer to take optional configurationName ([be230ba](https://github.com/atc-net/atc-kusto/commit/be230ba1f391d572830b441181093ebace724a75))
+* introduce KustoClientProvider, which provides functionality to retrieve Kusto clients for query executions or admin operations based on optional connectionName and databaseName ([326865e](https://github.com/atc-net/atc-kusto/commit/326865e581900208c03c2c76e1be61fe6de9bc9c))
+* introduce KustoProcessorFactory for creating instances of kustoprocessor configurable with specified connectionName and/or databaseName ([0afe917](https://github.com/atc-net/atc-kusto/commit/0afe91776dcc52591443661fc502874d313ccc4a))
+* make KustoScript more extensible by marking GetQueryText and GetParameters as virtual ([9d1e7f0](https://github.com/atc-net/atc-kusto/commit/9d1e7f07f6cf72baddc423ded10b4251c5974373))
+
 ## [2.0.1](https://github.com/atc-net/atc-kusto/compare/v2.0.0...v2.0.1) (2025-01-26)
 
 
