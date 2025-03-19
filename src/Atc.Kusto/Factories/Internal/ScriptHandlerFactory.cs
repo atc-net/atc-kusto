@@ -4,31 +4,28 @@ namespace Atc.Kusto.Factories.Internal;
 internal sealed class ScriptHandlerFactory : IScriptHandlerFactory
 {
     private readonly IQueryIdProvider queryIdProvider;
-    private readonly ICslQueryProvider queryProvider;
-    private readonly ICslAdminProvider adminProvider;
+    private readonly IKustoClientProvider clientProvider;
 
     public ScriptHandlerFactory(
         IQueryIdProvider queryIdProvider,
-        ICslQueryProvider queryProvider,
-        ICslAdminProvider adminProvider)
+        IKustoClientProvider clientProvider)
     {
         this.queryIdProvider = queryIdProvider;
-        this.queryProvider = queryProvider;
-        this.adminProvider = adminProvider;
+        this.clientProvider = clientProvider;
     }
 
     /// <inheritdoc />
     public IScriptHandler Create(
         IKustoCommand command)
         => new SimpleCommandHandler(
-            adminProvider,
+            clientProvider.GetAdminClient(),
             command);
 
     /// <inheritdoc />
     public IScriptHandler<T> Create<T>(
         IKustoQuery<T> query)
         => new SimpleQueryHandler<T>(
-            queryProvider,
+            clientProvider.GetQueryClient(),
             query);
 
     /// <inheritdoc />
@@ -40,12 +37,12 @@ internal sealed class ScriptHandlerFactory : IScriptHandlerFactory
         => continuationToken is null
             ? new NewPagedStoredQueryHandler<T>(
                 queryIdProvider,
-                adminProvider,
+                clientProvider.GetAdminClient(),
                 query,
                 sessionId,
                 pageSize)
             : new ExistingPagedStoredQueryHandler<T>(
-                queryProvider,
+                clientProvider.GetQueryClient(),
                 query,
                 pageSize,
                 continuationToken);

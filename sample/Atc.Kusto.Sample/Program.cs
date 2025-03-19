@@ -2,7 +2,7 @@ var serviceCollection = new ServiceCollection();
 
 serviceCollection.ConfigureAzureDataExplorer(o =>
 {
-    o.HostAddress = "https://help.kusto.windows.net/";
+    o.HostAddress = new Uri("https://help.kusto.windows.net/");
     o.DatabaseName = "ContosoSales";
     o.Credential = new DefaultAzureCredential();
 });
