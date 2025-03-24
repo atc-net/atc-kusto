@@ -13,9 +13,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Atc" Version="2.0.525" />
-    <PackageReference Include="Microsoft.Azure.Kusto.Data" Version="12.2.8" />
-    <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.0" />
+    <PackageReference Include="Atc" Version="2.0.552" />
+    <PackageReference Include="Microsoft.Azure.Kusto.Data" Version="13.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.3" />
   </ItemGroup>
 
   <ItemGroup>
