@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.1](https://github.com/atc-net/atc-kusto/compare/v2.2.0...v2.2.1) (2025-03-25)
+
+
+### Bug Fixes
+
+* ensure IKustoClientProvider is public ([3301efe](https://github.com/atc-net/atc-kusto/commit/3301efea962ac05fe06ff0926abcadb02113cc0f))
+
 ## [2.2.0](https://github.com/atc-net/atc-kusto/compare/v2.1.0...v2.2.0) (2025-03-25)
 
 
