@@ -20,7 +20,13 @@ public sealed class ExistingPagedStoredQueryHandlerTests
         itemsReturned = fixture.Create<int>();
         var continuationToken = $"{queryId};{itemsReturned}";
 
-        sut = new ExistingPagedStoredQueryHandler<string>(queryProvider, query, pageSize, continuationToken);
+        sut = new ExistingPagedStoredQueryHandler<string>(
+            new NullLogger<ExistingPagedStoredQueryHandler<string>>(),
+            ResiliencePipeline.Empty,
+            queryProvider,
+            query,
+            pageSize,
+            continuationToken);
     }
 
     [Theory, AutoNSubstituteData]
@@ -84,7 +90,13 @@ public sealed class ExistingPagedStoredQueryHandlerTests
         CancellationToken cancellationToken)
     {
         // Arrange
-        var handler = new ExistingPagedStoredQueryHandler<string>(queryProvider, query, pageSize, invalidContinuationToken);
+        var handler = new ExistingPagedStoredQueryHandler<string>(
+            new NullLogger<ExistingPagedStoredQueryHandler<string>>(),
+            ResiliencePipeline.Empty,
+            queryProvider,
+            query,
+            pageSize,
+            invalidContinuationToken);
 
         // Act
         var result = await handler.Execute(cancellationToken);

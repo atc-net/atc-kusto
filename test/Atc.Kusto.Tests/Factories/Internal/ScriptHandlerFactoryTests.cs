@@ -2,9 +2,14 @@ namespace Atc.Kusto.Tests.Factories.Internal;
 
 public sealed class ScriptHandlerFactoryTests
 {
+    private readonly ScriptHandlerFactory sut = new(
+        NullLoggerFactory.Instance,
+        ResiliencePipeline.Empty,
+        Substitute.For<IQueryIdProvider>(),
+        Substitute.For<IKustoClientProvider>());
+
     [Theory, AutoNSubstituteData]
     internal void Create_Command_ShouldReturnSimpleCommandHandler(
-        ScriptHandlerFactory sut,
         IKustoCommand command)
     {
         // Act
@@ -17,7 +22,6 @@ public sealed class ScriptHandlerFactoryTests
 
     [Theory, AutoNSubstituteData]
     internal void Create_Command_ShouldReturnSimpleCommandHandler2(
-        ScriptHandlerFactory sut,
         IKustoCommand command)
         => sut.Create(command)
             .Should().NotBeNull()
@@ -25,7 +29,6 @@ public sealed class ScriptHandlerFactoryTests
 
     [Theory, AutoNSubstituteData]
     internal void Create_Query_ShouldReturnSimpleQueryHandler(
-        ScriptHandlerFactory sut,
         IKustoQuery<int> query)
     {
         // Act
@@ -38,7 +41,6 @@ public sealed class ScriptHandlerFactoryTests
 
     [Theory, AutoNSubstituteData]
     internal void Create_PagedResult_ShouldReturnNewPagedStoredQueryHandler_WhenContinuationTokenIsNull(
-        ScriptHandlerFactory sut,
         IKustoQuery<IReadOnlyList<int>> query,
         string sessionId,
         int pageSize)
@@ -53,7 +55,6 @@ public sealed class ScriptHandlerFactoryTests
 
     [Theory, AutoNSubstituteData]
     internal void Create_PagedResult_ShouldReturnExistingPagedStoredQueryHandler_WhenContinuationTokenIsNotNull(
-        ScriptHandlerFactory sut,
         IKustoQuery<IReadOnlyList<int>> query,
         string sessionId,
         int pageSize,

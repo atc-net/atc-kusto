@@ -7,19 +7,24 @@ namespace Atc.Kusto.Handlers.Internal;
 /// ]]>
 /// </summary>
 /// <typeparam name="T">The type of items in the result set.</typeparam>
-internal sealed class ExistingPagedStoredQueryHandler<T> : IScriptHandler<PagedResult<T>>
+internal sealed partial class ExistingPagedStoredQueryHandler<T> : IScriptHandler<PagedResult<T>>
 {
+    private readonly ResiliencePipeline resiliencePipeline;
     private readonly ICslQueryProvider queryProvider;
     private readonly IKustoQuery<IReadOnlyList<T>> query;
     private readonly int pageSize;
     private readonly string continuationToken;
 
     public ExistingPagedStoredQueryHandler(
+        ILogger<ExistingPagedStoredQueryHandler<T>> logger,
+        [FromKeyedServices(Constants.ResiliencePipelineKey)] ResiliencePipeline resiliencePipeline,
         ICslQueryProvider queryProvider,
         IKustoQuery<IReadOnlyList<T>> query,
         int pageSize,
         string continuationToken)
     {
+        this.logger = logger;
+        this.resiliencePipeline = resiliencePipeline;
         this.queryProvider = queryProvider;
         this.query = query;
         this.pageSize = pageSize;
@@ -57,28 +62,60 @@ internal sealed class ExistingPagedStoredQueryHandler<T> : IScriptHandler<PagedR
 
         try
         {
-            using var reader = await queryProvider
-                .ExecuteQueryAsync(
-                    databaseName: null,
-                    queryText,
-                    query.GetClientRequestProperties(),
-                    cancellationToken);
+            return await resiliencePipeline.ExecuteAsync(
+                async context =>
+                {
+                    using var reader = await queryProvider
+                        .ExecuteQueryAsync(
+                            databaseName: null,
+                            queryText,
+                            query.GetClientRequestProperties(),
+                            context);
 
-            var items = query.ReadResult(reader);
-            if (items is null)
-            {
-                return null;
-            }
+                    var items = query.ReadResult(reader);
+                    if (items is null)
+                    {
+                        return null;
+                    }
 
-            var newContinuationToken = items.Count < pageSize
-                ? null
-                : $"{queryId};{itemsReturned + items.Count}";
+                    var newContinuationToken = items.Count < pageSize
+                        ? null
+                        : $"{queryId};{itemsReturned + items.Count}";
 
-            return new PagedResult<T>(items, newContinuationToken);
+                    return new PagedResult<T>(items, newContinuationToken);
+                },
+                cancellationToken);
         }
-        catch (SemanticException)
+        catch (KustoServicePartialQueryFailureException ex)
         {
-            // TODO: Log error
+            LogKustoServicePartialQueryFailureException(
+                ex,
+                ex.ClientRequestId,
+                ex.Query);
+
+            return null;
+        }
+        catch (KustoServiceException ex)
+        {
+            LogKustoServiceException(
+                ex,
+                ex.ClientRequestId);
+
+            return null;
+        }
+        catch (SemanticException ex)
+        {
+            LogSemanticException(
+                ex,
+                ex.ClientRequestId,
+                ex.Text,
+                ex.SemanticErrors);
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            LogUnhandledException(ex);
             return null;
         }
     }

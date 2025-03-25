@@ -2,12 +2,26 @@ namespace Atc.Kusto.Tests.Handlers.Internal;
 
 public sealed class SimpleQueryHandlerTests
 {
+    private readonly ICslQueryProvider queryProvider;
+    private readonly IKustoQuery<string> query;
+
+    private readonly SimpleQueryHandler<string> sut;
+
+    public SimpleQueryHandlerTests()
+    {
+        queryProvider = Substitute.For<ICslQueryProvider>();
+        query = Substitute.For<IKustoQuery<string>>();
+
+        sut = new SimpleQueryHandler<string>(
+            new NullLogger<SimpleQueryHandler<string>>(),
+            ResiliencePipeline.Empty,
+            queryProvider,
+            query);
+    }
+
     [Theory, AutoNSubstituteData]
     internal async Task Execute_ShouldReturnResult_WhenQueryExecutesSuccessfully(
-        [Frozen] ICslQueryProvider queryProvider,
-        [Frozen] IKustoQuery<string> query,
         [Frozen] IDataReader reader,
-        SimpleQueryHandler<string> sut,
         string queryText,
         Dictionary<string, object> parameters,
         string expectedResult,
@@ -54,10 +68,7 @@ public sealed class SimpleQueryHandlerTests
 
     [Theory, AutoNSubstituteData]
     internal async Task Execute_ShouldReturnNull_WhenQueryResultIsNull(
-        [Frozen] ICslQueryProvider queryProvider,
-        [Frozen] IKustoQuery<string?> query,
         [Frozen] IDataReader reader,
-        SimpleQueryHandler<string?> sut,
         CancellationToken cancellationToken)
     {
         // Arrange

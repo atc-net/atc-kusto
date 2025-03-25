@@ -3,6 +3,8 @@ namespace Atc.Kusto;
 
 public static class ServiceCollectionExtensions
 {
+    private const int MaxRetryAttempts = 3;
+
     /// <summary>
     /// Configures the Azure Data Explorer (Kusto) services within the specified <see cref="IServiceCollection"/>.
     /// </summary>
@@ -109,10 +111,49 @@ public static class ServiceCollectionExtensions
 
     private static IServiceCollection AddKustoServices(
         this IServiceCollection services)
-        => services
+    {
+        services.AddLogging();
+
+        services.AddKeyedSingleton(Constants.ResiliencePipelineKey, ResiliencePipelineImplementationFactory);
+
+        return services
             .AddSingleton<IKustoClientProvider, KustoClientProvider>()
             .AddSingleton<IQueryIdProvider, QueryIdProvider>()
             .AddSingleton<IScriptHandlerFactory, ScriptHandlerFactory>()
             .AddSingleton<IKustoProcessorFactory, KustoProcessorFactory>()
             .AddSingleton(s => s.GetRequiredService<IKustoProcessorFactory>().Create());
+
+        ResiliencePipeline ResiliencePipelineImplementationFactory(
+            IServiceProvider serviceProvider,
+            object? key)
+        {
+            var logger = serviceProvider.GetRequiredService<ILogger<ResiliencePipeline>>();
+            var retryStrategyOptions = new RetryStrategyOptions
+            {
+                ShouldHandle = new PredicateBuilder()
+                    .Handle<KustoServicePartialQueryFailureException>()
+                    .Handle<KustoServiceException>()
+                    .Handle<Exception>(ex => ex is not OperationCanceledException),
+                BackoffType = DelayBackoffType.Exponential,
+                MaxRetryAttempts = MaxRetryAttempts,
+                Delay = TimeSpan.FromSeconds(3),
+                OnRetry = args =>
+                {
+                    var errorMessage = args.Outcome.Exception?.GetLastInnerMessage() ?? "Unknown Exception";
+
+                    logger.LogRetryWarning(
+                        errorMessage,
+                        args.RetryDelay.TotalSeconds,
+                        args.AttemptNumber + 1,
+                        MaxRetryAttempts);
+
+                    return ValueTask.CompletedTask;
+                },
+            };
+
+            return new ResiliencePipelineBuilder()
+                .AddRetry(retryStrategyOptions)
+                .Build();
+        }
+    }
 }
