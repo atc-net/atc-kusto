@@ -16,5 +16,7 @@ global using Azure.Identity;
 global using Kusto.Cloud.Platform.Utils;
 global using Kusto.Data.Common;
 global using Kusto.Data.Exceptions;
+global using Microsoft.Extensions.Logging.Abstractions;
 global using Microsoft.Extensions.Options;
 global using NSubstitute.ExceptionExtensions;
+global using Polly;

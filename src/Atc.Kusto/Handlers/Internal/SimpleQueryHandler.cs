@@ -4,15 +4,20 @@ namespace Atc.Kusto.Handlers.Internal;
 /// A simple query handler that executes a Kusto query and returns a result of type <typeparamref name="T"/>.
 /// </summary>
 /// <typeparam name="T">The type of the result returned by the query.</typeparam>
-internal sealed class SimpleQueryHandler<T> : IScriptHandler<T>
+internal sealed partial class SimpleQueryHandler<T> : IScriptHandler<T>
 {
+    private readonly ResiliencePipeline resiliencePipeline;
     private readonly ICslQueryProvider queryProvider;
     private readonly IKustoQuery<T> query;
 
     public SimpleQueryHandler(
+        ILogger<SimpleQueryHandler<T>> logger,
+        [FromKeyedServices(Constants.ResiliencePipelineKey)] ResiliencePipeline resiliencePipeline,
         ICslQueryProvider queryProvider,
         IKustoQuery<T> query)
     {
+        this.logger = logger;
+        this.resiliencePipeline = resiliencePipeline;
         this.queryProvider = queryProvider;
         this.query = query;
     }
@@ -27,13 +32,53 @@ internal sealed class SimpleQueryHandler<T> : IScriptHandler<T>
     /// </returns>
     public async Task<T?> Execute(CancellationToken cancellationToken)
     {
-        using var reader = await queryProvider
-            .ExecuteQueryAsync(
-                databaseName: null,
-                query.GetQueryText(),
-                query.GetClientRequestProperties(),
-                cancellationToken);
+        try
+        {
+            return await resiliencePipeline.ExecuteAsync(
+                async context =>
+                {
+                    using var reader = await queryProvider
+                        .ExecuteQueryAsync(
+                            databaseName: null,
+                            query.GetQueryText(),
+                            query.GetClientRequestProperties(),
+                            context);
 
-        return query.ReadResult(reader);
+                    return query.ReadResult(reader);
+                },
+                cancellationToken);
+        }
+        catch (KustoServicePartialQueryFailureException ex)
+        {
+            LogKustoServicePartialQueryFailureException(
+                ex,
+                ex.ClientRequestId,
+                ex.Query);
+
+            return default;
+        }
+        catch (KustoServiceException ex)
+        {
+            LogKustoServiceException(
+                ex,
+                ex.ClientRequestId);
+
+            return default;
+        }
+        catch (SemanticException ex)
+        {
+            LogSemanticException(
+                ex,
+                ex.ClientRequestId,
+                ex.Text,
+                ex.SemanticErrors);
+
+            return default;
+        }
+        catch (Exception ex)
+        {
+            LogUnhandledException(ex);
+            return default;
+        }
     }
 }

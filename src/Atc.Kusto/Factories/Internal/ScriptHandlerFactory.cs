@@ -3,13 +3,19 @@ namespace Atc.Kusto.Factories.Internal;
 /// <inheritdoc />
 internal sealed class ScriptHandlerFactory : IScriptHandlerFactory
 {
+    private readonly ILoggerFactory loggerFactory;
+    private readonly ResiliencePipeline resiliencePipeline;
     private readonly IQueryIdProvider queryIdProvider;
     private readonly IKustoClientProvider clientProvider;
 
     public ScriptHandlerFactory(
+        ILoggerFactory loggerFactory,
+        [FromKeyedServices(Constants.ResiliencePipelineKey)] ResiliencePipeline resiliencePipeline,
         IQueryIdProvider queryIdProvider,
         IKustoClientProvider clientProvider)
     {
+        this.loggerFactory = loggerFactory;
+        this.resiliencePipeline = resiliencePipeline;
         this.queryIdProvider = queryIdProvider;
         this.clientProvider = clientProvider;
     }
@@ -31,6 +37,8 @@ internal sealed class ScriptHandlerFactory : IScriptHandlerFactory
         string? connectionName = null,
         string? databaseName = null)
         => new SimpleQueryHandler<T>(
+            loggerFactory.CreateLogger<SimpleQueryHandler<T>>(),
+            resiliencePipeline,
             clientProvider.GetQueryClient(
                 connectionName,
                 databaseName),
@@ -54,6 +62,8 @@ internal sealed class ScriptHandlerFactory : IScriptHandlerFactory
                 sessionId,
                 pageSize)
             : new ExistingPagedStoredQueryHandler<T>(
+                loggerFactory.CreateLogger<ExistingPagedStoredQueryHandler<T>>(),
+                resiliencePipeline,
                 clientProvider.GetQueryClient(
                     connectionName,
                     databaseName),
