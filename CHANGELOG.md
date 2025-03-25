@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.0](https://github.com/atc-net/atc-kusto/compare/v2.1.0...v2.2.0) (2025-03-25)
+
+
+### Features
+
+* add ResiliencePipeline to ExistingPagedStoredQueryHandler and SimpleQueryHandler ([598ed66](https://github.com/atc-net/atc-kusto/commit/598ed6626f7c642c1840338f763873a60e82d76c))
+
 ## [2.1.0](https://github.com/atc-net/atc-kusto/compare/v2.0.1...v2.1.0) (2025-03-19)
 
 
