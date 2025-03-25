@@ -5,7 +5,7 @@ namespace Atc.Kusto.Providers.Internal;
 /// This interface defines methods to obtain an instance of <see cref="ICslAdminProvider"/> and <see cref="ICslQueryProvider"/>
 /// based on optional connection name and database name parameters.
 /// </summary>
-internal interface IKustoClientProvider
+public interface IKustoClientProvider
 {
     /// <summary>
     /// Retrieves an instance of <see cref="ICslAdminProvider"/> for executing administrative operations against Kusto.

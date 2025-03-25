@@ -1,6 +1,6 @@
 namespace Atc.Kusto.Providers.Internal;
 
-internal sealed class KustoClientProvider : IDisposable, IKustoClientProvider
+public sealed class KustoClientProvider : IDisposable, IKustoClientProvider
 {
     private readonly ConcurrentDictionary<ClientCacheKey, ICslQueryProvider> queryClients = new();
     private readonly ConcurrentDictionary<ClientCacheKey, ICslAdminProvider> adminClients = new();
