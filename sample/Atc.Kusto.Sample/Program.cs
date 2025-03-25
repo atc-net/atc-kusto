@@ -1,5 +1,15 @@
 var serviceCollection = new ServiceCollection();
 
+serviceCollection.AddLogging(builder =>
+{
+    builder.AddConsole(options =>
+    {
+        options.FormatterName = "singleline";
+    });
+
+    builder.AddConsoleFormatter<SingleLineConsoleFormatter, ConsoleFormatterOptions>();
+});
+
 serviceCollection.ConfigureAzureDataExplorer(
     o =>
     {
@@ -19,47 +29,56 @@ serviceCollection.ConfigureAzureDataExplorer(
     "Samples");
 
 var serviceProvider = serviceCollection.BuildServiceProvider();
+
+var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
+
 var kustoProcessorFactory = serviceProvider.GetRequiredService<IKustoProcessorFactory>();
 
 var contosoSalesKustoProcessor = kustoProcessorFactory.Create("ContosoSales");
 var samplesKustoProcessor = kustoProcessorFactory.Create("Samples");
 
-Console.WriteLine("Querying by existing customer");
+logger.LogInformation("Querying by existing customer");
 var customerByIdQueryExisting = new CustomerByIdQuery(145);
 var customerByIdQueryResult = await contosoSalesKustoProcessor.ExecuteQuery(customerByIdQueryExisting, CancellationToken.None);
-Console.WriteLine($"\tCustomer Name for Id 145: {customerByIdQueryResult?.FirstOrDefault()?.FirstName ?? "Unknown"}");
+logger.LogInformation("\tCustomer Name for Id 145: {CustomerName}", customerByIdQueryResult?.FirstOrDefault()?.FirstName ?? "Unknown");
 
-Console.WriteLine("Querying by non-existing customer");
+logger.LogInformation("Querying by non-existing customer");
 var customerByIdQueryNonExisting = new CustomerByIdQuery(long.MaxValue);
 var customerByIdQueryNonExistingResult = await contosoSalesKustoProcessor.ExecuteQuery(customerByIdQueryNonExisting, CancellationToken.None);
-Console.WriteLine(customerByIdQueryNonExistingResult?.Length > 1 ? "\tIncorrectly found non-existing customer" : "\tDid not find non-existing customer as expected");
+logger.LogInformation(customerByIdQueryNonExistingResult?.Length > 1
+    ? "\tIncorrectly found non-existing customer"
+    : "\tDid not find non-existing customer as expected");
 
-Console.WriteLine("Querying for customer genders and counts");
+logger.LogInformation("Querying for customer genders and counts");
 var customersSplitByGenderQueryResult = await contosoSalesKustoProcessor.ExecuteQuery(new CustomersSplitByGenderQuery(), CancellationToken.None);
 foreach (var customerGenderCount in customersSplitByGenderQueryResult!.Counts)
 {
-    Console.WriteLine($"\tFound {customerGenderCount.Count} {customerGenderCount.Gender}");
+    logger.LogInformation("\tFound {Count} {Gender}", customerGenderCount.Count, customerGenderCount.Gender);
 }
 
-Console.WriteLine("Querying for customer sales");
+logger.LogInformation("Querying for customer sales");
 var customersSalesQueryResult = await contosoSalesKustoProcessor.ExecuteQuery(new CustomerSalesQuery(), CancellationToken.None);
 var customerSales = customersSalesQueryResult!.SingleOrDefault(x => x.CustomerKey == 145);
 if (customerSales is not null)
 {
-    Console.WriteLine($"\tFound sales amount {customerSales.SalesAmount} for customer 145.");
+    logger.LogInformation("\tFound sales amount {SalesAmount} for customer 145.", customerSales.SalesAmount);
 }
 
-Console.WriteLine("Querying storm events");
+logger.LogInformation("Querying storm events");
 var stormEventsResult = await samplesKustoProcessor.ExecuteQuery(new StormEventsQuery(), CancellationToken.None);
 if (stormEventsResult is not null)
 {
-    Console.WriteLine($"\tFound {stormEventsResult.Length} storm events.");
+    logger.LogInformation("\tFound {Count} storm events.", stormEventsResult.Length);
 
     foreach (var stormEvent in stormEventsResult)
     {
-        Console.WriteLine($"\t{stormEvent.StartTime.ToString(CultureInfo.InvariantCulture)}\t{stormEvent.EventType,-20}\t{stormEvent.State}");
+        logger.LogInformation(
+            "\t{StartTime}\t{EventType,-20}\t{State}",
+            stormEvent.StartTime.ToString(CultureInfo.InvariantCulture),
+            stormEvent.EventType,
+            stormEvent.State);
     }
 }
 
-Console.WriteLine("Press any key to exit");
+logger.LogInformation("Press any key to exit");
 Console.ReadLine();
