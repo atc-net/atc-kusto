@@ -19,7 +19,7 @@ public sealed class SimpleQueryHandlerTests
 
         queryProvider
             .ExecuteQueryAsync(
-                databaseName: default,
+                databaseName: null,
                 query.GetQueryText(),
                 query.GetClientRequestProperties(),
                 cancellationToken)
@@ -40,7 +40,7 @@ public sealed class SimpleQueryHandlerTests
         _ = queryProvider
             .Received(1)
             .ExecuteQueryAsync(
-                databaseName: default,
+                databaseName: null,
                 query.GetQueryText(),
                 Arg.Is<ClientRequestProperties>(p
                         => p.ClientRequestId != null &&
@@ -63,7 +63,7 @@ public sealed class SimpleQueryHandlerTests
         // Arrange
         queryProvider
             .ExecuteQueryAsync(
-                databaseName: default,
+                databaseName: null,
                 query.GetQueryText(),
                 query.GetClientRequestProperties(),
                 cancellationToken)
@@ -82,7 +82,7 @@ public sealed class SimpleQueryHandlerTests
         _ = queryProvider
             .Received(1)
             .ExecuteQueryAsync(
-                databaseName: default,
+                databaseName: null,
                 query.GetQueryText(),
                 Arg.Is<ClientRequestProperties>(p
                     => p.ClientRequestId != null &&
