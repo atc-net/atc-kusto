@@ -46,16 +46,20 @@ public sealed class KustoProcessor : IKustoProcessor
     public async Task<PagedResult<T>?> ExecutePagedQuery<T>(
         IKustoQuery<IReadOnlyList<T>> query,
         string? sessionId,
-        int pageSize,
+        int? pageSize,
         string? continuationToken,
         CancellationToken cancellationToken)
-        => await factory
-            .Create(
-                query,
-                sessionId,
-                pageSize,
-                continuationToken,
-                ConnectionName,
-                DatabaseName)
-            .Execute(cancellationToken);
+        => pageSize is { } pageSizeValue
+            ? await factory
+                .Create(
+                    query,
+                    sessionId,
+                    pageSizeValue,
+                    continuationToken,
+                    ConnectionName,
+                    DatabaseName)
+                .Execute(cancellationToken)
+            : new PagedResult<T>(
+                Items: await ExecuteQuery(query, cancellationToken) ?? [],
+                ContinuationToken: null);
 }
