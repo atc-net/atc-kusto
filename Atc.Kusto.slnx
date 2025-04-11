@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/docs/">
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/sample/">
+    <Project Path="sample/Atc.Kusto.Api.Client.Sample/Atc.Kusto.Api.Client.Sample.csproj" />
+    <Project Path="sample/Atc.Kusto.Api.Sample/Atc.Kusto.Api.Sample.csproj" />
+    <Project Path="sample/Atc.Kusto.Sample/Atc.Kusto.Sample.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Atc.Kusto/Atc.Kusto.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/Atc.Kusto.Tests/Atc.Kusto.Tests.csproj" />
+  </Folder>
+</Solution>
