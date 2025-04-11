@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.0](https://github.com/atc-net/atc-kusto/compare/v2.2.1...v2.3.0) (2025-04-11)
+
+
+### Features
+
+* disable pagination when no pageSize is specified ([b60c64c](https://github.com/atc-net/atc-kusto/commit/b60c64c921e8089b89f51a5cf9ba9b0df1cd4bd4))
+
 ## [2.2.1](https://github.com/atc-net/atc-kusto/compare/v2.2.0...v2.2.1) (2025-03-25)
 
 
