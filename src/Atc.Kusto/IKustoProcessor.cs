@@ -40,7 +40,7 @@ public interface IKustoProcessor
     Task<PagedResult<T>?> ExecutePagedQuery<T>(
         IKustoQuery<IReadOnlyList<T>> query,
         string? sessionId,
-        int pageSize,
+        int? pageSize,
         string? continuationToken,
         CancellationToken cancellationToken);
 }
