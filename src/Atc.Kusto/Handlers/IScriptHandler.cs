@@ -12,8 +12,7 @@ public interface IScriptHandler<T>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task that represents the asynchronous operation.
     /// The task result contains the script's result of type <typeparamref name="T"/> or null if the result is not available.</returns>
-    Task<T?> Execute(
-        CancellationToken cancellationToken);
+    Task<T?> Execute(CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -26,6 +25,5 @@ public interface IScriptHandler
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
-    Task Execute(
-        CancellationToken cancellationToken);
+    Task Execute(CancellationToken cancellationToken);
 }
