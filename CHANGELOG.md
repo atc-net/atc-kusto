@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.1](https://github.com/atc-net/atc-kusto/compare/v2.4.0...v2.4.1) (2025-05-26)
+
+
+### Bug Fixes
+
+* ensure KustoProcessor has an overload for ExecuteQuery without QueryOptions ([e9e0e0b](https://github.com/atc-net/atc-kusto/commit/e9e0e0bdb380b50358ad2cb1d90a9f0d76ccc870))
+
 ## [2.4.0](https://github.com/atc-net/atc-kusto/compare/v2.3.0...v2.4.0) (2025-05-23)
 
 
