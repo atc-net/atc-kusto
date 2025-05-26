@@ -32,6 +32,15 @@ public sealed class KustoProcessor : IKustoProcessor
             .Execute(cancellationToken);
 
     /// <inheritdoc />
+    public Task<T?> ExecuteQuery<T>(
+        IKustoQuery<T> query,
+        CancellationToken cancellationToken = default)
+        => ExecuteQuery(
+            query,
+            options: null,
+            cancellationToken);
+
+    /// <inheritdoc />
     public async Task<T?> ExecuteQuery<T>(
         IKustoQuery<T> query,
         AtcQueryOptions? options = null,

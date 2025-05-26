@@ -20,6 +20,18 @@ public interface IKustoProcessor
     /// </summary>
     /// <typeparam name="T">The type of the result returned by the query.</typeparam>
     /// <param name="query">The Kusto query to be executed.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A task representing the asynchronous operation.
+    /// The task result contains the query result of type <typeparamref name="T"/> or null if no result is available.</returns>
+    Task<T?> ExecuteQuery<T>(
+        IKustoQuery<T> query,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Executes a Kusto query asynchronously using a script handler created by the factory, and returns the result of type <typeparamref name="T"/>.
+    /// </summary>
+    /// <typeparam name="T">The type of the result returned by the query.</typeparam>
+    /// <param name="query">The Kusto query to be executed.</param>
     /// <param name="options">Optional streaming options. If null, default options are used.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation.
