@@ -44,6 +44,16 @@ public sealed class KustoClientProvider : IDisposable, IKustoClientProvider
                     .WithAadAzureTokenCredentialsAuthentication(cred),
             { HostAddress: { } host, DatabaseName: { } db } =>
                 new KustoConnectionStringBuilder(host.AbsoluteUri, clientCacheKey.DatabaseName ?? db),
+            { ConnectionString: { } cs, DatabaseName: { } db, Credential: { } cred }
+                => new KustoConnectionStringBuilder($"{cs};Database={db}")
+                    .WithAadAzureTokenCredentialsAuthentication(cred),
+            { ConnectionString: { } cs, DatabaseName: { } db }
+                => new KustoConnectionStringBuilder($"{cs};Database={db}"),
+            { ConnectionString: { } cs, Credential: { } cred }
+                => new KustoConnectionStringBuilder(cs)
+                    .WithAadAzureTokenCredentialsAuthentication(cred),
+            { ConnectionString: { } cs }
+                => new KustoConnectionStringBuilder(cs),
             _ => throw new InvalidOperationException(
                 $"Missing configuration for kusto connection `{clientCacheKey.ConnectionName}`"),
         };

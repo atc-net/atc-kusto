@@ -148,6 +148,84 @@ public sealed class KustoClientProviderTests
     }
 
     [Theory, AutoNSubstituteDataWithAtcKustoOptions(withCredential: true)]
+    internal void GetQueryClient_Returns_Client_With_ConnectionString_And_Database_With_Credential(
+        [Frozen] IOptionsMonitor<AtcKustoOptions> monitor,
+        AtcKustoOptions options,
+        KustoClientProvider sut)
+    {
+        // Arrange
+        options.HostAddress = null;
+        options.ConnectionString = $"https://{Guid.NewGuid():N}.kusto.windows.net";
+        monitor.Get(null).Returns(options);
+
+        // Act
+        var client = sut.GetQueryClient();
+
+        // Assert
+        Assert.NotNull(client);
+        Assert.Equal(options.DatabaseName, client.DefaultDatabaseName);
+    }
+
+    [Theory, AutoNSubstituteDataWithAtcKustoOptions(withCredential: false)]
+    internal void GetQueryClient_Returns_Client_With_ConnectionString_And_Database_Without_Credential(
+        [Frozen] IOptionsMonitor<AtcKustoOptions> monitor,
+        AtcKustoOptions options,
+        KustoClientProvider sut)
+    {
+        // Arrange
+        options.HostAddress = null;
+        options.ConnectionString = $"https://{Guid.NewGuid():N}.kusto.windows.net";
+        monitor.Get(null).Returns(options);
+
+        // Act
+        var client = sut.GetQueryClient();
+
+        // Assert
+        Assert.NotNull(client);
+        Assert.Equal(options.DatabaseName, client.DefaultDatabaseName);
+    }
+
+    [Theory, AutoNSubstituteDataWithAtcKustoOptions(withCredential: true)]
+    internal void GetQueryClient_Returns_Client_With_ConnectionString_With_Credential(
+        [Frozen] IOptionsMonitor<AtcKustoOptions> monitor,
+        AtcKustoOptions options,
+        KustoClientProvider sut)
+    {
+        // Arrange
+        options.HostAddress = null;
+        options.ConnectionString = $"https://{Guid.NewGuid():N}.kusto.windows.net";
+        options.DatabaseName = null;
+        monitor.Get(null).Returns(options);
+
+        // Act
+        var client = sut.GetQueryClient();
+
+        // Assert
+        Assert.NotNull(client);
+        Assert.Equal("NetDefaultDB", client.DefaultDatabaseName); // Apparently the library still sets a default database name
+    }
+
+    [Theory, AutoNSubstituteDataWithAtcKustoOptions(withCredential: false)]
+    internal void GetQueryClient_Returns_Client_With_ConnectionString_Without_Credential(
+        [Frozen] IOptionsMonitor<AtcKustoOptions> monitor,
+        AtcKustoOptions options,
+        KustoClientProvider sut)
+    {
+        // Arrange
+        options.HostAddress = null;
+        options.ConnectionString = $"https://{Guid.NewGuid():N}.kusto.windows.net";
+        options.DatabaseName = null;
+        monitor.Get(null).Returns(options);
+
+        // Act
+        var client = sut.GetQueryClient();
+
+        // Assert
+        Assert.NotNull(client);
+        Assert.Equal("NetDefaultDB", client.DefaultDatabaseName); // Apparently the library still sets a default database name
+    }
+
+    [Theory, AutoNSubstituteDataWithAtcKustoOptions(withCredential: true)]
     internal void GetAdminClient_Returns_Client_With_Credential(
         [Frozen] IOptionsMonitor<AtcKustoOptions> monitor,
         AtcKustoOptions options,
@@ -288,5 +366,83 @@ public sealed class KustoClientProviderTests
         // Assert
         Assert.NotNull(client);
         Assert.Equal(databaseName, client.DefaultDatabaseName);
+    }
+
+    [Theory, AutoNSubstituteDataWithAtcKustoOptions(withCredential: true)]
+    internal void GetAdminClient_Returns_Client_With_ConnectionString_And_Database_With_Credential(
+        [Frozen] IOptionsMonitor<AtcKustoOptions> monitor,
+        AtcKustoOptions options,
+        KustoClientProvider sut)
+    {
+        // Arrange
+        options.HostAddress = null;
+        options.ConnectionString = $"https://{Guid.NewGuid():N}.kusto.windows.net";
+        monitor.Get(null).Returns(options);
+
+        // Act
+        var client = sut.GetAdminClient();
+
+        // Assert
+        Assert.NotNull(client);
+        Assert.Equal(options.DatabaseName, client.DefaultDatabaseName);
+    }
+
+    [Theory, AutoNSubstituteDataWithAtcKustoOptions(withCredential: false)]
+    internal void GetAdminClient_Returns_Client_With_ConnectionString_And_Database_Without_Credential(
+        [Frozen] IOptionsMonitor<AtcKustoOptions> monitor,
+        AtcKustoOptions options,
+        KustoClientProvider sut)
+    {
+        // Arrange
+        options.HostAddress = null;
+        options.ConnectionString = $"https://{Guid.NewGuid():N}.kusto.windows.net";
+        monitor.Get(null).Returns(options);
+
+        // Act
+        var client = sut.GetAdminClient();
+
+        // Assert
+        Assert.NotNull(client);
+        Assert.Equal(options.DatabaseName, client.DefaultDatabaseName);
+    }
+
+    [Theory, AutoNSubstituteDataWithAtcKustoOptions(withCredential: true)]
+    internal void GetAdminClient_Returns_Client_With_ConnectionString_With_Credential(
+        [Frozen] IOptionsMonitor<AtcKustoOptions> monitor,
+        AtcKustoOptions options,
+        KustoClientProvider sut)
+    {
+        // Arrange
+        options.HostAddress = null;
+        options.ConnectionString = $"https://{Guid.NewGuid():N}.kusto.windows.net";
+        options.DatabaseName = null;
+        monitor.Get(null).Returns(options);
+
+        // Act
+        var client = sut.GetAdminClient();
+
+        // Assert
+        Assert.NotNull(client);
+        Assert.Equal("NetDefaultDB", client.DefaultDatabaseName); // Apparently the library still sets a default database name
+    }
+
+    [Theory, AutoNSubstituteDataWithAtcKustoOptions(withCredential: false)]
+    internal void GetAdminClient_Returns_Client_With_ConnectionString_Without_Credential(
+        [Frozen] IOptionsMonitor<AtcKustoOptions> monitor,
+        AtcKustoOptions options,
+        KustoClientProvider sut)
+    {
+        // Arrange
+        options.HostAddress = null;
+        options.ConnectionString = $"https://{Guid.NewGuid():N}.kusto.windows.net";
+        options.DatabaseName = null;
+        monitor.Get(null).Returns(options);
+
+        // Act
+        var client = sut.GetAdminClient();
+
+        // Assert
+        Assert.NotNull(client);
+        Assert.Equal("NetDefaultDB", client.DefaultDatabaseName); // Apparently the library still sets a default database name
     }
 }

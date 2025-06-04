@@ -7,4 +7,6 @@ public class AtcKustoOptions
     public string? DatabaseName { get; set; }
 
     public TokenCredential? Credential { get; set; }
+
+    public string? ConnectionString { get; set; }
 }
