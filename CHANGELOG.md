@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.5.0](https://github.com/atc-net/atc-kusto/compare/v2.4.1...v2.5.0) (2025-06-04)
+
+
+### Features
+
+* add support for connectionstrings in KustoClientProvider/AtcKustoOptions incl. unit-tests ([2ebb223](https://github.com/atc-net/atc-kusto/commit/2ebb22346961b36dc1f831fa431a49d42a677e23))
+
 ## [2.4.1](https://github.com/atc-net/atc-kusto/compare/v2.4.0...v2.4.1) (2025-05-26)
 
 
