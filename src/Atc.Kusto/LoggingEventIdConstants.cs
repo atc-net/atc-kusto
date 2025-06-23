@@ -36,4 +36,14 @@ public static class LoggingEventIdConstants
         public const int SchemaNullInDataTableDataSetFrame = 50_000;
         public const int ReceivedTableFragmentForUnknownTable = 50_010;
     }
+
+    internal static class KustoClusterDiagnosticsHealthCheck
+    {
+        public const int NoDiagnosticDataReturned = 60_000;
+        public const int ClusterRequiresAttention = 60_010;
+        public const int ClusterScaleOutRecommended = 60_020;
+        public const int HealthCheckFailed = 60_030;
+        public const int HealthCheckSucceeded = 60_040;
+        public const int UnhandledException = 60_050;
+    }
 }

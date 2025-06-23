@@ -9,6 +9,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="HealthChecks\KustoHealthCheckQuery.kusto" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="HealthChecks\KustoHealthCheckQuery.kusto" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include="..\..\README.md" Link="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 

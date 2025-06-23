@@ -23,6 +23,11 @@ The library provides a streamlined interface for handling Kusto operations, maki
     - [Executing streaming queries](#executing-streaming-queries)
       - [Direct streaming](#direct-streaming)
       - [Buffered streaming](#buffered-streaming)
+    - [Health Checks](#health-checks)
+      - [Setup Health Check](#setup-health-check)
+      - [Health Check Response](#health-check-response)
+      - [Health Check Statuses](#health-check-statuses)
+      - [Using Health Check Programmatically](#using-health-check-programmatically)
   - [Sample](#sample)
 - [Requirements](#requirements)
 - [How to contribute](#how-to-contribute)
@@ -36,6 +41,7 @@ The library extends the official .NET SDK, and adds the following add-on functio
 - **Streaming Query Support**: Two approaches for streaming large result sets:
   - **Direct Streaming**: Immediately yield rows as they become available, minimizing memory usage and latency.
   - **Buffered Streaming**: Buffer results with additional metadata like schemas and completion information.
+- **Health Checks**: Built-in health check integration for Azure Data Explorer clusters with ASP.NET Core's Health Checks API.
 
 ## Getting started
 
@@ -361,6 +367,74 @@ app.MapGet(
 ```
 
 This returns a streamed response to the client, which can be processed as it arrives.
+
+### Health Checks
+
+The library provides built-in health check support for Azure Data Explorer clusters, which can be easily integrated with ASP.NET Core's Health Checks API. This feature allows you to monitor the health of your Kusto clusters and integrate it with your application's monitoring infrastructure.
+
+#### Setup Health Check
+
+To add a Kusto cluster health check to your application, use the `AddKustoHealthCheck` extension method:
+
+```csharp
+// Configure health checks
+builder.Services
+    .AddHealthChecks()
+    .AddKustoHealthCheck(
+        name: "adx",  // Optional: Name for the health check
+        connectionName: "DefaultConnection",  // Optional: Connection name to use
+        databaseName: null,  // Optional: Database name
+        tags: new[] { "adx", "database" });  // Optional: Tags
+```
+
+The health check will execute a `.show diagnostics` query against the cluster to retrieve health information.
+
+#### Health Check Response
+
+The health check returns detailed health information about your Kusto cluster:
+
+- **IsHealthy**: Whether the cluster is functioning normally
+- **NotHealthyReason**: If unhealthy, why the cluster is not healthy
+- **IsAttentionRequired**: Whether the cluster requires attention
+- **AttentionRequiredReason**: If attention is required, why it's required
+- **IsScaleOutRequired**: Whether it's recommended to scale out the cluster
+
+#### Health Check Statuses
+
+The health check maps cluster health to ASP.NET Core health statuses:
+
+- **Healthy**: The cluster is functioning normally
+- **Degraded**: The cluster requires attention but is still operational
+- **Unhealthy**: The cluster is not healthy and may not be operational
+
+#### Using Health Check Programmatically
+
+You can also use the `IKustoHealthCheck` interface directly in your code:
+
+```csharp
+public class MyService
+{
+    private readonly IKustoHealthCheck healthCheck;
+
+    public MyService(IKustoHealthCheck healthCheck)
+    {
+        this.healthCheck = healthCheck;
+    }
+
+    public async Task CheckClusterHealth()
+    {
+        var result = await healthCheck.CheckHealthAsync("MyConnection");
+
+        if (!result.IsHealthy)
+        {
+            // Handle unhealthy cluster scenario
+            Console.WriteLine($"Cluster unhealthy: {result.NotHealthyReason}");
+        }
+    }
+}
+```
+
+For more details, check the [health check sample](./sample/Atc.Kusto.HealthCheck.Sample/).
 
 ## Sample
 

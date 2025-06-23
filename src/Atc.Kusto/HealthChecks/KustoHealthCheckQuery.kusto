@@ -1,0 +1,7 @@
+.show diagnostics
+| project
+    IsHealthy,
+    NotHealthyReason,
+    IsAttentionRequired,
+    AttentionRequiredReason,
+    IsScaleOutRequired
