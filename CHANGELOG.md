@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.6.0](https://github.com/atc-net/atc-kusto/compare/v2.5.0...v2.6.0) (2025-06-23)
+
+
+### Features
+
+* add KustoClusterDiagnostic healthcheck support ([defbce0](https://github.com/atc-net/atc-kusto/commit/defbce07d7a4257fb5c62c01711c66888810ac58))
+* **sample:** add sample for healthcheck usage ([efd63df](https://github.com/atc-net/atc-kusto/commit/efd63df38037c986d92b1d6e5f26125a68422832))
+
 ## [2.5.0](https://github.com/atc-net/atc-kusto/compare/v2.4.1...v2.5.0) (2025-06-04)
 
 
