@@ -20,7 +20,7 @@ public sealed class StringExtensionsTests
         string input,
         string expected)
     {
-        // Arrange & Act
+        // Act
         var actual = input.ToAlphanumeric();
 
         // Assert

@@ -8,7 +8,7 @@ public sealed class QueryIdProviderTests
         Type queryType,
         string sessionId)
     {
-        // Arrange & Act
+        // Act
         var actual = sut.Create(queryType, sessionId);
 
         // Assert
@@ -22,7 +22,7 @@ public sealed class QueryIdProviderTests
         QueryIdProvider sut,
         Type queryType)
     {
-        // Arrange & Act
+        // Act
         var actual = sut.Create(queryType, sessionId: null);
 
         // Assert

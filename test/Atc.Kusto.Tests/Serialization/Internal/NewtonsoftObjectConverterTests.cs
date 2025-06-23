@@ -14,7 +14,7 @@ public sealed class NewtonsoftObjectConverterTests
         bool expected,
         NewtonsoftObjectConverter sut)
     {
-        // Arrange & Act
+        // Act
         var actual = sut.CanConvert(objectType);
 
         // Assert
