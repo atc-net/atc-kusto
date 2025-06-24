@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.6.1](https://github.com/atc-net/atc-kusto/compare/v2.6.0...v2.6.1) (2025-06-24)
+
+
+### Bug Fixes
+
+* avoid unicode characters in KustoClientProvider exception message ([e457fbc](https://github.com/atc-net/atc-kusto/commit/e457fbc730c5ab9b8289d01ccfa67d1c7eb04c4d))
+* **healthcheck:** ensure camelCase is used for data ([5da9541](https://github.com/atc-net/atc-kusto/commit/5da9541a63d6eaaeefd81f4c8b3e51b6bf1650a2))
+
 ## [2.6.0](https://github.com/atc-net/atc-kusto/compare/v2.5.0...v2.6.0) (2025-06-23)
 
 
