@@ -39,19 +39,19 @@ internal class KustoHealthCheckPublisher : IHealthCheck
 
             var data = new Dictionary<string, object>(StringComparer.Ordinal)
             {
-                ["Duration"] = result.Duration,
-                ["IsAttentionRequired"] = result.IsAttentionRequired,
-                ["IsScaleOutRequired"] = result.IsScaleOutRequired,
+                ["duration"] = result.Duration,
+                ["isAttentionRequired"] = result.IsAttentionRequired,
+                ["isScaleOutRequired"] = result.IsScaleOutRequired,
             };
 
-            if (result.NotHealthyReason is not null)
+            if (!string.IsNullOrEmpty(result.NotHealthyReason))
             {
-                data["NotHealthyReason"] = result.NotHealthyReason;
+                data["notHealthyReason"] = result.NotHealthyReason;
             }
 
-            if (result.AttentionRequiredReason is not null)
+            if (!string.IsNullOrEmpty(result.AttentionRequiredReason))
             {
-                data["AttentionRequiredReason"] = result.AttentionRequiredReason;
+                data["attentionRequiredReason"] = result.AttentionRequiredReason;
             }
 
             if (!result.IsHealthy)
