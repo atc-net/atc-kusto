@@ -55,7 +55,7 @@ public sealed class KustoClientProvider : IDisposable, IKustoClientProvider
             { ConnectionString: { } cs }
                 => new KustoConnectionStringBuilder(cs),
             _ => throw new InvalidOperationException(
-                $"Missing configuration for kusto connection `{clientCacheKey.ConnectionName}`"),
+                $"Missing configuration for kusto connection: {clientCacheKey.ConnectionName}"),
         };
 
     public void Dispose()
