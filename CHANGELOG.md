@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.7.0](https://github.com/atc-net/atc-kusto/compare/v2.6.1...v2.7.0) (2025-08-13)
+
+
+### Features
+
+* upgrade Microsoft.Azure.Kusto.Data package to newest major version ([19be30a](https://github.com/atc-net/atc-kusto/commit/19be30a1a95181aadd33fd67d4c7f7c1542decc2))
+
 ## [2.6.1](https://github.com/atc-net/atc-kusto/compare/v2.6.0...v2.6.1) (2025-06-24)
 
 
