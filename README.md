@@ -37,6 +37,7 @@ The library provides a streamlined interface for handling Kusto operations, maki
 The library extends the official .NET SDK, and adds the following add-on functionality, which supports passing parameters and proper deserialization:
 
 - **Kusto Query and Command Execution**: Simplifies the execution of Kusto queries and commands with asynchronous support through embedded .kusto scripts.
+- **Decimal Type Deserialization**: Seamless handling of ADX decimal values (including those surfaced via structured SqlDecimal representations) through internal custom JSON converters bridging Newtonsoft.Json and System.Text.Json.
 - **Paged Query Support**: Efficient handling of large datasets with built-in support for paginated query results through stored query results.
 - **Streaming Query Support**: Two approaches for streaming large result sets:
   - **Direct Streaming**: Immediately yield rows as they become available, minimizing memory usage and latency.
