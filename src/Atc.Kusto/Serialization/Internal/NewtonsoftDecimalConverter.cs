@@ -40,9 +40,20 @@ public sealed class NewtonsoftDecimalConverter : Newtonsoft.Json.JsonConverter
         Newtonsoft.Json.JsonSerializer serializer)
         => reader switch
         {
-            // Extract the underlying decimal numeric value from the JToken's Value property
-            Newtonsoft.Json.Linq.JTokenReader { CurrentToken: { } token }
-                => token.Value<decimal>(nameof(SqlDecimal.Value)),
+            // Handle JToken based readers only.
+            Newtonsoft.Json.Linq.JTokenReader { CurrentToken: { } token } => token.Type switch
+            {
+                // Primitive numeric (float/integer) tokens can be converted directly.
+                Newtonsoft.Json.Linq.JTokenType.Float or Newtonsoft.Json.Linq.JTokenType.Integer
+                    => token.ToObject<decimal?>(),
+
+                // Object tokens: attempt to read a nested "Value" property (as seen in SqlDecimal style payloads).
+                Newtonsoft.Json.Linq.JTokenType.Object
+                    => token[nameof(SqlDecimal.Value)]?.ToObject<decimal?>(),
+
+                // Anything else is not recognized.
+                _ => null,
+            },
             _ => null,
         };
 
