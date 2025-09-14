@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.8.0](https://github.com/atc-net/atc-kusto/compare/v2.7.0...v2.8.0) (2025-09-14)
+
+
+### Features
+
+* **samples:** switch customer sales values to decimal and adjust queries ([5188823](https://github.com/atc-net/atc-kusto/commit/518882372a2068b1797c75f19547095a08596973))
+* **serialization:** add decimal converter and update serializer docs ([5f7fad6](https://github.com/atc-net/atc-kusto/commit/5f7fad6c3dbf8fe052839816679d5cdff4b5773f))
+* **serialization:** enhance decimal converter robustness and add extended tests ([44ebac2](https://github.com/atc-net/atc-kusto/commit/44ebac225e700394739b7a775d3e208eb71c207c))
+
 ## [2.7.0](https://github.com/atc-net/atc-kusto/compare/v2.6.1...v2.7.0) (2025-08-13)
 
 
