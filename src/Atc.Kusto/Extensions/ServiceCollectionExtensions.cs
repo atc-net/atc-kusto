@@ -133,7 +133,7 @@ public static class ServiceCollectionExtensions
                 ShouldHandle = new PredicateBuilder()
                     .Handle<KustoServicePartialQueryFailureException>()
                     .Handle<KustoServiceException>()
-                    .Handle<Exception>(ex => ex is not OperationCanceledException),
+                    .Handle<Exception>(ex => !CancellationTokenKustoExtensions.IsCancellationException(ex)),
                 BackoffType = DelayBackoffType.Exponential,
                 MaxRetryAttempts = MaxRetryAttempts,
                 Delay = TimeSpan.FromSeconds(3),
