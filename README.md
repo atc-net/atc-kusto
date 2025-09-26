@@ -4,7 +4,7 @@ Atc.Kusto is a .NET library designed to facilitate the execution of Kusto querie
 
 The library provides a streamlined interface for handling Kusto operations, making it easier to retrieve and process data efficiently.
 
-# Table of Content
+## Table of Content
 
 - [Introduction](#introduction)
 - [Table of Content](#table-of-content)
@@ -28,7 +28,8 @@ The library provides a streamlined interface for handling Kusto operations, maki
       - [Health Check Response](#health-check-response)
       - [Health Check Statuses](#health-check-statuses)
       - [Using Health Check Programmatically](#using-health-check-programmatically)
-  - [Sample](#sample)
+    - [Sample](#sample)
+    - [Cancellation](#cancellation)
 - [Requirements](#requirements)
 - [How to contribute](#how-to-contribute)
 
@@ -103,8 +104,8 @@ builder.Services.ConfigureAzureDataExplorer(options =>
 
 A Kusto query can be added by creating two files in your project:
 
-  * A `.kusto` script file containing the Kusto query itself (with "Build Action" set to "Embedded resource")
-  * A .NET record with the same name (and namespace) as the embedded `.kusto` script.
+- A `.kusto` script file containing the Kusto query itself (with "Build Action" set to "Embedded resource")
+- A .NET record with the same name (and namespace) as the embedded `.kusto` script.
 
 The .NET record should to derive from one of the following base types:
 
@@ -443,11 +444,76 @@ See the [sample api](./sample/Atc.Kusto.Api.Sample/) for an example on how to co
 
 Both samples are querying the "ContosoSales" database of the Microsoft ADX sample cluster.
 
-# Requirements
+## Cancellation
 
-* [.NET 9 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/9.0)
+Atc.Kusto supports cooperative cancellation via CancellationToken for all query types. In addition to local cancellation, the library can also issue a server-side cancel control command so the running Kusto query is aborted in the cluster.
 
-# How to contribute
+### Configuration
+
+Server-side cancel is enabled by default and can be toggled per-call via options:
+- For non-streaming queries: `AtcQueryOptions.EnableServerSideCancellation`
+- For streaming queries: `AtcStreamingQueryOptions.EnableServerSideCancellation`
+
+### Performance Implications
+
+**Server-side cancellation (default - recommended):**
+- ✅ The Kusto cluster immediately stops processing the query upon cancellation
+- ✅ Frees up cluster resources (CPU, memory, network) for other queries
+- ✅ Reduces unnecessary cluster costs for pay-per-use scenarios
+- ⚠️ Adds a small overhead of one additional network call to send the cancel command
+
+**Local-only cancellation (opt-out):**
+- ✅ No additional network overhead
+- ✅ Slightly faster client-side cancellation response
+- ❌ The Kusto cluster continues processing the query even after client cancellation
+- ❌ Wastes cluster resources until the query naturally completes or times out
+- ❌ May impact cluster performance and increase costs unnecessarily
+
+**When to use each mode:**
+- Use **server-side cancellation** (default) for:
+  - Long-running queries (> 1 second)
+  - Resource-intensive queries
+  - Production environments where cluster efficiency matters
+  - Scenarios where you pay for cluster usage
+
+- Consider **local-only cancellation** for:
+  - Very short queries (< 100ms) where the overhead might exceed query time
+  - Testing scenarios where cluster resource usage is not a concern
+  - Situations where network reliability to the cluster is poor
+
+### Examples
+
+Direct streaming with cancellation enabled (default):
+
+```csharp
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+await foreach (var row in processor.ExecuteStreamingQuery(new CustomersStreamingQuery(), cts.Token))
+{
+        // consume rows
+}
+```
+
+Opt out of server-side cancellation:
+
+```csharp
+var options = new AtcStreamingQueryOptions { EnableServerSideCancellation = false };
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+await foreach (var row in processor.ExecuteStreamingQuery(new CustomersStreamingQuery(), options, cts.Token))
+{
+        // consume rows
+}
+```
+
+The API sample exposes endpoints to demonstrate cancellation behavior:
+
+- GET /customers/stream-cancel-demo
+- GET /customers/stream-cancel-demo-no-server
+
+## Requirements
+
+- [.NET 9 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/9.0)
+
+## How to contribute
 
 [Contribution Guidelines](https://atc-net.github.io/introduction/about-atc#how-to-contribute)
 
