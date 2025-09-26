@@ -3,8 +3,8 @@ namespace Atc.Kusto.Tests.Handlers.Internal;
 public sealed class BufferedStreamingQueryHandlerTests
 {
     private readonly ICslQueryProvider queryProvider;
-    private readonly IKustoStreamingQuery<string> query;
 
+    private readonly IKustoStreamingQuery<string> query;
     private readonly BufferedStreamingQueryHandler<string> sut;
 
     public BufferedStreamingQueryHandlerTests()
@@ -16,7 +16,144 @@ public sealed class BufferedStreamingQueryHandlerTests
             new NullLogger<BufferedStreamingQueryHandler<string>>(),
             queryProvider,
             query,
-            new AtcStreamingQueryOptions { OptionalFrames = FrameHeaders.All });
+            new AtcStreamingQueryOptions { OptionalFrames = FrameHeaders.All, EnableServerSideCancellation = false });
+    }
+
+    [Fact]
+    public async Task Execute_ShouldIssueCancelCommand_WhenTokenCanceled()
+    {
+        // Arrange
+        var adminProvider = Substitute.For<ICslAdminProvider>();
+        var logger = new NullLogger<BufferedStreamingQueryHandler<string>>();
+        var options = new AtcStreamingQueryOptions { OptionalFrames = FrameHeaders.All, EnableServerSideCancellation = true };
+
+        query.GetQueryText().Returns("print 1");
+        query.MapDataRow(Arg.Any<DataRow>()).Returns((string?)null);
+
+        ClientRequestProperties? capturedProps = null;
+
+        using var pds = ProgressiveDataSetBuilder.BuildPrimaryResult("A");
+
+        var tcs = new TaskCompletionSource<ProgressiveDataSet>();
+
+        queryProvider
+            .ExecuteQueryV2Async(
+                databaseName: null,
+                query.GetQueryText(),
+                Arg.Any<ClientRequestProperties>(),
+                Arg.Any<CancellationToken>())
+            .Returns(ci =>
+            {
+                capturedProps = ci.Arg<ClientRequestProperties>();
+                var ct = ci.Arg<CancellationToken>();
+
+                // Register cancellation to complete the task
+                ct.Register(() => tcs.TrySetCanceled(ct));
+
+                // Don't return the PDS immediately - wait for cancellation
+                return tcs.Task;
+            });
+
+        var handler = new BufferedStreamingQueryHandler<string>(
+            logger,
+            adminProvider,
+            queryProvider,
+            query,
+            options);
+
+        using var cts = new CancellationTokenSource();
+
+        // Act - start execution then cancel after a small delay to ensure the handler has started
+        var executeTask = handler.Execute(cts.Token);
+
+        await Task.Delay(10);
+        await cts.CancelAsync();
+
+        try
+        {
+            await executeTask;
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected
+        }
+
+        // Give the background cancellation task a brief moment to execute
+        await Task.Delay(50);
+
+        // Assert - Verify a cancel control command was issued with the original ClientRequestId
+        var hasClientRequestId = capturedProps is not null && !string.IsNullOrEmpty(capturedProps.ClientRequestId);
+
+        await adminProvider
+            .Received()
+            .ExecuteControlCommandAsync(
+                databaseName: Arg.Any<string?>(),
+                Arg.Is<string>(cmd => cmd.Contains("cancel", StringComparison.OrdinalIgnoreCase)
+                    && hasClientRequestId
+                    && cmd.Contains(capturedProps!.ClientRequestId!, StringComparison.Ordinal)),
+                Arg.Any<ClientRequestProperties>());
+    }
+
+    [Fact]
+    public async Task Execute_ShouldNotIssueCancelCommand_WhenServerSideCancelDisabled()
+    {
+        // Arrange
+        var adminProvider = Substitute.For<ICslAdminProvider>();
+        var logger = new NullLogger<BufferedStreamingQueryHandler<string>>();
+        var options = new AtcStreamingQueryOptions { EnableServerSideCancellation = false };
+
+        query.GetQueryText().Returns("print 1");
+
+        using var pds = ProgressiveDataSetBuilder.BuildPrimaryResult("A");
+
+        queryProvider
+            .ExecuteQueryV2Async(
+                databaseName: null,
+                query.GetQueryText(),
+                Arg.Any<ClientRequestProperties>(),
+                Arg.Any<CancellationToken>())
+            .Returns(ci =>
+            {
+                var ct = ci.Arg<CancellationToken>();
+                if (ct.IsCancellationRequested)
+                {
+                    throw new OperationCanceledException(ct);
+                }
+
+                return pds;
+            });
+
+        var handler = new BufferedStreamingQueryHandler<string>(
+            logger,
+            adminProvider,
+            queryProvider,
+            query,
+            options);
+
+        using var cts = new CancellationTokenSource();
+
+        // Act
+        var executeTask = handler.Execute(cts.Token);
+        await cts.CancelAsync();
+
+        try
+        {
+            await executeTask;
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected
+        }
+
+        await Task.Delay(50);
+
+        // Assert - verify NO cancel command was issued
+        await adminProvider
+            .DidNotReceive()
+            .ExecuteControlCommandAsync(
+                Arg.Any<string?>(),
+                Arg.Any<string>(),
+                Arg.Any<ClientRequestProperties>());
     }
 
     [Theory, AutoNSubstituteData]
