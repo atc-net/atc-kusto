@@ -66,7 +66,7 @@ internal sealed partial class StreamingQueryHandler<T> : IStreamingScriptHandler
 
         clientRequestProperties.SetQueryOptions(streamingQueryOptions);
 
-        using var serverSideCancellationRegistration = CancellationTokenKustoExtensions.ShouldEnableServerSideCancellation(adminProvider, streamingQueryOptions.EnableServerSideCancellation)
+        using var serverSideCancellationRegistration = CslAdminProviderExtensions.ShouldEnableServerSideCancellation(adminProvider, streamingQueryOptions.EnableServerSideCancellation)
             ? adminProvider!.RegisterKustoServerSideCancellation(
                 logger,
                 databaseName: null,

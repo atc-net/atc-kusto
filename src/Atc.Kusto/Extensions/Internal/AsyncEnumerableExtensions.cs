@@ -62,9 +62,9 @@ internal static class AsyncEnumerableExtensions
                 {
                     hasNext = await enumerator.MoveNextAsync().ConfigureAwait(false);
                 }
-                catch (Exception ex) when (CancellationTokenKustoExtensions.IsCancellationException(ex))
+                catch (Exception ex) when (CancellationExceptionUtilities.IsCancellationException(ex))
                 {
-                    throw CancellationTokenKustoExtensions.NormalizeCancellationException(ex, cancellationToken);
+                    throw CancellationExceptionUtilities.NormalizeCancellationException(ex, cancellationToken);
                 }
 
                 if (!hasNext)
