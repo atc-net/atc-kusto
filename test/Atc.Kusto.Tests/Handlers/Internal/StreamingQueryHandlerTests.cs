@@ -15,7 +15,74 @@ public sealed class StreamingQueryHandlerTests
             new NullLogger<StreamingQueryHandler<string>>(),
             queryProvider,
             query,
-            new AtcStreamingQueryOptions { OptionalFrames = FrameHeaders.All });
+            new AtcStreamingQueryOptions { OptionalFrames = FrameHeaders.All, EnableServerSideCancellation = false });
+    }
+
+    [Fact]
+    public async Task Execute_ShouldIssueCancelCommand_WhenTokenCanceled()
+    {
+        // Arrange
+        var adminProvider = Substitute.For<ICslAdminProvider>();
+        var logger = new NullLogger<StreamingQueryHandler<string>>();
+        var options = new AtcStreamingQueryOptions { OptionalFrames = FrameHeaders.All, EnableServerSideCancellation = true };
+
+        query.GetQueryText().Returns("print 1");
+        query.MapDataRow(Arg.Any<DataRow>()).Returns((string?)null);
+
+        ClientRequestProperties? capturedProps = null;
+
+        using var pds = ProgressiveDataSetBuilder.BuildPrimaryResult("A");
+
+        queryProvider
+            .ExecuteQueryV2Async(
+                databaseName: null,
+                query.GetQueryText(),
+                Arg.Any<ClientRequestProperties>(),
+                Arg.Any<CancellationToken>())
+            .Returns(ci =>
+            {
+                capturedProps = ci.Arg<ClientRequestProperties>();
+                return pds;
+            });
+
+        var handler = new StreamingQueryHandler<string>(
+            logger,
+            adminProvider,
+            queryProvider,
+            query,
+            options);
+
+        using var cts = new CancellationTokenSource();
+
+        // Act - cancel right after starting enumeration
+        var iterator = handler.Execute(cts.Token).GetAsyncEnumerator();
+        await cts.CancelAsync();
+
+        try
+        {
+            _ = await iterator.MoveNextAsync();
+        }
+        catch
+        {
+            // ignored
+        }
+        finally
+        {
+            await iterator.DisposeAsync();
+        }
+
+        await Task.Delay(50);
+
+        var hasClientRequestId = capturedProps is not null && !string.IsNullOrEmpty(capturedProps.ClientRequestId);
+
+        await adminProvider
+            .Received()
+            .ExecuteControlCommandAsync(
+                databaseName: Arg.Any<string?>(),
+                Arg.Is<string>(cmd => cmd.Contains("cancel", StringComparison.OrdinalIgnoreCase)
+                    && hasClientRequestId
+                    && cmd.Contains(capturedProps!.ClientRequestId!, StringComparison.Ordinal)),
+                Arg.Any<ClientRequestProperties>());
     }
 
     [Theory, AutoNSubstituteData]
