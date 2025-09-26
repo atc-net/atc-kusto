@@ -85,6 +85,10 @@ internal sealed partial class SimpleQueryHandler<T> : IScriptHandler<T>
                 },
                 cancellationToken);
         }
+        catch (Exception ex) when (CancellationTokenKustoExtensions.IsCancellationException(ex))
+        {
+            throw CancellationTokenKustoExtensions.NormalizeCancellationException(ex, cancellationToken);
+        }
         catch (KustoServicePartialQueryFailureException ex)
         {
             LogKustoServicePartialQueryFailureException(

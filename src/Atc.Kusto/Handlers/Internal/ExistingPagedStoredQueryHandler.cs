@@ -109,6 +109,10 @@ internal sealed partial class ExistingPagedStoredQueryHandler<T> : IScriptHandle
                 },
                 cancellationToken);
         }
+        catch (Exception ex) when (CancellationTokenKustoExtensions.IsCancellationException(ex))
+        {
+            throw CancellationTokenKustoExtensions.NormalizeCancellationException(ex, cancellationToken);
+        }
         catch (KustoServicePartialQueryFailureException ex)
         {
             LogKustoServicePartialQueryFailureException(
