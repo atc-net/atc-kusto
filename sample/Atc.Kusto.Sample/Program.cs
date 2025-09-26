@@ -64,6 +64,38 @@ if (customerSales is not null)
     logger.LogInformation("\tFound sales amount {SalesAmount} for customer 145.", customerSales.SalesAmount);
 }
 
+// Demonstrate cancellation on regular queries (non-streaming)
+logger.LogInformation("Demonstrating query cancellation with server-side cancel enabled (default)...");
+using (var queryCts1 = new CancellationTokenSource(TimeSpan.FromMilliseconds(100)))
+{
+    try
+    {
+        var cancelledQueryResult = await contosoSalesKustoProcessor.ExecuteQuery(new CustomerSalesQuery(), cancellationToken: queryCts1.Token);
+        logger.LogInformation("\tQuery completed successfully with {Count} results.", cancelledQueryResult?.Length ?? 0);
+    }
+    catch (OperationCanceledException ex)
+    {
+        logger.LogInformation(ex, "\tQuery was canceled as expected (server received cancel command).");
+    }
+}
+
+logger.LogInformation("Demonstrating query cancellation with server-side cancel disabled...");
+using (var queryCts2 = new CancellationTokenSource(TimeSpan.FromMilliseconds(100)))
+{
+    try
+    {
+        var cancelledQueryResult = await contosoSalesKustoProcessor.ExecuteQuery(
+            new CustomerSalesQuery(),
+            new AtcQueryOptions { EnableServerSideCancellation = false },
+            cancellationToken: queryCts2.Token);
+        logger.LogInformation("\tQuery completed successfully with {Count} results.", cancelledQueryResult?.Length ?? 0);
+    }
+    catch (OperationCanceledException ex)
+    {
+        logger.LogInformation(ex, "\tQuery was canceled (server did NOT receive cancel command, continues running).");
+    }
+}
+
 logger.LogInformation("Querying storm events");
 var stormEventsResult = await samplesKustoProcessor.ExecuteQuery(new StormEventsQuery(), cancellationToken: CancellationToken.None);
 if (stormEventsResult is not null)
@@ -144,26 +176,49 @@ logger.LogInformation(streamingResult.Completion is not null
 
 logger.LogInformation("Streaming with streaming query result complete.");
 
+// Warm up connection by fetching first row to establish connection and authenticate
+logger.LogInformation("Warming up Kusto connection...");
+var warmupEnumerator = contosoSalesKustoProcessor.ExecuteStreamingQuery(streamingQuery, CancellationToken.None).GetAsyncEnumerator();
+
+try
+{
+    await warmupEnumerator.MoveNextAsync();
+    logger.LogInformation("Connection established.");
+}
+finally
+{
+    await warmupEnumerator.DisposeAsync();
+}
+
 // Demonstrate cancellation with server-side cancel enabled (default)
 logger.LogInformation("Demonstrating cancellation of a long-running streaming query (server-side cancel enabled)...");
-using (var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(50)))
+var rowCount = 0;
+using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1)))
 {
     try
     {
         await foreach (var x in contosoSalesKustoProcessor.ExecuteStreamingQuery(streamingQuery, cts.Token))
         {
-            // Intentionally ignore rows; the CTS will cancel shortly
+            if (rowCount == 0)
+            {
+                logger.LogInformation("Received first row at {Time}", DateTime.Now);
+            }
+
+            rowCount++;
         }
+
+        logger.LogInformation("Streaming query completed successfully after receiving {RowCount} rows.", rowCount);
     }
     catch (OperationCanceledException ex)
     {
-        logger.LogInformation(ex, "Streaming query was canceled as expected.");
+        logger.LogInformation(ex, "Streaming query was canceled as expected after receiving {RowCount} rows. (server - side cancel ENABLED)", rowCount);
     }
 }
 
-// Demonstrate opt-out via options
-logger.LogInformation("Demonstrating cancellation with server-side cancel disabled via options...");
-using (var cts2 = new CancellationTokenSource(TimeSpan.FromMilliseconds(50)))
+// Demonstrate cancellation with server-side cancel disabled
+logger.LogInformation("Demonstrating cancellation with server-side cancel disabled...");
+var rowCount2 = 0;
+using (var cts2 = new CancellationTokenSource(TimeSpan.FromSeconds(1)))
 {
     try
     {
@@ -172,12 +227,14 @@ using (var cts2 = new CancellationTokenSource(TimeSpan.FromMilliseconds(50)))
                            new AtcStreamingQueryOptions { EnableServerSideCancellation = false },
                            cts2.Token))
         {
-            // Intentionally ignore rows; the CTS will cancel shortly
+            rowCount2++;
         }
+
+        logger.LogInformation("Streaming query completed successfully after receiving {RowCount} rows.", rowCount2);
     }
     catch (OperationCanceledException ex)
     {
-        logger.LogInformation(ex, "Streaming query was canceled (server-side cancel disabled).");
+        logger.LogInformation(ex, "Streaming query was canceled after receiving {RowCount} rows. (server - side cancel DISABLED)", rowCount2);
     }
 }
 
