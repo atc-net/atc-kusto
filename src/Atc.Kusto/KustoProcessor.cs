@@ -116,7 +116,8 @@ public sealed class KustoProcessor : IKustoProcessor
 
         var stream = factory
             .Create(query, ConnectionName, DatabaseName, options)
-            .Execute(cancellationToken);
+            .Execute(cancellationToken)
+            .NormalizeCancellationExceptions(cancellationToken);
 
         await foreach (var row in stream.WithCancellation(cancellationToken))
         {
