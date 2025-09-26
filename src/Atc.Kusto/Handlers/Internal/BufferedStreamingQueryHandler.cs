@@ -177,6 +177,10 @@ internal sealed partial class BufferedStreamingQueryHandler<T> : IScriptHandler<
                 }
             }
         }
+        catch (Exception ex) when (CancellationTokenKustoExtensions.IsCancellationException(ex))
+        {
+            throw CancellationTokenKustoExtensions.NormalizeCancellationException(ex, cancellationToken);
+        }
         catch (Exception ex)
         {
             if (result.Completion is null)
