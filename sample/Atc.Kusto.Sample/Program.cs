@@ -144,5 +144,42 @@ logger.LogInformation(streamingResult.Completion is not null
 
 logger.LogInformation("Streaming with streaming query result complete.");
 
+// Demonstrate cancellation with server-side cancel enabled (default)
+logger.LogInformation("Demonstrating cancellation of a long-running streaming query (server-side cancel enabled)...");
+using (var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(50)))
+{
+    try
+    {
+        await foreach (var x in contosoSalesKustoProcessor.ExecuteStreamingQuery(streamingQuery, cts.Token))
+        {
+            // Intentionally ignore rows; the CTS will cancel shortly
+        }
+    }
+    catch (OperationCanceledException ex)
+    {
+        logger.LogInformation(ex, "Streaming query was canceled as expected.");
+    }
+}
+
+// Demonstrate opt-out via options
+logger.LogInformation("Demonstrating cancellation with server-side cancel disabled via options...");
+using (var cts2 = new CancellationTokenSource(TimeSpan.FromMilliseconds(50)))
+{
+    try
+    {
+        await foreach (var x in contosoSalesKustoProcessor.ExecuteStreamingQuery(
+                           streamingQuery,
+                           new AtcStreamingQueryOptions { EnableServerSideCancellation = false },
+                           cts2.Token))
+        {
+            // Intentionally ignore rows; the CTS will cancel shortly
+        }
+    }
+    catch (OperationCanceledException ex)
+    {
+        logger.LogInformation(ex, "Streaming query was canceled (server-side cancel disabled).");
+    }
+}
+
 logger.LogInformation("Press any key to exit");
 Console.ReadLine();
