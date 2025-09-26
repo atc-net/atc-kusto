@@ -29,4 +29,58 @@ internal static class AsyncEnumerableExtensions
             await Task.Yield();
         }
     }
+
+    /// <summary>
+    /// Wraps an async enumerable to normalize cancellation exceptions to standard OperationCanceledException.
+    /// </summary>
+    /// <typeparam name="T">The type of elements in the sequence.</typeparam>
+    /// <param name="source">The source async enumerable.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>An async enumerable that normalizes cancellation exceptions.</returns>
+    public static IAsyncEnumerable<T> NormalizeCancellationExceptions<T>(
+        this IAsyncEnumerable<T> source,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        return NormalizeCancellationExceptionsIterator(source, cancellationToken);
+    }
+
+    private static async IAsyncEnumerable<T> NormalizeCancellationExceptionsIterator<T>(
+        IAsyncEnumerable<T> source,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        IAsyncEnumerator<T>? enumerator = null;
+
+        try
+        {
+            enumerator = source.GetAsyncEnumerator(cancellationToken);
+
+            while (true)
+            {
+                bool hasNext;
+                try
+                {
+                    hasNext = await enumerator.MoveNextAsync().ConfigureAwait(false);
+                }
+                catch (Exception ex) when (CancellationTokenKustoExtensions.IsCancellationException(ex))
+                {
+                    throw CancellationTokenKustoExtensions.NormalizeCancellationException(ex, cancellationToken);
+                }
+
+                if (!hasNext)
+                {
+                    break;
+                }
+
+                yield return enumerator.Current;
+            }
+        }
+        finally
+        {
+            if (enumerator is not null)
+            {
+                await enumerator.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+    }
 }
