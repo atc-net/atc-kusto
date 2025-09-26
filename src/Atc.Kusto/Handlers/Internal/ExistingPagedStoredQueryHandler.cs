@@ -10,6 +10,7 @@ namespace Atc.Kusto.Handlers.Internal;
 internal sealed partial class ExistingPagedStoredQueryHandler<T> : IScriptHandler<PagedResult<T>>
 {
     private readonly ResiliencePipeline resiliencePipeline;
+    private readonly ICslAdminProvider? adminProvider;
     private readonly ICslQueryProvider queryProvider;
     private readonly IKustoQuery<IReadOnlyList<T>> query;
     private readonly int pageSize;
@@ -18,6 +19,7 @@ internal sealed partial class ExistingPagedStoredQueryHandler<T> : IScriptHandle
     public ExistingPagedStoredQueryHandler(
         ILogger<ExistingPagedStoredQueryHandler<T>> logger,
         [FromKeyedServices(Constants.ResiliencePipelineKey)] ResiliencePipeline resiliencePipeline,
+        ICslAdminProvider adminProvider,
         ICslQueryProvider queryProvider,
         IKustoQuery<IReadOnlyList<T>> query,
         int pageSize,
@@ -25,11 +27,23 @@ internal sealed partial class ExistingPagedStoredQueryHandler<T> : IScriptHandle
     {
         this.logger = logger;
         this.resiliencePipeline = resiliencePipeline;
+        this.adminProvider = adminProvider;
         this.queryProvider = queryProvider;
         this.query = query;
         this.pageSize = pageSize;
         this.continuationToken = continuationToken;
     }
+
+    // Backward-compatible overload (pre-cancellation change)
+    public ExistingPagedStoredQueryHandler(
+        ILogger<ExistingPagedStoredQueryHandler<T>> logger,
+        [FromKeyedServices(Constants.ResiliencePipelineKey)] ResiliencePipeline resiliencePipeline,
+        ICslQueryProvider queryProvider,
+        IKustoQuery<IReadOnlyList<T>> query,
+        int pageSize,
+        string continuationToken)
+        : this(logger, resiliencePipeline, adminProvider: null!, queryProvider, query, pageSize, continuationToken)
+        => adminProvider = null;
 
     /// <summary>
     /// Executes the stored Kusto query asynchronously and returns a paginated result set.
@@ -65,11 +79,20 @@ internal sealed partial class ExistingPagedStoredQueryHandler<T> : IScriptHandle
             return await resiliencePipeline.ExecuteAsync(
                 async context =>
                 {
+                    var clientRequestProperties = query.GetClientRequestProperties();
+
+                    // No specific AtcQueryOptions available here; default to enabling server-side cancel when adminProvider is present.
+                    using var serverSideCancellationRegistration = adminProvider?.RegisterKustoServerSideCancellation(
+                        logger,
+                        databaseName: null,
+                        clientRequestProperties,
+                        context);
+
                     using var reader = await queryProvider
                         .ExecuteQueryAsync(
                             databaseName: null,
                             queryText,
-                            query.GetClientRequestProperties(),
+                            clientRequestProperties,
                             context);
 
                     var items = query.ReadResult(reader);
