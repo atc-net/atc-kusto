@@ -25,4 +25,9 @@ public abstract class AtcQueryOptionsBase
     /// Overrides the default maximum data size a query is allowed to return to the caller(truncation).
     /// </summary>
     public long? TruncationMaxSize { get; set; }
+
+    /// <summary>
+    /// Enables issuing a server-side cancel command when the provided CancellationToken is triggered.
+    /// </summary>
+    public bool EnableServerSideCancellation { get; set; } = true;
 }

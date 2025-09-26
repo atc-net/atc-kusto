@@ -46,4 +46,10 @@ public static class LoggingEventIdConstants
         public const int HealthCheckSucceeded = 60_040;
         public const int UnhandledException = 60_050;
     }
+
+    internal static class CancellationTokenKustoExtensions
+    {
+        public const int KustoCancelCommandFailed = 70_000;
+        public const int FailedToScheduleKustoCancel = 70_010;
+    }
 }

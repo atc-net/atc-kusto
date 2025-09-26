@@ -7,6 +7,7 @@ namespace Atc.Kusto.Handlers.Internal;
 internal sealed partial class SimpleQueryHandler<T> : IScriptHandler<T>
 {
     private readonly ResiliencePipeline resiliencePipeline;
+    private readonly ICslAdminProvider? adminProvider;
     private readonly ICslQueryProvider queryProvider;
     private readonly IKustoQuery<T> query;
     private readonly AtcQueryOptions queryOptions;
@@ -14,15 +15,36 @@ internal sealed partial class SimpleQueryHandler<T> : IScriptHandler<T>
     public SimpleQueryHandler(
         ILogger<SimpleQueryHandler<T>> logger,
         [FromKeyedServices(Constants.ResiliencePipelineKey)] ResiliencePipeline resiliencePipeline,
+        ICslAdminProvider adminProvider,
         ICslQueryProvider queryProvider,
         IKustoQuery<T> query,
         AtcQueryOptions queryOptions)
     {
         this.logger = logger;
         this.resiliencePipeline = resiliencePipeline;
+        this.adminProvider = adminProvider;
         this.queryProvider = queryProvider;
         this.query = query;
         this.queryOptions = queryOptions;
+    }
+
+    // Backward-compatible overload (pre-cancellation change)
+    public SimpleQueryHandler(
+        ILogger<SimpleQueryHandler<T>> logger,
+        [FromKeyedServices(Constants.ResiliencePipelineKey)] ResiliencePipeline resiliencePipeline,
+        ICslQueryProvider queryProvider,
+        IKustoQuery<T> query,
+        AtcQueryOptions queryOptions)
+        : this(logger, resiliencePipeline, adminProvider: null!, queryProvider, query, queryOptions)
+    {
+        if (queryOptions.EnableServerSideCancellation)
+        {
+            throw new ArgumentException(
+                "Server-side cancellation cannot be enabled when adminProvider is not supplied.",
+                nameof(queryOptions));
+        }
+
+        adminProvider = null;
     }
 
     /// <summary>
@@ -40,6 +62,14 @@ internal sealed partial class SimpleQueryHandler<T> : IScriptHandler<T>
             var clientRequestProperties = query.GetClientRequestProperties();
 
             clientRequestProperties.SetQueryOptions(queryOptions);
+
+            using var serverSideCancellationRegistration = CancellationTokenKustoExtensions.ShouldEnableServerSideCancellation(adminProvider, queryOptions.EnableServerSideCancellation)
+                ? adminProvider!.RegisterKustoServerSideCancellation(
+                    logger,
+                    databaseName: null,
+                    clientRequestProperties,
+                    cancellationToken)
+                : null;
 
             return await resiliencePipeline.ExecuteAsync(
                 async context =>

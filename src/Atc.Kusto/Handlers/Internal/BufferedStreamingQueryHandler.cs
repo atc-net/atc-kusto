@@ -20,20 +20,41 @@ namespace Atc.Kusto.Handlers.Internal;
 /// </typeparam>
 internal sealed partial class BufferedStreamingQueryHandler<T> : IScriptHandler<StreamingQueryResult<T>?>
 {
+    private readonly ICslAdminProvider? adminProvider;
     private readonly ICslQueryProvider queryProvider;
     private readonly IKustoStreamingQuery<T> query;
     private readonly AtcStreamingQueryOptions streamingQueryOptions;
 
     public BufferedStreamingQueryHandler(
         Microsoft.Extensions.Logging.ILogger<BufferedStreamingQueryHandler<T>> logger,
+        ICslAdminProvider adminProvider,
         ICslQueryProvider queryProvider,
         IKustoStreamingQuery<T> query,
         AtcStreamingQueryOptions streamingQueryOptions)
     {
         this.logger = logger;
+        this.adminProvider = adminProvider;
         this.queryProvider = queryProvider;
         this.query = query;
         this.streamingQueryOptions = streamingQueryOptions;
+    }
+
+    // Backward-compatible overload (pre-cancellation change)
+    public BufferedStreamingQueryHandler(
+        Microsoft.Extensions.Logging.ILogger<BufferedStreamingQueryHandler<T>> logger,
+        ICslQueryProvider queryProvider,
+        IKustoStreamingQuery<T> query,
+        AtcStreamingQueryOptions streamingQueryOptions)
+        : this(logger, adminProvider: null!, queryProvider, query, streamingQueryOptions)
+    {
+        if (streamingQueryOptions.EnableServerSideCancellation)
+        {
+            throw new ArgumentException(
+                "Server-side cancellation cannot be enabled when adminProvider is not supplied.",
+                nameof(streamingQueryOptions));
+        }
+
+        adminProvider = null;
     }
 
     /// <summary>
@@ -65,7 +86,16 @@ internal sealed partial class BufferedStreamingQueryHandler<T> : IScriptHandler<
             Completion = null,
         };
 
-        await ProcessFramesAsync(queryText, clientRequestProperties, channel, result, cancellationToken);
+        using (CancellationTokenKustoExtensions.ShouldEnableServerSideCancellation(adminProvider, streamingQueryOptions.EnableServerSideCancellation)
+                   ? adminProvider!.RegisterKustoServerSideCancellation(
+                       logger,
+                       databaseName: null,
+                       clientRequestProperties,
+                       cancellationToken)
+                   : null)
+        {
+            await ProcessFramesAsync(queryText, clientRequestProperties, channel, result, cancellationToken);
+        }
 
         return result;
     }

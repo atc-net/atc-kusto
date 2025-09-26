@@ -43,6 +43,9 @@ internal sealed class ScriptHandlerFactory : IScriptHandlerFactory
         return new SimpleQueryHandler<T>(
             loggerFactory.CreateLogger<SimpleQueryHandler<T>>(),
             resiliencePipeline,
+            clientProvider.GetAdminClient(
+                connectionName,
+                databaseName),
             clientProvider.GetQueryClient(
                 connectionName,
                 databaseName),
@@ -70,6 +73,9 @@ internal sealed class ScriptHandlerFactory : IScriptHandlerFactory
             : new ExistingPagedStoredQueryHandler<T>(
                 loggerFactory.CreateLogger<ExistingPagedStoredQueryHandler<T>>(),
                 resiliencePipeline,
+                clientProvider.GetAdminClient(
+                    connectionName,
+                    databaseName),
                 clientProvider.GetQueryClient(
                     connectionName,
                     databaseName),
@@ -88,6 +94,9 @@ internal sealed class ScriptHandlerFactory : IScriptHandlerFactory
 
         return new BufferedStreamingQueryHandler<T>(
             loggerFactory.CreateLogger<BufferedStreamingQueryHandler<T>>(),
+            clientProvider.GetAdminClient(
+                connectionName,
+                databaseName),
             clientProvider.GetQueryClient(
                 connectionName,
                 databaseName),
@@ -106,6 +115,9 @@ internal sealed class ScriptHandlerFactory : IScriptHandlerFactory
 
         return new StreamingQueryHandler<T?>(
             loggerFactory.CreateLogger<StreamingQueryHandler<T?>>(),
+            clientProvider.GetAdminClient(
+                connectionName,
+                databaseName),
             clientProvider.GetQueryClient(
                 connectionName,
                 databaseName),
