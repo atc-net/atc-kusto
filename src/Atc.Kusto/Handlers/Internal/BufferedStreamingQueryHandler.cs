@@ -86,7 +86,7 @@ internal sealed partial class BufferedStreamingQueryHandler<T> : IScriptHandler<
             Completion = null,
         };
 
-        using (CancellationTokenKustoExtensions.ShouldEnableServerSideCancellation(adminProvider, streamingQueryOptions.EnableServerSideCancellation)
+        using (CslAdminProviderExtensions.ShouldEnableServerSideCancellation(adminProvider, streamingQueryOptions.EnableServerSideCancellation)
                    ? adminProvider!.RegisterKustoServerSideCancellation(
                        logger,
                        databaseName: null,
@@ -177,9 +177,9 @@ internal sealed partial class BufferedStreamingQueryHandler<T> : IScriptHandler<
                 }
             }
         }
-        catch (Exception ex) when (CancellationTokenKustoExtensions.IsCancellationException(ex))
+        catch (Exception ex) when (CancellationExceptionUtilities.IsCancellationException(ex))
         {
-            throw CancellationTokenKustoExtensions.NormalizeCancellationException(ex, cancellationToken);
+            throw CancellationExceptionUtilities.NormalizeCancellationException(ex, cancellationToken);
         }
         catch (Exception ex)
         {

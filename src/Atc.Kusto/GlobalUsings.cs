@@ -16,6 +16,7 @@ global using Atc.Kusto.Handlers.Internal;
 global using Atc.Kusto.Options;
 global using Atc.Kusto.Providers.Internal;
 global using Atc.Kusto.Serialization.Internal;
+global using Atc.Kusto.Utilities.Internal;
 global using Azure.Core;
 global using Kusto.Cloud.Platform.Data;
 global using Kusto.Data;

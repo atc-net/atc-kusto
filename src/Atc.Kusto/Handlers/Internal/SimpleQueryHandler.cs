@@ -63,7 +63,7 @@ internal sealed partial class SimpleQueryHandler<T> : IScriptHandler<T>
 
             clientRequestProperties.SetQueryOptions(queryOptions);
 
-            using var serverSideCancellationRegistration = CancellationTokenKustoExtensions.ShouldEnableServerSideCancellation(adminProvider, queryOptions.EnableServerSideCancellation)
+            using var serverSideCancellationRegistration = CslAdminProviderExtensions.ShouldEnableServerSideCancellation(adminProvider, queryOptions.EnableServerSideCancellation)
                 ? adminProvider!.RegisterKustoServerSideCancellation(
                     logger,
                     databaseName: null,
@@ -85,9 +85,9 @@ internal sealed partial class SimpleQueryHandler<T> : IScriptHandler<T>
                 },
                 cancellationToken);
         }
-        catch (Exception ex) when (CancellationTokenKustoExtensions.IsCancellationException(ex))
+        catch (Exception ex) when (CancellationExceptionUtilities.IsCancellationException(ex))
         {
-            throw CancellationTokenKustoExtensions.NormalizeCancellationException(ex, cancellationToken);
+            throw CancellationExceptionUtilities.NormalizeCancellationException(ex, cancellationToken);
         }
         catch (KustoServicePartialQueryFailureException ex)
         {
