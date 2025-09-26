@@ -120,6 +120,62 @@ app.MapGet(
     .WithOpenApi();
 
 app.MapGet(
+        "/customers/stream-cancel-demo",
+        async (
+            IKustoProcessorFactory processorFactory,
+            CancellationToken cancellationToken) =>
+        {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromMilliseconds(50));
+
+            try
+            {
+                await foreach (var x in processorFactory.Create("ContosoSales")
+                                   .ExecuteStreamingQuery(new CustomersStreamingQuery(), cts.Token))
+                {
+                    // no-op
+                }
+
+                return Results.Ok();
+            }
+            catch (OperationCanceledException)
+            {
+                return Results.StatusCode(StatusCodes.Status499ClientClosedRequest);
+            }
+        })
+    .WithName("GetCustomersStreamCancelDemo")
+    .WithDescription("Demonstrates cancellation of streaming with server-side cancel enabled")
+    .WithOpenApi();
+
+app.MapGet(
+        "/customers/stream-cancel-demo-no-server",
+        async (
+            IKustoProcessorFactory processorFactory,
+            CancellationToken cancellationToken) =>
+        {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromMilliseconds(50));
+
+            try
+            {
+                await foreach (var x in processorFactory.Create("ContosoSales")
+                                   .ExecuteStreamingQuery(new CustomersStreamingQuery(), new AtcStreamingQueryOptions { EnableServerSideCancellation = false }, cts.Token))
+                {
+                    // no-op
+                }
+
+                return Results.Ok();
+            }
+            catch (OperationCanceledException)
+            {
+                return Results.StatusCode(StatusCodes.Status499ClientClosedRequest);
+            }
+        })
+    .WithName("GetCustomersStreamCancelDemoNoServer")
+    .WithDescription("Demonstrates cancellation of streaming with server-side cancel disabled")
+    .WithOpenApi();
+
+app.MapGet(
         "/nyctaxitrips/stream-with-streaming-query-result",
         async static (
             [FromHeader(Name = "x-client-session-id")] string? sessionId,
