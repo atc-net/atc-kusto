@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.9.0](https://github.com/atc-net/atc-kusto/compare/v2.8.0...v2.9.0) (2025-09-29)
+
+
+### Features
+
+* add cancellation exception normalization for streaming queries ([2f25423](https://github.com/atc-net/atc-kusto/commit/2f254234804dfd30d44de9134aa3354b5372e94f))
+* add cancellation exception normalization to query handlers ([e106693](https://github.com/atc-net/atc-kusto/commit/e10669386e35ea3265990e1874da8c0cf3458dad))
+* add exception normalization helpers for cancellation ([b0ea232](https://github.com/atc-net/atc-kusto/commit/b0ea23209f7ff0e4ef238d946ef6f9f6af6a6759))
+* add server-side cancellation support for Kusto queries ([ff042e5](https://github.com/atc-net/atc-kusto/commit/ff042e594019f870e987e02f626ad86e7b3f9c70))
+
+
+### Bug Fixes
+
+* prevent retry on cancellation exceptions in resilience pipeline ([1a4d6fd](https://github.com/atc-net/atc-kusto/commit/1a4d6fd1758f2acf10fbe9d3aac400fc613e81e8))
+
 ## [2.8.0](https://github.com/atc-net/atc-kusto/compare/v2.7.0...v2.8.0) (2025-09-14)
 
 
