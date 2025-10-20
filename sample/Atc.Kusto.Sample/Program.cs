@@ -190,6 +190,63 @@ finally
     await warmupEnumerator.DisposeAsync();
 }
 
+// Demonstrate streaming with decimal conversion (CustomerSales has decimal fields)
+logger.LogInformation("Streaming customer sales (testing SqlDecimal to decimal conversion)...");
+var salesStreamingQuery = new CustomerSalesStreamingQuery();
+var salesCount = 0;
+
+await foreach (var sale in contosoSalesKustoProcessor.ExecuteStreamingQuery(salesStreamingQuery, CancellationToken.None))
+{
+    if (salesCount < 3)
+    {
+        // Log first 3 to verify decimal conversion works
+        logger.LogInformation(
+            "\tCustomer {CustomerName}: SalesAmount={SalesAmount:C}, TotalCost={TotalCost:C}",
+            sale.CustomerName,
+            sale.SalesAmount,  // SqlDecimal → decimal conversion via DataReaderExtensions!
+            sale.TotalCost);
+    }
+
+    salesCount++;
+}
+
+logger.LogInformation("Streamed {SalesCount} customer sales records with decimal values", salesCount);
+
+// Demonstrate buffered streaming with decimal conversion
+logger.LogInformation("Executing buffered streaming query for customer sales (testing SqlDecimal to decimal conversion)...");
+
+var salesBufferedResult = await contosoSalesKustoProcessor.ExecuteBufferedStreamingQuery(
+    salesStreamingQuery,
+    CancellationToken.None);
+
+if (salesBufferedResult is not null)
+{
+    var bufferedSalesCount = 0;
+    await foreach (var sale in salesBufferedResult.Rows.WithCancellation(CancellationToken.None))
+    {
+        if (bufferedSalesCount < 3)
+        {
+            // Log first 3 to verify decimal conversion works
+            logger.LogInformation(
+                "\tCustomer {CustomerName}: SalesAmount={SalesAmount:C}, TotalCost={TotalCost:C}",
+                sale.CustomerName,
+                sale.SalesAmount,  // SqlDecimal → decimal conversion via DataRowExtensions!
+                sale.TotalCost);
+        }
+
+        bufferedSalesCount++;
+    }
+
+    logger.LogInformation("Buffered streaming processed {BufferedSalesCount} records with decimals", bufferedSalesCount);
+
+    if (salesBufferedResult.Completion is not null)
+    {
+        logger.LogInformation(
+            "Sales streaming completion: HasErrors={HasErrors}",
+            salesBufferedResult.Completion.HasErrors);
+    }
+}
+
 // Demonstrate cancellation with server-side cancel enabled (default)
 logger.LogInformation("Demonstrating cancellation of a long-running streaming query (server-side cancel enabled)...");
 var rowCount = 0;
