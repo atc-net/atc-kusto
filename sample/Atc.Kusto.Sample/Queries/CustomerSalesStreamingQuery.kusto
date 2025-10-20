@@ -1,7 +1,12 @@
+declare query_parameters (
+    customerKey:long = long(null)
+);
 Customers
 | join kind=inner SalesFact on CustomerKey
+| where isnull(customerKey) or customerKey == CustomerKey
 | extend CustomerName = strcat(FirstName, ' ', LastName)
-| summarize 
+| summarize
     SalesAmount = todecimal(round(sum(SalesAmount), 2)),
     TotalCost = todecimal(round(sum(TotalCost), 2))
   by CustomerKey, CustomerName
+| take 100
