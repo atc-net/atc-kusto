@@ -67,7 +67,15 @@ public static class DataReaderExtensions
             doc.WriteEndObject();
             doc.Flush();
 
-            results.Add(JsonSerializer.Deserialize<T>(buffer.WrittenSpan, options)!);
+            var deserializedObject = JsonSerializer.Deserialize<T>(buffer.WrittenSpan, options);
+            if (deserializedObject is null)
+            {
+                throw new InvalidOperationException(
+                    $"Failed to deserialize DataReader row to type {typeof(T).Name}. " +
+                    $"This may indicate corrupted data or an incompatible type mapping.");
+            }
+
+            results.Add(deserializedObject);
         }
 
         return [.. results];
