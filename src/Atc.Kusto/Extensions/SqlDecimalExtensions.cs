@@ -52,7 +52,14 @@ public static class SqlDecimalExtensions
         }
 
         var maxAvailableScale = DotNetDecimalMaxPrecision - integerDigits;
-        var targetScale = System.Math.Min(sqlDecimal.Scale, System.Math.Min(DotNetDecimalMaxScale, maxAvailableScale));
+
+        // Calculate target scale as the minimum of all constraints:
+        // 1. The actual scale from SqlDecimal
+        // 2. .NET decimal's maximum scale (27)
+        // 3. Available scale given the integer part size
+        var scaleConstrainedByDotNet = System.Math.Min((int)sqlDecimal.Scale, DotNetDecimalMaxScale);
+        var targetScale = System.Math.Min(scaleConstrainedByDotNet, maxAvailableScale);
+
         var targetPrecision = System.Math.Min(sqlDecimal.Precision, integerDigits + targetScale);
 
         if (targetPrecision != sqlDecimal.Precision || targetScale != sqlDecimal.Scale)
