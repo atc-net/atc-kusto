@@ -164,7 +164,13 @@ internal sealed partial class StreamingQueryHandler<T> : IStreamingScriptHandler
 
             // Create a new row from the known schema.
             var newRow = dt.NewRow();
-            newRow.ItemArray = (object[])record.Clone(); // ???
+
+            // Convert frame values to match column types (Kusto sends decimals as strings in progressive frames)
+            for (var i = 0; i < record.Length; i++)
+            {
+                newRow[i] = FrameValueTypeConverter.ConvertToColumnType(record[i], dt.Columns[i].DataType);
+            }
+
             dt.Rows.Add(newRow);
 
             if (tableKind == WellKnownDataSet.PrimaryResult)
