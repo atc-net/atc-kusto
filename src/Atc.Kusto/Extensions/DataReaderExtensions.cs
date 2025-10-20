@@ -2,28 +2,75 @@
 namespace Atc.Kusto;
 
 /// <summary>
-/// Provides extension methods for reading and converting data from an <see cref="IDataReader"/> to objects using Newtonsoft.Json.
+/// Provides extension methods for reading and converting data from an <see cref="IDataReader"/> to objects using System.Text.Json.
 /// These methods simplify the process of converting database records into strongly-typed objects.
+/// Note: Newtonsoft.Json.Linq is retained for handling <see cref="JToken"/> objects returned by the Kusto SDK for dynamic fields.
 /// </summary>
 public static class DataReaderExtensions
 {
     /// <summary>
     /// Reads all rows from the <see cref="IDataReader"/> and converts them into an array of strongly-typed objects of type <typeparamref name="T"/>.
-    /// The conversion is handled using Newtonsoft.Json with a custom converter to facilitate the transition between Newtonsoft.Json and System.Text.Json.
+    /// The conversion is handled using System.Text.Json for optimal performance.
     /// </summary>
     /// <typeparam name="T">The type of objects to convert the data into.</typeparam>
     /// <param name="reader">The <see cref="IDataReader"/> from which to read the data.</param>
+    /// <param name="options">Optional JSON serializer options. If not provided, default options with enum string conversion, case-insensitive property matching, and number string reading will be used.</param>
     /// <returns>An array of objects of type <typeparamref name="T"/> representing the data read from the reader.</returns>
     public static T[] ReadObjects<T>(
-        this IDataReader reader)
+        this IDataReader reader,
+        JsonSerializerOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(reader);
 
-        return reader
-            .ToJObjects()
-            .Select(o => o.ToObject<T>(KustoJsonSerializerHelper.Serializer))
-            .OfType<T>()
-            .ToArray();
+        options ??= KustoJsonSerializerOptions.Default;
+
+        var buffer = new ArrayBufferWriter<byte>();
+        using var doc = new Utf8JsonWriter(buffer);
+        var results = new List<T>();
+
+        while (reader.Read())
+        {
+            buffer.Clear();
+            doc.Reset(buffer);
+
+            doc.WriteStartObject();
+
+            for (var i = 0; i < reader.FieldCount; i++)
+            {
+                var value = reader.GetValue(i);
+
+                var name = reader.GetName(i);
+                if (options.PropertyNamingPolicy is { } np)
+                {
+                    name = np.ConvertName(name);
+                }
+
+                doc.WritePropertyName(name);
+
+                switch (value)
+                {
+                    case JToken token:
+                        doc.WriteRawValue(token.ToString(Newtonsoft.Json.Formatting.None));
+                        break;
+                    case DBNull:
+                        doc.WriteNullValue();
+                        break;
+                    case SqlDecimal sd:
+                        doc.WriteNumberValue(sd.ToDecimal());
+                        break;
+                    default:
+                        JsonSerializer.Serialize(doc, value, options);
+                        break;
+                }
+            }
+
+            doc.WriteEndObject();
+            doc.Flush();
+
+            results.Add(JsonSerializer.Deserialize<T>(buffer.WrittenSpan, options)!);
+        }
+
+        return [.. results];
     }
 
     /// <summary>

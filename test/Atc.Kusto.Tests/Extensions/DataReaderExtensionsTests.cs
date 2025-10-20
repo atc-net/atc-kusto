@@ -33,6 +33,10 @@ public sealed class DataReaderExtensionsTests
             .GetValues(null!)
             .ReturnsForAnyArgs(c => c.Arg<object[]>().CopyFrom(values[index], 0));
 
+        dataReader
+            .GetValue(0)
+            .ReturnsForAnyArgs(c => values[index][c.Arg<int>()]);
+
         // Act
         var actual = dataReader.ReadObjects<TestObject>();
 
@@ -65,6 +69,10 @@ public sealed class DataReaderExtensionsTests
         dataReader
             .GetValues(null!)
             .ReturnsForAnyArgs(c => c.Arg<object[]>().CopyFrom(values[index], 0));
+
+        dataReader
+            .GetValue(0)
+            .ReturnsForAnyArgs(c => values[index][c.Arg<int>()]);
 
         dataReader
             .NextResult()
