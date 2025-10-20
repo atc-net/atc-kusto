@@ -275,7 +275,15 @@ internal sealed partial class BufferedStreamingQueryHandler<T> : IScriptHandler<
         var record = new object[tableFragmentFrame.FieldCount];
         while (tableFragmentFrame.GetNextRecord(record))
         {
-            dt.Rows.Add(record);
+            var newRow = dt.NewRow();
+
+            // Convert frame values to match column types (Kusto sends decimals as strings in progressive frames)
+            for (var i = 0; i < record.Length; i++)
+            {
+                newRow[i] = FrameValueTypeConverter.ConvertToColumnType(record[i], dt.Columns[i].DataType);
+            }
+
+            dt.Rows.Add(newRow);
         }
     }
 
