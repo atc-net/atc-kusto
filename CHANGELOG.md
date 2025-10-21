@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.10.0](https://github.com/atc-net/atc-kusto/compare/v2.9.0...v2.10.0) (2025-10-21)
+
+
+### Features
+
+* **extensions:** add SqlDecimal to decimal conversion helper ([aed3d3d](https://github.com/atc-net/atc-kusto/commit/aed3d3d1a3662310740745e1d6a0f372aa80a16d))
+
+
+### Bug Fixes
+
+* **streaming:** convert progressive frame values to match column types ([ef9d846](https://github.com/atc-net/atc-kusto/commit/ef9d846c962f8e8da85eb9efe3aef61284024361))
+
 ## [2.9.0](https://github.com/atc-net/atc-kusto/compare/v2.8.0...v2.9.0) (2025-09-29)
 
 
