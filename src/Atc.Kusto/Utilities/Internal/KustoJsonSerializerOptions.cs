@@ -11,7 +11,7 @@ internal static class KustoJsonSerializerOptions
     /// </summary>
     public static JsonSerializerOptions Default { get; } = new()
     {
-        Converters = { new JsonStringEnumConverter() },
+        Converters = { new JsonStringEnumConverter(), new KustoBooleanJsonConverter() },
         PropertyNameCaseInsensitive = true,
         NumberHandling = JsonNumberHandling.AllowReadingFromString,
     };

@@ -1,9 +1,12 @@
+global using System.Buffers;
 global using System.Collections;
 global using System.Data;
 global using System.Data.Common;
 global using System.Data.SqlTypes;
 global using System.Diagnostics.CodeAnalysis;
 global using System.Globalization;
+global using System.Text;
+global using System.Text.Json;
 global using Atc.Kusto.Extensions;
 global using Atc.Kusto.Extensions.Internal;
 global using Atc.Kusto.Factories;
