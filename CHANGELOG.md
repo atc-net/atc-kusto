@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.10.1](https://github.com/atc-net/atc-kusto/compare/v2.10.0...v2.10.1) (2025-10-27)
+
+
+### Bug Fixes
+
+* add KustoBooleanJsonConverter to handle Kusto's numeric boolean values ([587e4cc](https://github.com/atc-net/atc-kusto/commit/587e4cc0e7b488eab8d0e94e2139706934f4d0cb))
+
 ## [2.10.0](https://github.com/atc-net/atc-kusto/compare/v2.9.0...v2.10.0) (2025-10-21)
 
 
