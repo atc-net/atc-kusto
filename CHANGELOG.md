@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.10.2](https://github.com/atc-net/atc-kusto/compare/v2.10.1...v2.10.2) (2025-11-12)
+
+
+### Bug Fixes
+
+* add JToken handling to DataRowExtensions for dynamic fields ([dcaa4e0](https://github.com/atc-net/atc-kusto/commit/dcaa4e0e6caad8e0a36e020f704ff30480a75a61))
+
 ## [2.10.1](https://github.com/atc-net/atc-kusto/compare/v2.10.0...v2.10.1) (2025-10-27)
 
 
