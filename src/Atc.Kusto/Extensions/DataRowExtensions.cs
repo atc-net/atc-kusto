@@ -16,7 +16,9 @@ public static class DataRowExtensions
     /// <param name="row">The data row to map.</param>
     /// <param name="options">Optional JSON serializer options. If not provided, default options with enum string conversion and case-insensitive property matching will be used.</param>
     /// <returns>An instance of type <typeparamref name="T"/> created from the DataRow.</returns>
-    public static T? MapDataRow<T>(this DataRow row, JsonSerializerOptions? options = null)
+    public static T? MapDataRow<T>(
+        this DataRow row,
+        JsonSerializerOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(row);
 
