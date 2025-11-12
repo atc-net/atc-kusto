@@ -258,7 +258,9 @@ internal static class ProgressiveDataSetBuilder
 
 internal sealed class SchemaFrameStub : ProgressiveDataSetDataTableSchemaFrame
 {
-    public SchemaFrameStub(int id, DataTable schema)
+    public SchemaFrameStub(
+        int id,
+        DataTable schema)
     {
         FrameType = FrameType.TableHeader;
         TableId = id;
@@ -282,7 +284,9 @@ internal sealed class SchemaFrameStub : ProgressiveDataSetDataTableSchemaFrame
 
 internal sealed class DataTableFrameStub : ProgressiveDataSetDataTableFrame
 {
-    public DataTableFrameStub(int id, DataTable sourceTable)
+    public DataTableFrameStub(
+        int id,
+        DataTable sourceTable)
     {
         FrameType = FrameType.DataTable; // Use DataTable frame type to match handler's expectations
         TableId = id;
@@ -304,7 +308,10 @@ internal sealed class DataTableFrameStub : ProgressiveDataSetDataTableFrame
 
 internal sealed class CompletionFrameStub : ProgressiveDataSetCompletionFrame
 {
-    public CompletionFrameStub(bool cancelled = false, bool hasErrors = false, Exception? ex = null)
+    public CompletionFrameStub(
+        bool cancelled = false,
+        bool hasErrors = false,
+        Exception? ex = null)
     {
         FrameType = FrameType.DataSetCompletion;
         Cancelled = cancelled;
@@ -428,10 +435,20 @@ internal sealed class SingleColumnReader : DbDataReader
 
     public override string GetDataTypeName(int ordinal) => "string";
 
-    public override long GetBytes(int ordinal, long dataOffset, byte[]? buffer, int bufferOffset, int length)
+    public override long GetBytes(
+        int ordinal,
+        long dataOffset,
+        byte[]? buffer,
+        int bufferOffset,
+        int length)
         => throw new NotSupportedException();
 
-    public override long GetChars(int ordinal, long dataOffset, char[]? buffer, int bufferOffset, int length)
+    public override long GetChars(
+        int ordinal,
+        long dataOffset,
+        char[]? buffer,
+        int bufferOffset,
+        int length)
         => throw new NotSupportedException();
 
     public override bool GetBoolean(int ordinal)
