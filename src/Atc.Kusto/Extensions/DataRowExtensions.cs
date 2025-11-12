@@ -23,7 +23,7 @@ public static class DataRowExtensions
         options ??= KustoJsonSerializerOptions.Default;
 
         // Convert the DataRow to a dictionary using its columns.
-        // Pre-process values to handle SqlDecimal and DBNull since System.Text.Json doesn't support them.
+        // Pre-process values to handle SqlDecimal, DBNull, and JToken since System.Text.Json doesn't support them directly.
         var dict = row.Table.Columns
             .Cast<DataColumn>()
             .ToDictionary(
@@ -35,6 +35,9 @@ public static class DataRowExtensions
                     {
                         SqlDecimal sd => sd.ToDecimal(),
                         DBNull => null,
+                        JToken token => JsonSerializer.Deserialize<object>(
+                            token.ToString(Newtonsoft.Json.Formatting.None),
+                            options),
                         _ => value,
                     };
                 },
