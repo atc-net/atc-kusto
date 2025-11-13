@@ -82,11 +82,12 @@ public sealed class MissingKustoScriptResourceAnalyzer : DiagnosticAnalyzer
         var classFileName = GetFileNameWithoutExtension(classFilePath);
         var expectedKustoFileName = $"{classFileName}.kusto";
 
-        // Check if a .kusto file with the expected name exists in the compilation's syntax trees
-        // This checks for .kusto files that are included in the compilation
-        var kustoFileExists = context.Compilation.SyntaxTrees
-            .Any(tree => !string.IsNullOrEmpty(tree.FilePath) &&
-                         GetFileName(tree.FilePath).Equals(expectedKustoFileName, StringComparison.OrdinalIgnoreCase));
+        // Check if a .kusto file with the expected name exists in AdditionalFiles
+        // .kusto files must be configured as <AdditionalFiles Include="**/*.kusto" /> in .csproj
+        var additionalFiles = context.Options.AdditionalFiles;
+        var kustoFileExists = additionalFiles
+            .Any(file => !string.IsNullOrEmpty(file.Path) &&
+                         GetFileName(file.Path).Equals(expectedKustoFileName, StringComparison.OrdinalIgnoreCase));
 
         if (!kustoFileExists)
         {
