@@ -33,4 +33,19 @@
     <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
   </ItemGroup>
 
+  <!-- Package the Roslyn analyzer with this NuGet package -->
+  <ItemGroup>
+    <ProjectReference Include="..\Atc.Kusto.Analyzer\Atc.Kusto.Analyzer.csproj" PrivateAssets="all" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <GetTargetPathDependsOn>$(GetTargetPathDependsOn);GetAnalyzerPackFiles</GetTargetPathDependsOn>
+  </PropertyGroup>
+
+  <Target Name="GetAnalyzerPackFiles">
+    <ItemGroup>
+      <TfmSpecificPackageFile Include="$(OutputPath)\..\..\..\Atc.Kusto.Analyzer\bin\$(Configuration)\netstandard2.0\Atc.Kusto.Analyzer.dll" PackagePath="analyzers/dotnet/cs" />
+    </ItemGroup>
+  </Target>
+
 </Project>
