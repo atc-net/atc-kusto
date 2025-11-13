@@ -9,6 +9,7 @@
     <Project Path="sample/Atc.Kusto.Sample/Atc.Kusto.Sample.csproj" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="src/Atc.Kusto.Analyzer/Atc.Kusto.Analyzer.csproj" />
     <Project Path="src/Atc.Kusto/Atc.Kusto.csproj" />
   </Folder>
   <Folder Name="/test/">
