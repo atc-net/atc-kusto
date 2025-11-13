@@ -22,14 +22,35 @@ public sealed class MissingKustoScriptResourceCodeFixProvider : CodeFixProvider
         var diagnosticSpan = diagnostic.Location.SourceSpan;
 
         // Find the class declaration identified by the diagnostic
+        // The diagnostic span points to the class identifier, so we need to get the parent ClassDeclarationSyntax
         var node = root.FindNode(diagnosticSpan);
-        if (node is not IdentifierNameSyntax && node.Parent is ClassDeclarationSyntax classDecl)
+        if (node.Parent is ClassDeclarationSyntax classDecl)
         {
             node = classDecl;
         }
 
-        if (node is not ClassDeclarationSyntax)
+        if (node is not ClassDeclarationSyntax classDeclNode)
         {
+            return;
+        }
+
+        // Get the syntax tree file path to calculate expected .kusto file name
+        var classFilePath = await context.Document.GetSyntaxTreeAsync(context.CancellationToken).ConfigureAwait(false);
+        if (classFilePath is null || string.IsNullOrEmpty(classFilePath.FilePath))
+        {
+            return;
+        }
+
+        var classFileName = GetFileNameWithoutExtension(classFilePath.FilePath);
+        var expectedKustoFileName = $"{classFileName}.kusto";
+
+        // Check if the TODO comment already exists
+        var existingTrivia = classDeclNode.GetLeadingTrivia();
+        if (existingTrivia.Any(t => t.IsKind(SyntaxKind.SingleLineCommentTrivia) &&
+                                     t.ToString().Contains("TODO") &&
+                                     t.ToString().Contains(expectedKustoFileName)))
+        {
+            // Comment already exists, don't offer the fix
             return;
         }
 
@@ -68,14 +89,28 @@ public sealed class MissingKustoScriptResourceCodeFixProvider : CodeFixProvider
 
         // Create the instruction comment
         var commentText = $"// TODO: Create a file named '{expectedKustoFileName}' in the same directory as this file and mark it as an embedded resource in the .csproj";
-        var commentTrivia = SyntaxFactory.Comment(commentText);
 
         // Get existing leading trivia
         var existingTrivia = classDecl.GetLeadingTrivia();
 
-        // Add the comment before the class declaration
-        var newTrivia = existingTrivia.Insert(0, commentTrivia);
-        newTrivia = newTrivia.Insert(1, endOfLine);
+        // Check if the comment already exists in the leading trivia
+        if (existingTrivia.Any(t => t.IsKind(SyntaxKind.SingleLineCommentTrivia) &&
+                                     t.ToString().Contains("TODO") &&
+                                     t.ToString().Contains(expectedKustoFileName)))
+        {
+            // Comment already exists, don't add it again
+            return document;
+        }
+
+        // Find the last whitespace trivia (indentation) before the class keyword
+        var indentationTrivia = existingTrivia.LastOrDefault(t => t.IsKind(SyntaxKind.WhitespaceTrivia));
+
+        var commentTrivia = SyntaxFactory.Comment(commentText);
+
+        // Create new trivia list: indentation + comment + newline + existing trivia
+        var newTrivia = indentationTrivia.IsKind(SyntaxKind.None)
+            ? SyntaxFactory.TriviaList(commentTrivia, endOfLine).AddRange(existingTrivia)
+            : SyntaxFactory.TriviaList(indentationTrivia, commentTrivia, endOfLine).AddRange(existingTrivia);
 
         var newClassDecl = classDecl.WithLeadingTrivia(newTrivia);
 
