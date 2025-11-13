@@ -1,0 +1,3 @@
+// Sample Kusto query for testing
+Customers
+| take 100
