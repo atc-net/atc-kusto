@@ -13,6 +13,7 @@
     <Project Path="src/Atc.Kusto/Atc.Kusto.csproj" />
   </Folder>
   <Folder Name="/test/">
+    <Project Path="test/Atc.Kusto.Analyzer.Tests/Atc.Kusto.Analyzer.Tests.csproj" />
     <Project Path="test/Atc.Kusto.Tests/Atc.Kusto.Tests.csproj" />
   </Folder>
 </Solution>
