@@ -116,6 +116,29 @@ The .NET record should to derive from one of the following base types:
 
 > Note: The base types handles the loading of the embedded `.kusto` script file, passing of parameters and deserialization of the output._
 
+#### Required Project Configuration
+
+To enable compile-time validation of .kusto files, you **must** configure your `.csproj` to include .kusto files as both embedded resources and additional files:
+
+```xml
+<ItemGroup>
+  <!-- Required for runtime: embeds .kusto files in the assembly -->
+  <EmbeddedResource Include="**/*.kusto" />
+
+  <!-- Required for compile-time validation: allows the analyzer to verify .kusto files exist -->
+  <AdditionalFiles Include="**/*.kusto" />
+</ItemGroup>
+```
+
+**What this enables:**
+- ✅ **Compile-time errors** if a .kusto file is missing for a KustoScript class
+- ✅ **Code fix** that creates stub .kusto files with example queries
+- ✅ **Build failures** prevent runtime errors from missing query files
+
+Without the `<AdditionalFiles>` configuration, the compiler will report errors (ATCK301) even if the .kusto files exist, because the analyzer cannot see them during compilation.
+
+#### Defining Query Parameters
+
 Parameters are specified by adding them to record, and declare them at the top of the `.kusto` script, like this:
 
 ```csharp
