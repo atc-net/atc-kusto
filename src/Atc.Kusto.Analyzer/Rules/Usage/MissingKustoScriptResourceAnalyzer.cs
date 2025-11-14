@@ -32,14 +32,17 @@ public sealed class MissingKustoScriptResourceAnalyzer : DiagnosticAnalyzer
     {
         var namedTypeSymbol = (INamedTypeSymbol)context.Symbol;
 
-        // Skip if this is an abstract class, interface, or not a class
-        if (namedTypeSymbol.IsAbstract || namedTypeSymbol.TypeKind != TypeKind.Class)
+        // Skip if this is an abstract class, interface, or not a class/record
+        // Note: Records are TypeKind.Class in Roslyn
+        if (namedTypeSymbol.IsAbstract || (namedTypeSymbol.TypeKind != TypeKind.Class && namedTypeSymbol.TypeKind != TypeKind.Struct))
         {
             return;
         }
 
         // Check if the class inherits from KustoScript
-        if (!InheritsFromKustoScript(namedTypeSymbol))
+        var inheritsFromKustoScript = InheritsFromKustoScript(namedTypeSymbol);
+
+        if (!inheritsFromKustoScript)
         {
             return;
         }
@@ -60,11 +63,21 @@ public sealed class MissingKustoScriptResourceAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        // Get the class declaration
-        var classDeclaration = syntaxReference.GetSyntax(context.CancellationToken);
-        if (classDeclaration is not ClassDeclarationSyntax classDecl)
+        // Get the class or record declaration
+        var declaration = syntaxReference.GetSyntax(context.CancellationToken);
+        SyntaxToken identifier;
+
+        switch (declaration)
         {
-            return;
+            case ClassDeclarationSyntax classDecl:
+                identifier = classDecl.Identifier;
+                break;
+            case RecordDeclarationSyntax recordDecl:
+                identifier = recordDecl.Identifier;
+                break;
+            default:
+                // Not a class or record declaration
+                return;
         }
 
         // Get the expected embedded resource name (fully qualified class name + .kusto)
@@ -91,10 +104,10 @@ public sealed class MissingKustoScriptResourceAnalyzer : DiagnosticAnalyzer
 
         if (!kustoFileExists)
         {
-            // Report diagnostic on the class identifier
+            // Report diagnostic on the class/record identifier
             var diagnostic = Diagnostic.Create(
                 Rule,
-                classDecl.Identifier.GetLocation(),
+                identifier.GetLocation(),
                 namedTypeSymbol.Name,
                 expectedResourceName);
 
