@@ -58,7 +58,7 @@ public sealed class MissingKustoScriptResourceAnalyzerWithAdditionalFilesTests
             TestCode = code,
         };
 
-        // No AdditionalFiles added - should report diagnostic
+        //// No AdditionalFiles added - should report diagnostic
 
         await test.RunAsync();
     }
