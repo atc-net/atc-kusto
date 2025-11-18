@@ -3,6 +3,7 @@
     <File Path="README.md" />
   </Folder>
   <Folder Name="/sample/">
+    <Project Path="sample/Atc.Kusto.Analyzer.Sample/Atc.Kusto.Analyzer.Sample.csproj" />
     <Project Path="sample/Atc.Kusto.Api.Client.Sample/Atc.Kusto.Api.Client.Sample.csproj" />
     <Project Path="sample/Atc.Kusto.Api.Sample/Atc.Kusto.Api.Sample.csproj" />
     <Project Path="sample/Atc.Kusto.HealthCheck.Sample/Atc.Kusto.HealthCheck.Sample.csproj" />

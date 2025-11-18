@@ -42,6 +42,10 @@
     <None Include="AnalyzerReleases.Unshipped.md" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Atc.Kusto.Analyzer.Tests" />
+  </ItemGroup>
+
   <!-- Package the analyzer DLL in the analyzers\dotnet\cs path -->
   <ItemGroup>
     <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />

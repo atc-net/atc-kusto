@@ -1,20 +1,15 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Queries\CustomerSalesQuery.kusto" />
-    <None Remove="Queries\CustomersQuery.kusto" />
-    <None Remove="Queries\CustomersStreamingQuery.kusto" />
-  </ItemGroup>
+    <!-- For runtime (existing requirement) -->
+    <EmbeddedResource Include="**/*.kusto" />
 
-  <ItemGroup>
-    <EmbeddedResource Include="Queries\CustomerSalesQuery.kusto" />
-    <EmbeddedResource Include="Queries\CustomersQuery.kusto" />
-    <EmbeddedResource Include="Queries\NycTaxiTripsStreamingQuery.kusto" />
-    <EmbeddedResource Include="Queries\CustomersStreamingQuery.kusto" />
+    <!-- For analyzer compile-time checking (NEW requirement) -->
+    <AdditionalFiles Include="**/*.kusto" />
   </ItemGroup>
 
   <ItemGroup>

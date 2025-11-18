@@ -29,6 +29,9 @@ internal static class RuleIdentifierConstants
     internal static class Usage
     {
         internal const string MissingKustoScriptResource = "ATCK301";
+        internal const string ParameterCountMismatch = "ATCK302";
+        internal const string ParameterTypeMismatch = "ATCK303";
+        internal const string ParameterOrderMismatch = "ATCK304";
     }
 
     /// <summary>
