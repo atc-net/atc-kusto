@@ -1,0 +1,73 @@
+namespace Atc.Kusto.Analyzer.Tests.Rules.Usage;
+
+#pragma warning disable SA1135 // Using directives must be qualified
+using AnalyzerVerifier = CSharpAnalyzerVerifier<KustoParameterMismatchAnalyzer>;
+#pragma warning restore SA1135 // Using directives must be qualified
+
+[SuppressMessage("", "AsyncFixer01:The method does not need to use async/await", Justification = "OK - Test code")]
+[SuppressMessage("Naming", "MA0048:File name must match type name", Justification = "OK - Partial class")]
+public sealed partial class KustoParameterMismatchAnalyzerTests
+{
+    [Fact]
+    public async Task NoDiagnostic_AbstractClass()
+    {
+        const string code = """
+                            namespace Atc.Kusto;
+
+                            public abstract class KustoScript
+                            {
+                            }
+
+                            public abstract class MyQuery : KustoScript
+                            {
+                            }
+                            """;
+
+        await AnalyzerVerifier.VerifyAnalyzerAsync(code);
+    }
+
+    [Fact]
+    public async Task NoDiagnostic_InterfaceType()
+    {
+        const string code = """
+                            namespace Atc.Kusto;
+
+                            public interface IKustoScript
+                            {
+                            }
+                            """;
+
+        await AnalyzerVerifier.VerifyAnalyzerAsync(code);
+    }
+
+    [Fact]
+    public async Task NoDiagnostic_ClassNotInheritingFromKustoScript()
+    {
+        const string code = """
+                            public class MyClass
+                            {
+                            }
+                            """;
+
+        await AnalyzerVerifier.VerifyAnalyzerAsync(code);
+    }
+
+    [Fact]
+    public async Task NoDiagnostic_NoKustoFile()
+    {
+        // When there's no .kusto file, ATCK301 handles it, not ATCK302-304
+        const string code = """
+                            namespace Atc.Kusto;
+
+                            public abstract class KustoScript
+                            {
+                            }
+
+                            public class MyQuery : KustoScript
+                            {
+                            }
+                            """;
+
+        await AnalyzerVerifier.VerifyAnalyzerAsync(code);
+    }
+}

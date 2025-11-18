@@ -1,0 +1,18 @@
+declare query_parameters (
+    customerId:string = ""
+);
+Customers
+| where isnull(customerId) or customerId == CustomerKey
+| project
+    CustomerKey,
+    FirstName,
+    LastName,
+    CompanyName,
+    CityName,
+    StateProvinceName,
+    RegionCountryName,
+    ContinentName,
+    Gender,
+    MaritalStatus,
+    Education,
+    Occupation
