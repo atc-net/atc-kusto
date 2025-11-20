@@ -314,6 +314,7 @@ public sealed class KustoParameterMismatchAnalyzer : DiagnosticAnalyzer
     private static bool InheritsFromKustoScript(INamedTypeSymbol typeSymbol)
     {
         var baseType = typeSymbol.BaseType;
+
         while (baseType != null)
         {
             if (baseType.Name == Constants.KustoScriptBaseClassName)
