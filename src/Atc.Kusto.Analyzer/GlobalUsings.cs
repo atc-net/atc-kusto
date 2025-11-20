@@ -6,6 +6,7 @@ global using System.Diagnostics.CodeAnalysis;
 global using System.Globalization;
 global using System.Text.RegularExpressions;
 global using Atc.Kusto.Analyzer.Extensions;
+global using Atc.Kusto.Analyzer.Helpers;
 global using Microsoft.CodeAnalysis;
 global using Microsoft.CodeAnalysis.CodeActions;
 global using Microsoft.CodeAnalysis.CodeFixes;

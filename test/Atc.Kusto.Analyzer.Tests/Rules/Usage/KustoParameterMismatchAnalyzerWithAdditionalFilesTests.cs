@@ -279,4 +279,3 @@ public sealed partial class KustoParameterMismatchAnalyzerTests
         await test.RunAsync();
     }
 }
-
