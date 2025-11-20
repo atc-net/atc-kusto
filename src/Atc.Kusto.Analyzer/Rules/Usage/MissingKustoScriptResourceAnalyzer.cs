@@ -88,7 +88,9 @@ public sealed class MissingKustoScriptResourceAnalyzer : DiagnosticAnalyzer
         return syntaxReferences.Length > 0 ? syntaxReferences[0] : null;
     }
 
-    private static SyntaxToken? GetTypeIdentifier(SyntaxReference syntaxReference, CancellationToken cancellationToken)
+    private static SyntaxToken? GetTypeIdentifier(
+        SyntaxReference syntaxReference,
+        CancellationToken cancellationToken)
     {
         var declaration = syntaxReference.GetSyntax(cancellationToken);
 
@@ -100,7 +102,9 @@ public sealed class MissingKustoScriptResourceAnalyzer : DiagnosticAnalyzer
         };
     }
 
-    private static bool KustoFileExists(ImmutableArray<AdditionalText> additionalFiles, string classFilePath)
+    private static bool KustoFileExists(
+        ImmutableArray<AdditionalText> additionalFiles,
+        string classFilePath)
     {
         var classFileName = classFilePath.GetFileNameWithoutExtension();
         var classDirectory = classFilePath.GetDirectoryName();
@@ -130,6 +134,7 @@ public sealed class MissingKustoScriptResourceAnalyzer : DiagnosticAnalyzer
     private static bool InheritsFromKustoScript(INamedTypeSymbol typeSymbol)
     {
         var baseType = typeSymbol.BaseType;
+
         while (baseType != null)
         {
             if (baseType.Name == Constants.KustoScriptBaseClassName)
