@@ -6,6 +6,7 @@ using AnalyzerVerifier = CSharpAnalyzerVerifier<EmptyKustoScriptFileAnalyzer>;
 
 [SuppressMessage("", "AsyncFixer01:The method does not need to use async/await", Justification = "OK - Test code")]
 [SuppressMessage("Naming", "MA0048:File name must match type name", Justification = "OK - Partial class")]
+[SuppressMessage("Critical Code Smell", "S2699:Add at least one assertion to this test case", Justification = "OK - test.RunAsync() is the assertion in Roslyn analyzer tests")]
 public sealed partial class EmptyKustoScriptFileAnalyzerTests
 {
     [Fact]
