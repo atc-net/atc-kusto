@@ -1,6 +1,7 @@
 namespace Atc.Kusto.Analyzer.Tests.Rules.Usage;
 
 [SuppressMessage("", "AsyncFixer01:The method does not need to use async/await", Justification = "OK - Test code")]
+[SuppressMessage("Critical Code Smell", "S2699:Add at least one assertion to this test case", Justification = "OK - test.RunAsync() is the assertion in Roslyn analyzer tests")]
 public sealed class MissingKustoScriptResourceAnalyzerWithAdditionalFilesTests
 {
     [Fact]
