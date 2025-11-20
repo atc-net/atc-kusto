@@ -1,0 +1,5 @@
+// TODO: Implement customer query
+// This file is empty and should trigger ATCK305
+declare query_parameters (
+    customerId:long
+);

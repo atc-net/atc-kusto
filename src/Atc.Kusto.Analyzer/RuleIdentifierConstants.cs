@@ -32,6 +32,7 @@ internal static class RuleIdentifierConstants
         internal const string ParameterCountMismatch = "ATCK302";
         internal const string ParameterTypeMismatch = "ATCK303";
         internal const string ParameterOrderMismatch = "ATCK304";
+        internal const string EmptyKustoScriptFile = "ATCK305";
     }
 
     /// <summary>
