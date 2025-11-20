@@ -4,6 +4,7 @@ global using System.Collections.Immutable;
 global using System.Composition;
 global using System.Diagnostics.CodeAnalysis;
 global using System.Globalization;
+global using System.Text.RegularExpressions;
 global using Atc.Kusto.Analyzer.Extensions;
 global using Microsoft.CodeAnalysis;
 global using Microsoft.CodeAnalysis.CodeActions;
