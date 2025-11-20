@@ -131,9 +131,8 @@ public sealed class KustoParameterMismatchAnalyzer : DiagnosticAnalyzer
             var csharpParam = csharpParameters[i];
             var kustoParam = kustoParameters[i];
 
-            // Check name (order) - convert C# PascalCase to camelCase for comparison
-            var expectedKustoName = ToCamelCase(csharpParam.Name);
-            if (!expectedKustoName.Equals(kustoParam.Name, StringComparison.OrdinalIgnoreCase))
+            // Check name (order) - case-insensitive comparison
+            if (!csharpParam.Name.Equals(kustoParam.Name, StringComparison.OrdinalIgnoreCase))
             {
                 var diagnostic = Diagnostic.Create(
                     ParameterOrderMismatchRule,
@@ -236,15 +235,5 @@ public sealed class KustoParameterMismatchAnalyzer : DiagnosticAnalyzer
 
         // If no mapping found, compare directly (case-insensitive)
         return csharpType.Equals(kustoType, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static string ToCamelCase(string pascalCase)
-    {
-        if (string.IsNullOrEmpty(pascalCase))
-        {
-            return pascalCase;
-        }
-
-        return char.ToLowerInvariant(pascalCase[0]) + pascalCase.Substring(1);
     }
 }
