@@ -16,9 +16,9 @@ public sealed class EmptyKustoScriptFileAnalyzer : DiagnosticAnalyzer
         description: "Classes inheriting from KustoScript should have a .kusto file with actual query or command content, not just comments or whitespace.",
         helpLinkUri: RuleIdentifierHelper.GetHelpUri(RuleIdentifierConstants.Usage.EmptyKustoScriptFile));
 
-    private static readonly Regex SingleLineCommentRegex = new(@"//.*?$", RegexOptions.Multiline);
-    private static readonly Regex MultiLineCommentRegex = new(@"/\*.*?\*/", RegexOptions.Singleline);
-    private static readonly Regex ParameterDeclarationRegex = new(@"declare\s+query_parameters\s*\([^)]*\)\s*;", RegexOptions.Singleline | RegexOptions.IgnoreCase);
+    private static readonly Regex SingleLineCommentRegex = new(@"//.*?$", RegexOptions.Multiline, TimeSpan.FromSeconds(1));
+    private static readonly Regex MultiLineCommentRegex = new(@"/\*.*?\*/", RegexOptions.Singleline, TimeSpan.FromSeconds(1));
+    private static readonly Regex ParameterDeclarationRegex = new(@"declare\s+query_parameters\s*\([^)]*\)\s*;", RegexOptions.Singleline | RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => [Rule];
 
