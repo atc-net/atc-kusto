@@ -7,7 +7,7 @@ The library provides a streamlined interface for handling Kusto operations, maki
 ## Table of Content
 
 - [Introduction](#introduction)
-- [Table of Content](#table-of-content)
+  - [Table of Content](#table-of-content)
   - [Features](#features)
   - [Getting started](#getting-started)
     - [Configuring the Atc.Kusto library using ServiceCollection Extensions](#configuring-the-atckusto-library-using-servicecollection-extensions)
@@ -15,6 +15,8 @@ The library provides a streamlined interface for handling Kusto operations, maki
       - [Setup with Pre-Configured Options](#setup-with-pre-configured-options)
       - [Setup with Configuration Delegate](#setup-with-configuration-delegate)
     - [Adding a Kusto query](#adding-a-kusto-query)
+      - [Required Project Configuration](#required-project-configuration)
+      - [Defining Query Parameters](#defining-query-parameters)
     - [Kusto query examples](#kusto-query-examples)
       - [Single](#single)
       - [List](#list)
@@ -28,10 +30,15 @@ The library provides a streamlined interface for handling Kusto operations, maki
       - [Health Check Response](#health-check-response)
       - [Health Check Statuses](#health-check-statuses)
       - [Using Health Check Programmatically](#using-health-check-programmatically)
-    - [Sample](#sample)
-    - [Cancellation](#cancellation)
-- [Requirements](#requirements)
-- [How to contribute](#how-to-contribute)
+  - [Sample](#sample)
+  - [Cancellation](#cancellation)
+    - [Configuration](#configuration)
+    - [Performance Implications](#performance-implications)
+    - [Examples](#examples)
+  - [Analyzer](#analyzer)
+    - [Analyzer Rules](#analyzer-rules)
+  - [Requirements](#requirements)
+  - [How to contribute](#how-to-contribute)
 
 ## Features
 
@@ -131,6 +138,7 @@ To enable compile-time validation of .kusto files, you **must** configure your `
 ```
 
 **What this enables:**
+
 - ✅ **Compile-time errors** if a .kusto file is missing for a KustoScript class
 - ✅ **Code fix** that creates stub .kusto files with example queries
 - ✅ **Build failures** prevent runtime errors from missing query files
@@ -480,12 +488,14 @@ Server-side cancel is enabled by default and can be toggled per-call via options
 ### Performance Implications
 
 **Server-side cancellation (default - recommended):**
+
 - ✅ The Kusto cluster immediately stops processing the query upon cancellation
 - ✅ Frees up cluster resources (CPU, memory, network) for other queries
 - ✅ Reduces unnecessary cluster costs for pay-per-use scenarios
 - ⚠️ Adds a small overhead of one additional network call to send the cancel command
 
 **Local-only cancellation (opt-out):**
+
 - ✅ No additional network overhead
 - ✅ Slightly faster client-side cancellation response
 - ❌ The Kusto cluster continues processing the query even after client cancellation
@@ -493,6 +503,7 @@ Server-side cancel is enabled by default and can be toggled per-call via options
 - ❌ May impact cluster performance and increase costs unnecessarily
 
 **When to use each mode:**
+
 - Use **server-side cancellation** (default) for:
   - Long-running queries (> 1 second)
   - Resource-intensive queries
@@ -531,6 +542,30 @@ The API sample exposes endpoints to demonstrate cancellation behavior:
 
 - GET /customers/stream-cancel-demo
 - GET /customers/stream-cancel-demo-no-server
+
+## Analyzer
+
+A Roslyn analyzer is **bundled with the `Atc.Kusto` NuGet package** and provides compile-time validation of your Kusto queries. No separate package installation is required - the analyzer activates automatically when you reference `Atc.Kusto`.
+
+The analyzer validates:
+
+- `.kusto` files exist and are properly configured
+- Query parameters match between C# and Kusto
+- Projection fields match the result contract type
+
+### Analyzer Rules
+
+| Rule | Severity | Description |
+|------|----------|-------------|
+| [ATCK301](./docs/rules/ATCK301.md) | Error | Missing `.kusto` embedded resource file |
+| [ATCK302](./docs/rules/ATCK302.md) | Error | Parameter count mismatch between C# and Kusto |
+| [ATCK303](./docs/rules/ATCK303.md) | Error | Parameter type mismatch between C# and Kusto |
+| [ATCK304](./docs/rules/ATCK304.md) | Error | Parameter order mismatch between C# and Kusto |
+| [ATCK305](./docs/rules/ATCK305.md) | Warning | Empty `.kusto` script file |
+| [ATCK306](./docs/rules/ATCK306.md) | Error | Projection field not found in result type |
+| [ATCK307](./docs/rules/ATCK307.md) | Info | Result type property not projected |
+| [ATCK308](./docs/rules/ATCK308.md) | Info | Missing final `\| project` statement |
+| [ATCK309](./docs/rules/ATCK309.md) | Warning | Projection field naming mismatch (snake_case vs PascalCase) |
 
 ## Requirements
 
