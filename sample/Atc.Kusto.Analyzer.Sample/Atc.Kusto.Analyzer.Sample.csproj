@@ -21,10 +21,4 @@
     <AdditionalFiles Include="**/*.kusto" />
   </ItemGroup>
 
-  <ItemGroup>
-    <EmbeddedResource Remove="AtcK302ParameterCountMismatch\CustomersQuery.kusto" />
-    <EmbeddedResource Remove="AtcK303ParameterTypeMismatch\CustomersQuery.kusto" />
-    <EmbeddedResource Remove="AtcK304ParameterOrderMismatch\CustomersQuery.kusto" />
-  </ItemGroup>
-
 </Project>
