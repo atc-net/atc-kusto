@@ -55,10 +55,15 @@ public sealed class MissingKustoScriptResourceAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        var fullyQualifiedName = namedTypeSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat.WithGlobalNamespaceStyle(SymbolDisplayGlobalNamespaceStyle.Omitted));
+        var kustoFileExists = KustoAnalyzerHelper.KustoFileExists(
+            context.Options.AdditionalFiles,
+            classFilePath);
+
+        var fullyQualifiedName = namedTypeSymbol.ToDisplayString(
+            SymbolDisplayFormat.FullyQualifiedFormat.WithGlobalNamespaceStyle(SymbolDisplayGlobalNamespaceStyle.Omitted));
         var expectedResourceName = $"{fullyQualifiedName}.kusto";
 
-        if (!KustoAnalyzerHelper.KustoFileExists(context.Options.AdditionalFiles, classFilePath))
+        if (!kustoFileExists)
         {
             // Report diagnostic on the class/record identifier
             var diagnostic = Diagnostic.Create(

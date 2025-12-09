@@ -19,7 +19,9 @@ public abstract record KustoScript : IKustoScript
         var resourcePath = $"{type.FullName}.kusto";
 
         using var stream = type.Assembly.GetManifestResourceStream(resourcePath)
-                           ?? throw new FileNotFoundException("Could not load embedded resource.", resourcePath);
+                           ?? throw new FileNotFoundException(
+                               $"Could not load embedded resource. Ensure the .kusto file is marked as an embedded resource in your .csproj. Resource path: {resourcePath}",
+                               resourcePath);
 
         using var reader = new StreamReader(stream);
 
