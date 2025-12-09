@@ -1,0 +1,6 @@
+declare query_parameters (
+    customerId:long = long(null)
+);
+Customers
+| where isnull(customerId) or customerId == CustomerKey
+| take 100
