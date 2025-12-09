@@ -123,4 +123,69 @@ internal static class KustoAnalyzerHelper
 
         return false;
     }
+
+    /// <summary>
+    /// Gets the result type T from a type that inherits from KustoQuery&lt;T&gt; or KustoStreamingQuery&lt;T&gt;.
+    /// </summary>
+    /// <param name="typeSymbol">The type symbol to extract the result type from.</param>
+    /// <returns>The result type T if found; otherwise null.</returns>
+    public static INamedTypeSymbol? GetResultType(INamedTypeSymbol typeSymbol)
+    {
+        var baseType = typeSymbol.BaseType;
+
+        while (baseType != null)
+        {
+            if (baseType.IsGenericType &&
+                (baseType.Name == Constants.KustoQueryBaseClassName ||
+                 baseType.Name == Constants.KustoStreamingQueryBaseClassName) &&
+                baseType.TypeArguments.Length > 0 &&
+                baseType.TypeArguments[0] is INamedTypeSymbol resultType)
+            {
+                return resultType;
+            }
+
+            baseType = baseType.BaseType;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Checks if the type inherits from a generic query type (KustoQuery&lt;T&gt; or KustoStreamingQuery&lt;T&gt;).
+    /// </summary>
+    /// <param name="typeSymbol">The type symbol to check.</param>
+    /// <returns>True if the type has a result type; otherwise false.</returns>
+    public static bool HasResultType(INamedTypeSymbol typeSymbol)
+        => GetResultType(typeSymbol) is not null;
+
+    /// <summary>
+    /// Gets the public properties of a type symbol.
+    /// </summary>
+    /// <param name="typeSymbol">The type symbol to get properties from.</param>
+    /// <returns>A list of public property names.</returns>
+    public static IReadOnlyList<string> GetPublicPropertyNames(INamedTypeSymbol typeSymbol)
+    {
+        var properties = new List<string>();
+
+        // Get properties from the type and its base types (except object)
+        var currentType = typeSymbol;
+        while (currentType != null && currentType.SpecialType != SpecialType.System_Object)
+        {
+            foreach (var member in currentType.GetMembers())
+            {
+                if (member is IPropertySymbol property &&
+                    property.DeclaredAccessibility == Accessibility.Public &&
+                    !property.IsStatic &&
+                    !property.IsIndexer &&
+                    !properties.Contains(property.Name, StringComparer.Ordinal))
+                {
+                    properties.Add(property.Name);
+                }
+            }
+
+            currentType = currentType.BaseType;
+        }
+
+        return properties;
+    }
 }

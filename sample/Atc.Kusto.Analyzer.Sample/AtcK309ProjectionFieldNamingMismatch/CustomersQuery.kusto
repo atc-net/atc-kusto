@@ -1,0 +1,9 @@
+declare query_parameters (
+    customerId:long = long(null)
+);
+Customers
+| where isnull(customerId) or customerId == CustomerKey
+| project
+    customer_key,
+    first_name,
+    last_name

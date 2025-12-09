@@ -33,6 +33,10 @@ internal static class RuleIdentifierConstants
         internal const string ParameterTypeMismatch = "ATCK303";
         internal const string ParameterOrderMismatch = "ATCK304";
         internal const string EmptyKustoScriptFile = "ATCK305";
+        internal const string ProjectionFieldNotFound = "ATCK306";
+        internal const string ResultPropertyNotProjected = "ATCK307";
+        internal const string MissingFinalProjection = "ATCK308";
+        internal const string ProjectionFieldNamingMismatch = "ATCK309";
     }
 
     /// <summary>
