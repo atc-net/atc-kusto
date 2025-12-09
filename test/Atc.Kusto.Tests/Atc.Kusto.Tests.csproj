@@ -7,11 +7,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="KustoScriptTests.kusto" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Include="KustoScriptTests.kusto" />
+    <EmbeddedResource Include="**/*.kusto" />
+    <AdditionalFiles Include="**/*.kusto" />
   </ItemGroup>
 
   <ItemGroup>
