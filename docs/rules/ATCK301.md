@@ -50,19 +50,6 @@ Add the following configuration to your `.csproj` file:
 
 The glob pattern `**/*.kusto` will automatically include all `.kusto` files in your project.
 
-### Step 3: Install the analyzer NuGet package
-
-Ensure your project references the analyzer:
-
-```xml
-<ItemGroup>
-  <PackageReference Include="Atc.Kusto.Analyzer" Version="x.x.x">
-    <PrivateAssets>all</PrivateAssets>
-    <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-  </PackageReference>
-</ItemGroup>
-```
-
 ## Examples
 
 ### Violates ATCK301
