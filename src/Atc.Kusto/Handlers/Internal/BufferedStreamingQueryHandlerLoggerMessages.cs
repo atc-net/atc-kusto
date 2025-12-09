@@ -15,7 +15,7 @@ internal sealed partial class BufferedStreamingQueryHandler<T>
     [LoggerMessage(
         EventId = LoggingEventIdConstants.BufferedStreamingQueryHandler.UnhandledException,
         Level = LogLevel.Error,
-        Message = "An unhandled exception occured for clientRequestId {ClientRequestId} and query {Query}")]
+        Message = "An unhandled exception occurred for clientRequestId {ClientRequestId} and query {Query}")]
     private partial void LogUnhandledException(
         Exception ex,
         string clientRequestId,
