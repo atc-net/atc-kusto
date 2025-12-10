@@ -1,5 +1,43 @@
 # Changelog
 
+## [3.0.0](https://github.com/atc-net/atc-kusto/compare/v2.10.2...v3.0.0) (2025-12-10)
+
+
+### ⚠ BREAKING CHANGES
+
+* **analyzer:** split analyzer and code fix provider into separate assemblies
+* **analyzer:** use AdditionalFiles instead of SyntaxTrees for kusto file detection
+
+### Features
+
+* add ATCK305 analyzer for empty kusto files ([7396416](https://github.com/atc-net/atc-kusto/commit/7396416d931110ea91f9faa67ba2c2ae688e0ec2))
+* **analyzer:** add parameter validation for Kusto scripts ([3022211](https://github.com/atc-net/atc-kusto/commit/30222118c6818803264305787257eaefc8c5de49))
+* **analyzer:** add projection validation rules for KustoQuery result contracts ([59c7b93](https://github.com/atc-net/atc-kusto/commit/59c7b934fe2c38cc765e47b613b0e4ae5d55a530))
+* **analyzer:** create Atc.Kusto.Analyzer project structure ([b95699a](https://github.com/atc-net/atc-kusto/commit/b95699a99588ffbb2551f1c25925ddbccab007f8))
+* **analyzer:** create stub .kusto file with code fix ([e4b59ae](https://github.com/atc-net/atc-kusto/commit/e4b59aee737ea791f61f10c7b36fddbc0dca95e5))
+* **analyzer:** create test infrastructure ([f0341c1](https://github.com/atc-net/atc-kusto/commit/f0341c1bd056163090ef35865f525284a2078dee))
+* **analyzer:** implement ATCK301 missing kusto script resource analyzer ([1f4a244](https://github.com/atc-net/atc-kusto/commit/1f4a244a355063b8f9175e0ccdd81659ccce0fd0))
+* **analyzer:** implement code fix provider for ATCK301 ([fd1a2fb](https://github.com/atc-net/atc-kusto/commit/fd1a2fb28818cc2f100cc620b36e348588d48baf))
+* **analyzer:** improve code fix provider with duplicate prevention and indentation support ([cf38d2d](https://github.com/atc-net/atc-kusto/commit/cf38d2d2a6cb87511fd38baf137ee8b298079830))
+* extract common analyzer logic to KustoAnalyzerHelper ([75f4e3f](https://github.com/atc-net/atc-kusto/commit/75f4e3f0bd0025a5ab03ed185acdce9eaf0aef81))
+* **nuget:** package analyzer with main library ([85a2547](https://github.com/atc-net/atc-kusto/commit/85a25472daadfb927eb647c7f6672886a1cd6983))
+
+
+### Bug Fixes
+
+* **analyzer:** add record declaration support and improve code fix for MissingKustoScriptResourceCodeFixProvider ([cb9b3c2](https://github.com/atc-net/atc-kusto/commit/cb9b3c2e055c83e4fdcad00486473fd2ddd0e3e7))
+* **analyzer:** add regex timeouts to prevent DoS attacks in EmptyKustoScriptFileAnalyzer ([ba97474](https://github.com/atc-net/atc-kusto/commit/ba974749f03a00f4a730c28d6a2055cdb64fb0d6))
+* **analyzer:** add regex timeouts to prevent DoS attacks in KustoParameterParser ([a207f28](https://github.com/atc-net/atc-kusto/commit/a207f28101b7c9ead315b6965784a46e065323f7))
+* **analyzer:** ensure MissingKustoScriptResourceAnalyzer looks at RecordDeclarationSyntax ([ede4db2](https://github.com/atc-net/atc-kusto/commit/ede4db21d52c0c8c967aabf446f0f81ee5c906b8))
+* **analyzer:** fix analyzer bundling with Atc.Kusto package ([ef66334](https://github.com/atc-net/atc-kusto/commit/ef663345179a97d9acc18950837e6916caaf297a))
+* **analyzer:** use AdditionalFiles instead of SyntaxTrees for kusto file detection ([6e7845c](https://github.com/atc-net/atc-kusto/commit/6e7845c84ee0b15e86edc8cd6a7b7ee1f50cd7a7))
+* **logging:** include query text and errors in SemanticException logs ([d5351f0](https://github.com/atc-net/atc-kusto/commit/d5351f0718a546439d84131d431b2b24dfbef02e))
+
+
+### Code Refactoring
+
+* **analyzer:** split analyzer and code fix provider into separate assemblies ([c3f09b4](https://github.com/atc-net/atc-kusto/commit/c3f09b4ff99c48f909bc5c84a8cea70639d28829))
+
 ## [2.10.2](https://github.com/atc-net/atc-kusto/compare/v2.10.1...v2.10.2) (2025-11-12)
 
 
