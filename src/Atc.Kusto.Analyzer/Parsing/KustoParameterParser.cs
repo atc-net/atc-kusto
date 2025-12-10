@@ -32,7 +32,8 @@ internal static class KustoParameterParser
         var declareMatch = Regex.Match(
             kustoFileContent,
             DeclareQueryParametersPattern,
-            RegexOptions.Singleline | RegexOptions.IgnoreCase);
+            RegexOptions.Singleline | RegexOptions.IgnoreCase,
+            TimeSpan.FromSeconds(1));
 
         if (!declareMatch.Success)
         {
@@ -47,7 +48,8 @@ internal static class KustoParameterParser
         var paramMatches = Regex.Matches(
             parametersBlock,
             ParameterPattern,
-            RegexOptions.Singleline);
+            RegexOptions.Singleline,
+            TimeSpan.FromSeconds(1));
 
         foreach (Match match in paramMatches)
         {
