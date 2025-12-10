@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
@@ -9,19 +9,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.14.0" PrivateAssets="all" />
     <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.11.0" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="AnalyzerReleases.Shipped.md" />
-    <None Include="AnalyzerReleases.Unshipped.md" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <InternalsVisibleTo Include="Atc.Kusto.Analyzer.Tests" />
-    <InternalsVisibleTo Include="Atc.Kusto.Analyzer.CodeFixes" />
-    <InternalsVisibleTo Include="Atc.Kusto.Analyzer.CodeFixes.Tests" />
+    <ProjectReference Include="..\Atc.Kusto.Analyzer\Atc.Kusto.Analyzer.csproj" />
   </ItemGroup>
 
 </Project>

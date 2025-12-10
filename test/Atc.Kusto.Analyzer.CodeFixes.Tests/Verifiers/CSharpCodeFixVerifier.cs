@@ -1,4 +1,4 @@
-namespace Atc.Kusto.Analyzer.Tests.Verifiers;
+namespace Atc.Kusto.Analyzer.CodeFixes.Tests.Verifiers;
 
 /// <summary>
 /// Verifier for code fix providers.

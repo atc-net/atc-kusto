@@ -10,6 +10,10 @@
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
       <OutputItemType>Analyzer</OutputItemType>
     </ProjectReference>
+    <ProjectReference Include="..\..\src\Atc.Kusto.Analyzer.CodeFixes\Atc.Kusto.Analyzer.CodeFixes.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <OutputItemType>Analyzer</OutputItemType>
+    </ProjectReference>
     <ProjectReference Include="..\..\src\Atc.Kusto\Atc.Kusto.csproj" />
   </ItemGroup>
 

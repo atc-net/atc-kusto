@@ -1,4 +1,4 @@
-namespace Atc.Kusto.Analyzer.Rules.Usage;
+namespace Atc.Kusto.Analyzer.CodeFixes;
 
 [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(MissingKustoScriptResourceCodeFixProvider))]
 [Shared]
@@ -59,12 +59,15 @@ public sealed class MissingKustoScriptResourceCodeFixProvider : CodeFixProvider
         string classFilePath)
     {
         // Get the class file name and directory
-        var fileName = GetFileNameWithoutExtension(classFilePath);
+        var fileName = classFilePath.GetFileNameWithoutExtension();
         var expectedKustoFileName = $"{fileName}.kusto";
-        var directory = GetDirectoryPath(classFilePath);
-        var kustoFilePath = string.IsNullOrEmpty(directory)
+        var directory = classFilePath.GetDirectoryName();
+
+        // Normalize path separators for cross-platform compatibility (Roslyn workspace uses / internally)
+        var normalizedDirectory = directory.Replace('\\', '/');
+        var kustoFilePath = string.IsNullOrEmpty(normalizedDirectory)
             ? expectedKustoFileName
-            : $"{directory}\\{expectedKustoFileName}";
+            : $"{normalizedDirectory}/{expectedKustoFileName}";
 
         // Create an empty .kusto file
         var kustoFileContent = string.Empty;
@@ -77,29 +80,5 @@ public sealed class MissingKustoScriptResourceCodeFixProvider : CodeFixProvider
             filePath: kustoFilePath);
 
         return Task.FromResult(kustoDocument.Project.Solution);
-    }
-
-    private static string GetDirectoryPath(string filePath)
-    {
-        if (string.IsNullOrEmpty(filePath))
-        {
-            return string.Empty;
-        }
-
-        var lastSlash = Math.Max(filePath.LastIndexOf('/'), filePath.LastIndexOf('\\'));
-        return lastSlash >= 0 ? filePath.Substring(0, lastSlash) : string.Empty;
-    }
-
-    private static string GetFileNameWithoutExtension(string path)
-    {
-        if (string.IsNullOrEmpty(path))
-        {
-            return string.Empty;
-        }
-
-        var lastSlash = Math.Max(path.LastIndexOf('/'), path.LastIndexOf('\\'));
-        var fileName = lastSlash >= 0 ? path.Substring(lastSlash + 1) : path;
-        var lastDot = fileName.LastIndexOf('.');
-        return lastDot >= 0 ? fileName.Substring(0, lastDot) : fileName;
     }
 }
