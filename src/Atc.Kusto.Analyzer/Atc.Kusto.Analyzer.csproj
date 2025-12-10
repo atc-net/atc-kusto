@@ -4,32 +4,10 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <IsRoslynComponent>true</IsRoslynComponent>
-    <PackageId>Atc.Kusto.Analyzer</PackageId>
-    <PackageTags>roslyn;analyzer;code-analysis;csharp;kusto;azure-data-explorer</PackageTags>
-    <Description>A Roslyn analyzer to enforce best practices and compile-time validation for Atc.Kusto library usage</Description>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
-    <!-- Ensure PDB generation for all configurations -->
-    <DebugType>embedded</DebugType>
-    <DebugSymbols>true</DebugSymbols>
-    <!-- Suppress warnings: RS1038 (Workspaces needed for CodeFix), NU5128/NU5017 (analyzer package structure) -->
-    <NoWarn>$(NoWarn);RS1038;NU5128;NU5017</NoWarn>
-  </PropertyGroup>
-
-  <PropertyGroup Label="NuGet Analyzer Package">
-    <DevelopmentDependency>true</DevelopmentDependency>
     <IncludeBuildOutput>false</IncludeBuildOutput>
-    <!-- Don't create separate symbols package (PDBs are embedded) -->
-    <IncludeSymbols>false</IncludeSymbols>
-    <!-- Disable NuGet package analysis - analyzer packages don't follow standard lib/ref structure -->
-    <NoPackageAnalysis>true</NoPackageAnalysis>
-    <!-- Don't treat NuGet warnings as errors for analyzer packages -->
-    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU5017;NU5128</WarningsNotAsErrors>
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);RS1038</NoWarn>
   </PropertyGroup>
-
-  <ItemGroup>
-    <None Include="..\..\LICENSE" Pack="true" PackagePath="\" />
-    <None Include="..\..\README.md" Link="README.md" Pack="true" PackagePath="\" />
-  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" PrivateAssets="all" />
@@ -45,24 +23,5 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Atc.Kusto.Analyzer.Tests" />
   </ItemGroup>
-
-  <!-- Package the analyzer DLL in the analyzers\dotnet\cs path -->
-  <ItemGroup>
-    <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
-    <!-- PDB is embedded in the DLL, no separate file needed -->
-    <!-- Add placeholder to satisfy NuGet validation -->
-    <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="lib/netstandard2.0" Visible="false" />
-  </ItemGroup>
-
-  <!-- Install as a NuGet analyzer -->
-  <PropertyGroup>
-    <GetTargetPathDependsOn>$(GetTargetPathDependsOn);GetDependencyTargetPaths</GetTargetPathDependsOn>
-  </PropertyGroup>
-
-  <Target Name="GetDependencyTargetPaths">
-    <ItemGroup>
-      <TargetPathWithTargetPlatformMoniker Include="$(PKGMicrosoft_CodeAnalysis_CSharp)\lib\netstandard2.0\*.dll" IncludeRuntimeDependency="false" />
-    </ItemGroup>
-  </Target>
 
 </Project>
