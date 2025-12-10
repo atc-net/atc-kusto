@@ -10,10 +10,12 @@
     <Project Path="sample/Atc.Kusto.Sample/Atc.Kusto.Sample.csproj" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="src/Atc.Kusto.Analyzer.CodeFixes/Atc.Kusto.Analyzer.CodeFixes.csproj" />
     <Project Path="src/Atc.Kusto.Analyzer/Atc.Kusto.Analyzer.csproj" />
     <Project Path="src/Atc.Kusto/Atc.Kusto.csproj" />
   </Folder>
   <Folder Name="/test/">
+    <Project Path="test/Atc.Kusto.Analyzer.CodeFixes.Tests/Atc.Kusto.Analyzer.CodeFixes.Tests.csproj" />
     <Project Path="test/Atc.Kusto.Analyzer.Tests/Atc.Kusto.Analyzer.Tests.csproj" />
     <Project Path="test/Atc.Kusto.Tests/Atc.Kusto.Tests.csproj" />
   </Folder>

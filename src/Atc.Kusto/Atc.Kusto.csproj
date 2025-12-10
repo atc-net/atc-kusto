@@ -33,10 +33,12 @@
     <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
   </ItemGroup>
 
-  <!-- Package the Roslyn analyzer with this NuGet package -->
+  <!-- Package the Roslyn analyzer and code fixes with this NuGet package -->
   <ItemGroup>
     <ProjectReference Include="..\Atc.Kusto.Analyzer\Atc.Kusto.Analyzer.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\Atc.Kusto.Analyzer.CodeFixes\Atc.Kusto.Analyzer.CodeFixes.csproj" PrivateAssets="all" />
     <None Include="..\Atc.Kusto.Analyzer\bin\$(Configuration)\netstandard2.0\Atc.Kusto.Analyzer.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    <None Include="..\Atc.Kusto.Analyzer.CodeFixes\bin\$(Configuration)\netstandard2.0\Atc.Kusto.Analyzer.CodeFixes.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
   </ItemGroup>
 
 </Project>
