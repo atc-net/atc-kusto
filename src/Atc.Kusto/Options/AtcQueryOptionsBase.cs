@@ -3,6 +3,12 @@
 public abstract class AtcQueryOptionsBase
 {
     /// <summary>
+    /// Gets or sets the server-side query timeout.
+    /// Default is null (uses Kusto server default of ~4 minutes).
+    /// </summary>
+    public TimeSpan? QueryTimeout { get; set; }
+
+    /// <summary>
     /// Limits query results to a specified number of records.
     /// </summary>
     public long? QueryTakeMaxRecords { get; set; }
