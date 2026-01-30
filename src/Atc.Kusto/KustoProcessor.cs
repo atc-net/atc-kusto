@@ -82,17 +82,26 @@ public sealed class KustoProcessor : IKustoProcessor
     {
         options ??= new AtcStreamingQueryOptions();
 
-        if (options.OptionalFrames == FrameHeaders.None)
+        var localOptions = new AtcStreamingQueryOptions
         {
-            options.OptionalFrames = FrameHeaders.All;
-        }
+            QueryTimeout = options.QueryTimeout,
+            QueryTakeMaxRecords = options.QueryTakeMaxRecords,
+            NoTruncation = options.NoTruncation,
+            TruncationMaxRecords = options.TruncationMaxRecords,
+            TruncationMaxSize = options.TruncationMaxSize,
+            EnableServerSideCancellation = options.EnableServerSideCancellation,
+            ProgressiveEnabled = options.ProgressiveEnabled,
+            OptionalFrames = options.OptionalFrames == FrameHeaders.None
+                ? FrameHeaders.All
+                : options.OptionalFrames,
+        };
 
         return await factory
             .CreateBuffered(
                 query,
                 ConnectionName,
                 DatabaseName,
-                options)
+                localOptions)
             .Execute(cancellationToken);
     }
 
@@ -112,10 +121,21 @@ public sealed class KustoProcessor : IKustoProcessor
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         options ??= new AtcStreamingQueryOptions();
-        options.OptionalFrames = FrameHeaders.None;
+
+        var localOptions = new AtcStreamingQueryOptions
+        {
+            QueryTimeout = options.QueryTimeout,
+            QueryTakeMaxRecords = options.QueryTakeMaxRecords,
+            NoTruncation = options.NoTruncation,
+            TruncationMaxRecords = options.TruncationMaxRecords,
+            TruncationMaxSize = options.TruncationMaxSize,
+            EnableServerSideCancellation = options.EnableServerSideCancellation,
+            ProgressiveEnabled = options.ProgressiveEnabled,
+            OptionalFrames = FrameHeaders.None,
+        };
 
         var stream = factory
-            .Create(query, ConnectionName, DatabaseName, options)
+            .Create(query, ConnectionName, DatabaseName, localOptions)
             .Execute(cancellationToken)
             .NormalizeCancellationExceptions(cancellationToken);
 
