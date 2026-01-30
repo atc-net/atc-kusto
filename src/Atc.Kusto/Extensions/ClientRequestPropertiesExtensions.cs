@@ -51,6 +51,11 @@ public static class ClientRequestPropertiesExtensions
         ArgumentNullException.ThrowIfNull(clientRequestProperties);
         ArgumentNullException.ThrowIfNull(queryOptions);
 
+        if (queryOptions.QueryTimeout.HasValue)
+        {
+            clientRequestProperties.SetOption(ClientRequestProperties.OptionServerTimeout, queryOptions.QueryTimeout.Value);
+        }
+
         if (queryOptions.QueryTakeMaxRecords is not null && queryOptions.QueryTakeMaxRecords.Value > 0)
         {
             clientRequestProperties.SetOption(ClientRequestProperties.OptionTakeMaxRecords, value: queryOptions.QueryTakeMaxRecords.Value);
