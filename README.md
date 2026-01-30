@@ -35,6 +35,9 @@ The library provides a streamlined interface for handling Kusto operations, maki
     - [Configuration](#configuration)
     - [Performance Implications](#performance-implications)
     - [Examples](#examples)
+  - [Query Options](#query-options)
+    - [Query Timeout](#query-timeout)
+  - [Telemetry](#telemetry)
   - [Analyzer](#analyzer)
     - [Analyzer Rules](#analyzer-rules)
   - [Requirements](#requirements)
@@ -542,6 +545,74 @@ The API sample exposes endpoints to demonstrate cancellation behavior:
 
 - GET /customers/stream-cancel-demo
 - GET /customers/stream-cancel-demo-no-server
+
+## Query Options
+
+Query options can be configured per-call via `AtcQueryOptions` (for standard queries) or `AtcStreamingQueryOptions` (for streaming queries).
+
+### Query Timeout
+
+You can set a server-side query timeout using the `QueryTimeout` property. When set, this limits how long the Kusto cluster will execute your query before timing out:
+
+```csharp
+var options = new AtcQueryOptions
+{
+    QueryTimeout = TimeSpan.FromMinutes(10) // Extend timeout for long-running queries
+};
+
+var result = await processor.ExecuteQuery(
+    new LongRunningQuery(),
+    options,
+    cancellationToken);
+```
+
+For streaming queries:
+
+```csharp
+var options = new AtcStreamingQueryOptions
+{
+    QueryTimeout = TimeSpan.FromMinutes(10)
+};
+
+await foreach (var row in processor.ExecuteStreamingQuery(new LargeDataQuery(), options, cancellationToken))
+{
+    // Process rows
+}
+```
+
+**Default behavior:** When `QueryTimeout` is not set (null), the Kusto server default timeout of approximately 4 minutes applies.
+
+## Telemetry
+
+Atc.Kusto supports opt-in OpenTelemetry tracing. When enabled, the library emits spans for query and command execution, which can be collected by any OpenTelemetry-compatible backend.
+
+### Enabling Telemetry
+
+To enable tracing, add the Atc.Kusto activity source to your OpenTelemetry configuration:
+
+```csharp
+using Atc.Kusto.Diagnostics;
+
+builder.Services.AddOpenTelemetry()
+    .WithTracing(tracing => tracing
+        .AddSource(KustoDiagnostics.SourceName));
+```
+
+### Activity Spans
+
+When enabled, you'll see spans for:
+- `kusto.query` - Standard query execution
+- `kusto.command` - Command execution
+- `kusto.streaming` - Streaming query execution
+
+### Span Attributes
+
+Each span includes:
+- `db.statement`: The query or command text
+
+### Zero Overhead When Disabled
+
+If you don't add `KustoDiagnostics.SourceName` to your OpenTelemetry configuration, no activities are created and there is zero performance overhead.
 
 ## Analyzer
 
