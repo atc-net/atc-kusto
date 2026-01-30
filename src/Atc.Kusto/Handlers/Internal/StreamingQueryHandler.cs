@@ -60,7 +60,14 @@ internal sealed partial class StreamingQueryHandler<T> : IStreamingScriptHandler
     [SuppressMessage("Design", "MA0051:Method Length", Justification = "OK")]
     public async IAsyncEnumerable<T> Execute([EnumeratorCancellation] CancellationToken cancellationToken)
     {
+        using var activity = KustoDiagnostics.Source.StartActivity(
+            KustoDiagnostics.ActivityNames.StreamingQuery,
+            ActivityKind.Client,
+            default(ActivityContext));
+
         var queryText = query.GetQueryText();
+
+        activity?.SetTag(KustoDiagnostics.TagNames.DbStatement, queryText);
 
         var clientRequestProperties = query.GetClientRequestProperties();
 
@@ -74,11 +81,20 @@ internal sealed partial class StreamingQueryHandler<T> : IStreamingScriptHandler
                 cancellationToken)
             : null;
 
-        var progressiveDataSet = await queryProvider.ExecuteQueryV2Async(
-            databaseName: null,
-            queryText,
-            clientRequestProperties,
-            cancellationToken);
+        ProgressiveDataSet progressiveDataSet;
+        try
+        {
+            progressiveDataSet = await queryProvider.ExecuteQueryV2Async(
+                databaseName: null,
+                queryText,
+                clientRequestProperties,
+                cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            throw;
+        }
 
         var tablesById = new Dictionary<int, DataTable>();
         var tableKindsById = new Dictionary<int, WellKnownDataSet>();
@@ -115,6 +131,8 @@ internal sealed partial class StreamingQueryHandler<T> : IStreamingScriptHandler
                     break;
             }
         }
+
+        activity?.SetStatus(ActivityStatusCode.Ok);
     }
 
     /// <summary>
@@ -181,8 +199,6 @@ internal sealed partial class StreamingQueryHandler<T> : IStreamingScriptHandler
                     yield return mapped;
                 }
             }
-
-            await Task.Yield();
         }
     }
 
@@ -239,8 +255,6 @@ internal sealed partial class StreamingQueryHandler<T> : IStreamingScriptHandler
             {
                 yield return mapped;
             }
-
-            await Task.Yield();
         }
     }
 }
