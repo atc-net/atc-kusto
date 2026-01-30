@@ -57,6 +57,15 @@ internal sealed partial class SimpleQueryHandler<T> : IScriptHandler<T>
     /// </returns>
     public async Task<T?> Execute(CancellationToken cancellationToken)
     {
+        using var activity = KustoDiagnostics.Source.StartActivity(
+            KustoDiagnostics.ActivityNames.Query,
+            ActivityKind.Client,
+            default(ActivityContext));
+
+        var queryText = query.GetQueryText();
+
+        activity?.SetTag(KustoDiagnostics.TagNames.DbStatement, queryText);
+
         try
         {
             var clientRequestProperties = query.GetClientRequestProperties();
@@ -71,26 +80,31 @@ internal sealed partial class SimpleQueryHandler<T> : IScriptHandler<T>
                     cancellationToken)
                 : null;
 
-            return await resiliencePipeline.ExecuteAsync(
+            var result = await resiliencePipeline.ExecuteAsync(
                 async context =>
                 {
                     using var reader = await queryProvider
                         .ExecuteQueryAsync(
                             databaseName: null,
-                            query.GetQueryText(),
+                            queryText,
                             clientRequestProperties,
                             context);
 
                     return query.ReadResult(reader);
                 },
                 cancellationToken);
+
+            activity?.SetStatus(ActivityStatusCode.Ok);
+            return result;
         }
         catch (Exception ex) when (CancellationExceptionUtilities.IsCancellationException(ex))
         {
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
             throw CancellationExceptionUtilities.NormalizeCancellationException(ex, cancellationToken);
         }
         catch (KustoServicePartialQueryFailureException ex)
         {
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
             LogKustoServicePartialQueryFailureException(
                 ex,
                 ex.ClientRequestId,
@@ -100,6 +114,7 @@ internal sealed partial class SimpleQueryHandler<T> : IScriptHandler<T>
         }
         catch (KustoServiceException ex)
         {
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
             LogKustoServiceException(
                 ex,
                 ex.ClientRequestId);
@@ -108,6 +123,7 @@ internal sealed partial class SimpleQueryHandler<T> : IScriptHandler<T>
         }
         catch (SemanticException ex)
         {
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
             LogSemanticException(
                 ex,
                 ex.ClientRequestId,
@@ -118,6 +134,7 @@ internal sealed partial class SimpleQueryHandler<T> : IScriptHandler<T>
         }
         catch (Exception ex)
         {
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
             LogUnhandledException(ex);
             return default;
         }

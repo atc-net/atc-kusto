@@ -23,10 +23,29 @@ internal sealed class SimpleCommandHandler : IScriptHandler
     /// <returns>A task that represents the asynchronous operation.</returns>
     public async Task Execute(CancellationToken cancellationToken)
     {
-        using var reader = await adminProvider
-            .ExecuteControlCommandAsync(
-                databaseName: null,
-                command.GetQueryText(),
-                command.GetClientRequestProperties());
+        using var activity = KustoDiagnostics.Source.StartActivity(
+            KustoDiagnostics.ActivityNames.Command,
+            ActivityKind.Client,
+            default(ActivityContext));
+
+        var commandText = command.GetQueryText();
+
+        activity?.SetTag(KustoDiagnostics.TagNames.DbStatement, commandText);
+
+        try
+        {
+            using var reader = await adminProvider
+                .ExecuteControlCommandAsync(
+                    databaseName: null,
+                    commandText,
+                    command.GetClientRequestProperties());
+
+            activity?.SetStatus(ActivityStatusCode.Ok);
+        }
+        catch (Exception ex)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            throw;
+        }
     }
 }

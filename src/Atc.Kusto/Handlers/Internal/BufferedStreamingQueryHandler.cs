@@ -71,7 +71,14 @@ internal sealed partial class BufferedStreamingQueryHandler<T> : IScriptHandler<
     [SuppressMessage("Design", "MA0051:Method Length", Justification = "OK")]
     public async Task<StreamingQueryResult<T>?> Execute(CancellationToken cancellationToken)
     {
+        using var activity = KustoDiagnostics.Source.StartActivity(
+            KustoDiagnostics.ActivityNames.StreamingQuery,
+            ActivityKind.Client,
+            default(ActivityContext));
+
         var queryText = query.GetQueryText();
+
+        activity?.SetTag(KustoDiagnostics.TagNames.DbStatement, queryText);
 
         var clientRequestProperties = query.GetClientRequestProperties();
 
@@ -94,17 +101,19 @@ internal sealed partial class BufferedStreamingQueryHandler<T> : IScriptHandler<
                        cancellationToken)
                    : null)
         {
-            await ProcessFramesAsync(queryText, clientRequestProperties, channel, result, cancellationToken);
+            await ProcessFramesAsync(queryText, clientRequestProperties, channel, result, activity, cancellationToken);
         }
 
         return result;
     }
 
+    [SuppressMessage("Design", "MA0051:Method Length", Justification = "OK")]
     private async Task ProcessFramesAsync(
         string queryText,
         ClientRequestProperties clientRequestProperties,
         Channel<T> channel,
         StreamingQueryResult<T> result,
+        System.Diagnostics.Activity? activity,
         CancellationToken cancellationToken)
     {
         var tablesById = new Dictionary<int, DataTable>();
@@ -176,13 +185,18 @@ internal sealed partial class BufferedStreamingQueryHandler<T> : IScriptHandler<
                     }
                 }
             }
+
+            activity?.SetStatus(ActivityStatusCode.Ok);
         }
         catch (Exception ex) when (CancellationExceptionUtilities.IsCancellationException(ex))
         {
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
             throw CancellationExceptionUtilities.NormalizeCancellationException(ex, cancellationToken);
         }
         catch (Exception ex)
         {
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+
             if (result.Completion is null)
             {
                 result.Completion = new KustoResultCompletion
