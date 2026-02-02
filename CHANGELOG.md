@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.1.0](https://github.com/atc-net/atc-kusto/compare/v3.0.0...v3.1.0) (2026-02-02)
+
+
+### Features
+
+* **options:** add QueryTimeout property for server-side timeout ([718b475](https://github.com/atc-net/atc-kusto/commit/718b47568a018b89f0e805d787c1924f1ecf1e48))
+* **telemetry:** add opt-in OpenTelemetry tracing support ([8370733](https://github.com/atc-net/atc-kusto/commit/8370733052d09797ec9fd6a441b90d997f864105))
+
+
+### Bug Fixes
+
+* **processor:** clone options to prevent caller mutation ([63547ed](https://github.com/atc-net/atc-kusto/commit/63547ed6b171082b055cbfb07e67214a043a38be))
+
+
+### Performance Improvements
+
+* **streaming:** remove Task.Yield for 3.4x performance improvement ([def78aa](https://github.com/atc-net/atc-kusto/commit/def78aa43a5b2422aba4c764c395cd69016bef6c))
+
 ## [3.0.0](https://github.com/atc-net/atc-kusto/compare/v2.10.2...v3.0.0) (2025-12-10)
 
 
