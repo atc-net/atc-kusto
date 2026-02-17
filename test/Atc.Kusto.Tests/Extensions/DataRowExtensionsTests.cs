@@ -38,6 +38,10 @@ public sealed class DataRowExtensionsTests
         int Count,
         object? DynamicData);
 
+    public record TestObjectWithDateOnly(
+        string Name,
+        DateOnly EventDate);
+
     [Fact]
     public void MapDataRow_Should_Return_Correct_Object()
     {
@@ -373,5 +377,27 @@ public sealed class DataRowExtensionsTests
         metadataElement.Value.GetArrayLength().Should().Be(2);
         metadataElement.Value[0].GetProperty("Id").GetInt32().Should().Be(1);
         metadataElement.Value[0].GetProperty("Value").GetString().Should().Be("First");
+    }
+
+    [Fact]
+    public void MapDataRow_Should_Handle_DateTime_To_DateOnly_Conversion()
+    {
+        // Arrange - simulates Kusto returning datetime for date-only values (e.g. startofday())
+        using var dataTable = new DataTable();
+        dataTable.Columns.Add("Name", typeof(string));
+        dataTable.Columns.Add("EventDate", typeof(DateTime));
+
+        var row = dataTable.NewRow();
+        row["Name"] = "TestEvent";
+        row["EventDate"] = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Utc);
+        dataTable.Rows.Add(row);
+
+        // Act
+        var actual = row.MapDataRow<TestObjectWithDateOnly>();
+
+        // Assert
+        actual.Should().NotBeNull();
+        actual!.Name.Should().Be("TestEvent");
+        actual.EventDate.Should().Be(new DateOnly(2024, 1, 15));
     }
 }
