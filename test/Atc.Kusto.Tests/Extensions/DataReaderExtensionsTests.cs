@@ -11,6 +11,10 @@ public sealed class DataReaderExtensionsTests
         bool IsActive,
         bool IsEnabled);
 
+    public record DateOnlyTestObject(
+        string Name,
+        DateOnly EventDate);
+
     [Theory, AutoNSubstituteData]
     public void ReadObjects_Will_Return_Objects_Read_From_DataReader(
         List<TestObject> data,
@@ -129,5 +133,40 @@ public sealed class DataReaderExtensionsTests
         Assert.Single(actual);
         Assert.Equal(expectedTrue, actual[0].IsActive);
         Assert.Equal(expectedFalse, actual[0].IsEnabled);
+    }
+
+    [Fact]
+    public void ReadObjects_Should_Convert_DateTime_To_DateOnly()
+    {
+        // Arrange - simulates Kusto returning datetime values for date-only columns (e.g. startofday())
+        var dataReader = Substitute.For<IDataReader>();
+
+        var fieldNames = new[] { "Name", "EventDate" };
+        var expectedDate = new DateTime(2024, 1, 15, 0, 0, 0, DateTimeKind.Utc);
+        object[] rowValues = ["TestEvent", expectedDate];
+
+        dataReader.FieldCount
+            .Returns(2);
+
+        dataReader
+            .GetName(Arg.Any<int>())
+            .Returns(c => fieldNames[c.Arg<int>()]);
+
+        var readCount = 0;
+        dataReader
+            .Read()
+            .Returns(_ => readCount++ < 1);
+
+        dataReader
+            .GetValue(Arg.Any<int>())
+            .Returns(c => rowValues[c.Arg<int>()]);
+
+        // Act
+        var actual = dataReader.ReadObjects<DateOnlyTestObject>();
+
+        // Assert
+        Assert.Single(actual);
+        Assert.Equal("TestEvent", actual[0].Name);
+        Assert.Equal(new DateOnly(2024, 1, 15), actual[0].EventDate);
     }
 }
