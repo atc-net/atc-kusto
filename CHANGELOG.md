@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.0](https://github.com/atc-net/atc-kusto/compare/v3.1.0...v3.2.0) (2026-02-17)
+
+
+### Features
+
+* **serialization:** add KustoDateOnlyJsonConverter for Kusto datetime to DateOnly mapping ([d2f4260](https://github.com/atc-net/atc-kusto/commit/d2f42603209dc4989801f092d92799621e362ed5))
+
 ## [3.1.0](https://github.com/atc-net/atc-kusto/compare/v3.0.0...v3.1.0) (2026-02-02)
 
 
