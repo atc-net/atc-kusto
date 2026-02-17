@@ -57,6 +57,7 @@ dotnet_diagnostic.CA1002.severity = none            # Change to use Collection, 
 dotnet_diagnostic.CA1062.severity = none            # In externally visible method validate parameter is non-null before using it (https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1062)
 dotnet_diagnostic.CA1303.severity = none            # Do not pass literals as localized parameters (https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1303)
 dotnet_diagnostic.CA1848.severity = none            # For improved performance, use the LoggerMessage delegates (https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1848)
+dotnet_diagnostic.CA1873.severity = none            #
 dotnet_diagnostic.CA2227.severity = none            # Change to be read-only by removing the property setter (https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2227)
 dotnet_diagnostic.CA2234.severity = none            # Uri instead of string (https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2234)
 
