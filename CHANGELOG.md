@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.3.0](https://github.com/atc-net/atc-kusto/compare/v3.2.0...v3.3.0) (2026-03-05)
+
+
+### Features
+
+* **cli:** add Kusto schema export CLI tool ([d1a6ba1](https://github.com/atc-net/atc-kusto/commit/d1a6ba192c14255712c0aa72ef77e008398eacfb))
+
 ## [3.2.0](https://github.com/atc-net/atc-kusto/compare/v3.1.0...v3.2.0) (2026-02-17)
 
 
