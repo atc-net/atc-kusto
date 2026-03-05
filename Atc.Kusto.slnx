@@ -12,6 +12,7 @@
   <Folder Name="/src/">
     <Project Path="src/Atc.Kusto.Analyzer.CodeFixes/Atc.Kusto.Analyzer.CodeFixes.csproj" />
     <Project Path="src/Atc.Kusto.Analyzer/Atc.Kusto.Analyzer.csproj" />
+    <Project Path="src/Atc.Kusto.CLI/Atc.Kusto.CLI.csproj" />
     <Project Path="src/Atc.Kusto/Atc.Kusto.csproj" />
   </Folder>
   <Folder Name="/test/">

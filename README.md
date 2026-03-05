@@ -9,6 +9,11 @@ The library provides a streamlined interface for handling Kusto operations, maki
 - [Introduction](#introduction)
   - [Table of Content](#table-of-content)
   - [Features](#features)
+  - [CLI Tool](#cli-tool)
+    - [Installation](#installation)
+    - [Usage](#usage)
+    - [Export Commands](#export-commands)
+    - [Authentication](#authentication)
   - [Getting started](#getting-started)
     - [Configuring the Atc.Kusto library using ServiceCollection Extensions](#configuring-the-atckusto-library-using-servicecollection-extensions)
       - [Setup with Explicit Parameters](#setup-with-explicit-parameters)
@@ -47,6 +52,7 @@ The library provides a streamlined interface for handling Kusto operations, maki
 
 The library extends the official .NET SDK, and adds the following add-on functionality, which supports passing parameters and proper deserialization:
 
+- **CLI Tool**: Export full Kusto database schemas (tables, functions, materialized views, external tables, and policies) as `.kql` files for version control and review.
 - **Kusto Query and Command Execution**: Simplifies the execution of Kusto queries and commands with asynchronous support through embedded .kusto scripts.
 - **Decimal Type Deserialization**: Seamless handling of ADX decimal values (including those surfaced via structured SqlDecimal representations) through internal custom JSON converters bridging Newtonsoft.Json and System.Text.Json.
 - **Paged Query Support**: Efficient handling of large datasets with built-in support for paginated query results through stored query results.
@@ -54,6 +60,83 @@ The library extends the official .NET SDK, and adds the following add-on functio
   - **Direct Streaming**: Immediately yield rows as they become available, minimizing memory usage and latency.
   - **Buffered Streaming**: Buffer results with additional metadata like schemas and completion information.
 - **Health Checks**: Built-in health check integration for Azure Data Explorer clusters with ASP.NET Core's Health Checks API.
+
+## CLI Tool
+
+The `atc-kusto` CLI tool exports Azure Data Explorer database schemas as `.kql` files, making it easy to version-control and review your Kusto database definitions.
+
+### Installation
+
+```bash
+dotnet tool install --global atc-kusto
+```
+
+Or run directly from the project:
+
+```bash
+dotnet run --project src/Atc.Kusto.CLI
+```
+
+### Usage
+
+```bash
+atc-kusto export schema \
+  --tenant-id <GUID> \
+  --cluster-url https://mycluster.kusto.windows.net \
+  --database MyDatabase \
+  --output-dir ./kusto-schema
+```
+
+This produces the following directory structure:
+
+```
+kusto-schema/
+├── Tables/
+│   └── MyTable.kql
+├── Functions/
+│   └── MyFunction.kql
+├── MaterializedViews/
+│   └── DailySales.kql
+├── ExternalTables/
+│   └── ExternalLogs.kql
+└── Policies/
+    ├── Database_RetentionPolicy.kql
+    ├── Database_CachingPolicy.kql
+    ├── MyTable_RetentionPolicy.kql
+    └── MyTable_CachingPolicy.kql
+```
+
+### Export Commands
+
+| Command | Description |
+|---------|-------------|
+| `export schema` | Export the full database schema (tables, functions, materialized views, external tables, and policies) |
+| `export tables` | Export table schemas only |
+| `export functions` | Export functions only |
+| `export materialized-views` | Export materialized views only |
+| `export external-tables` | Export external tables only |
+| `export policies` | Export retention and caching policies only |
+
+All export commands accept the following options:
+
+| Option | Description |
+|--------|-------------|
+| `--tenant-id <GUID>` | **(Required)** Azure AD tenant ID |
+| `--cluster-url <URL>` | **(Required)** Kusto cluster URL (e.g. `https://mycluster.kusto.windows.net`) |
+| `--database <NAME>` | **(Required)** Database name |
+| `--output-dir <PATH>` | Output directory (defaults to current directory) |
+| `--verbose` | Enable verbose logging |
+
+### Authentication
+
+The CLI uses `DefaultAzureCredential` from Azure Identity, scoped to the tenant specified via `--tenant-id`. This supports multiple authentication methods including:
+
+- Azure CLI (`az login --tenant <GUID>`)
+- Visual Studio / VS Code credentials
+- Managed Identity (when running in Azure)
+- Environment variables
+
+Ensure you are authenticated before running export commands, for example via `az login --tenant <GUID>`.
 
 ## Getting started
 
