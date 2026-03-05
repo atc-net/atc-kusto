@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>atc-kusto</PackageId>
+    <PackageTags>adx;kusto;azure;cli</PackageTags>
+    <Description>A .NET Tool that can interact with Azure Data Explorer (Kusto)</Description>
+    <Title>ATC Kusto CLI</Title>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>atc-kusto</AssemblyName>
+    <ToolCommandName>atc-kusto</ToolCommandName>
+    <PackAsTool>true</PackAsTool>
+    <DebugType>pdbonly</DebugType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Link="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Atc" Version="3.0.18" />
+    <PackageReference Include="Atc.Console.Spectre" Version="3.0.18" />
+    <PackageReference Include="Azure.Identity" Version="1.18.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.1" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Atc.Kusto\Atc.Kusto.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>
