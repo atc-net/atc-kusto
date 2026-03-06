@@ -72,8 +72,8 @@ public sealed class MissingKustoScriptResourceCodeFixProvider : CodeFixProvider
         // Create an empty .kusto file
         var kustoFileContent = string.Empty;
 
-        // Add the .kusto file to the project
-        var kustoDocument = document.Project.AddDocument(
+        // Add the .kusto file to the project as an additional document
+        var kustoDocument = document.Project.AddAdditionalDocument(
             expectedKustoFileName,
             Microsoft.CodeAnalysis.Text.SourceText.From(kustoFileContent, System.Text.Encoding.UTF8),
             folders: null,
