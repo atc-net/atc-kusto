@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.3.1](https://github.com/atc-net/atc-kusto/compare/v3.3.0...v3.3.1) (2026-03-06)
+
+
+### Bug Fixes
+
+* **analyzer:** use AddAdditionalDocument instead of AddDocument for kusto files ([feccf13](https://github.com/atc-net/atc-kusto/commit/feccf139d73f5a5586d585045e08f4653556398c))
+
 ## [3.3.0](https://github.com/atc-net/atc-kusto/compare/v3.2.0...v3.3.0) (2026-03-05)
 
 
