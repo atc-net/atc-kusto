@@ -49,6 +49,34 @@ public static class CommandAppExtensions
                 .WithExample("query", "--file", "myquery.kql", "--tenant-id", "<GUID>", "--cluster-url", "https://mycluster.kusto.windows.net", "--database", "MyDb")
                 .WithExample("query", "\"StormEvents | take 5\"", "--tenant-id", "<GUID>", "--cluster-url", "https://mycluster.kusto.windows.net", "--database", "MyDb", "--format", "json")
                 .WithExample("query", "\"StormEvents | take 5\"", "--tenant-id", "<GUID>", "--cluster-url", "https://mycluster.kusto.windows.net", "--database", "MyDb", "--format", "markdown");
+
+            config.AddBranch("database", database =>
+            {
+                database.SetDescription("Inspect databases on a Kusto cluster");
+
+                database.AddCommand<DatabaseListCommand>("list")
+                    .WithDescription("List databases in a cluster")
+                    .WithExample("database", "list", "--tenant-id", "<GUID>", "--cluster-url", "https://mycluster.kusto.windows.net")
+                    .WithExample("database", "list", "--filter", "^prod", "--tenant-id", "<GUID>", "--cluster-url", "https://mycluster.kusto.windows.net");
+
+                database.AddCommand<DatabaseShowCommand>("show")
+                    .WithDescription("Show details for a database")
+                    .WithExample("database", "show", "MyDb", "--tenant-id", "<GUID>", "--cluster-url", "https://mycluster.kusto.windows.net");
+            });
+
+            config.AddBranch("table", table =>
+            {
+                table.SetDescription("Browse tables in a Kusto database");
+
+                table.AddCommand<TableListCommand>("list")
+                    .WithDescription("List tables in a database")
+                    .WithExample("table", "list", "--tenant-id", "<GUID>", "--cluster-url", "https://mycluster.kusto.windows.net", "--database", "MyDb")
+                    .WithExample("table", "list", "--filter", "Storm$", "--take", "10", "--tenant-id", "<GUID>", "--cluster-url", "https://mycluster.kusto.windows.net", "--database", "MyDb");
+
+                table.AddCommand<TableShowCommand>("show")
+                    .WithDescription("Show table schema and column details")
+                    .WithExample("table", "show", "StormEvents", "--tenant-id", "<GUID>", "--cluster-url", "https://mycluster.kusto.windows.net", "--database", "MyDb");
+            });
         });
     }
 }
