@@ -19,6 +19,7 @@ public static class Program
         ProgramCsHelper.SetMinimumLogLevelIfNeeded(args, consoleLoggerConfiguration);
 
         var serviceCollection = ServiceCollectionFactory.Create(consoleLoggerConfiguration);
+        serviceCollection.AddSingleton<ICliKustoClientFactory, CliKustoClientFactory>();
         serviceCollection.AddTransient<IKustoSchemaExporter, KustoSchemaExporter>();
 
         var app = CommandAppFactory.Create(serviceCollection);

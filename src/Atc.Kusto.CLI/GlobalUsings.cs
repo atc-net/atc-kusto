@@ -7,6 +7,7 @@ global using Atc.Console.Spectre.Factories;
 global using Atc.Console.Spectre.Helpers;
 global using Atc.Console.Spectre.Logging;
 global using Atc.Kusto.CLI.Commands.Export;
+global using Atc.Kusto.CLI.Factories;
 global using Atc.Kusto.CLI.Commands.Settings;
 global using Atc.Kusto.CLI.Extensions;
 global using Atc.Kusto.CLI.Services;
