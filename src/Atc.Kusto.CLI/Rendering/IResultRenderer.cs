@@ -1,0 +1,14 @@
+namespace Atc.Kusto.CLI.Rendering;
+
+/// <summary>
+/// Renders tabular result data in a specific output format.
+/// </summary>
+public interface IResultRenderer
+{
+    /// <summary>
+    /// Renders the given columns and rows to the console.
+    /// </summary>
+    /// <param name="columns">The column names.</param>
+    /// <param name="rows">The data rows.</param>
+    void Render(IReadOnlyList<string> columns, IReadOnlyList<string[]> rows);
+}

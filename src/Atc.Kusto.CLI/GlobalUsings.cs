@@ -11,6 +11,7 @@ global using Atc.Kusto.CLI.Commands.Query;
 global using Atc.Kusto.CLI.Commands.Settings;
 global using Atc.Kusto.CLI.Extensions;
 global using Atc.Kusto.CLI.Factories;
+global using Atc.Kusto.CLI.Rendering;
 global using Atc.Kusto.CLI.Services;
 global using Azure.Identity;
 global using Kusto.Data;

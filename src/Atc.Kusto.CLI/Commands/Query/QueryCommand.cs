@@ -38,7 +38,10 @@ public sealed class QueryCommand(
                 settings.Database,
                 queryText);
 
-            RenderResults(reader, settings.Format);
+            var (columns, rows) = DataReaderMaterializer.Materialize(reader);
+            var outputFormat = OutputFormatParser.Parse(settings.Format);
+            var renderer = ResultRendererFactory.Create(outputFormat);
+            renderer.Render(columns, rows);
 
             return ConsoleExitStatusCodes.Success;
         }
@@ -73,128 +76,4 @@ public sealed class QueryCommand(
 
         return string.Empty;
     }
-
-    private static void RenderResults(System.Data.IDataReader reader, string format)
-    {
-        var columns = new List<string>();
-        for (var i = 0; i < reader.FieldCount; i++)
-        {
-            columns.Add(reader.GetName(i));
-        }
-
-        var rows = new List<string[]>();
-        while (reader.Read())
-        {
-            var row = new string[reader.FieldCount];
-            for (var i = 0; i < reader.FieldCount; i++)
-            {
-                row[i] = reader.IsDBNull(i) ? string.Empty : reader.GetValue(i)?.ToString() ?? string.Empty;
-            }
-
-            rows.Add(row);
-        }
-
-        switch (format)
-        {
-            case "json":
-                RenderJson(columns, rows);
-                break;
-            case "markdown" or "md":
-                RenderMarkdown(columns, rows);
-                break;
-            default:
-                RenderHuman(columns, rows);
-                break;
-        }
-    }
-
-    private static void RenderHuman(List<string> columns, List<string[]> rows)
-    {
-        var table = new Table();
-        table.Border(TableBorder.Rounded);
-
-        foreach (var column in columns)
-        {
-            table.AddColumn(new TableColumn(Markup.Escape(column)).NoWrap());
-        }
-
-        foreach (var row in rows)
-        {
-            var renderedCells = new string[row.Length];
-            for (var i = 0; i < row.Length; i++)
-            {
-                renderedCells[i] = Markup.Escape(row[i]);
-            }
-
-            table.AddRow(renderedCells);
-        }
-
-        AnsiConsole.Write(table);
-        AnsiConsole.MarkupLine($"[grey]({rows.Count} row(s))[/]");
-    }
-
-    private static void RenderJson(List<string> columns, List<string[]> rows)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine("[");
-
-        for (var r = 0; r < rows.Count; r++)
-        {
-            sb.AppendLine("  {");
-            for (var c = 0; c < columns.Count; c++)
-            {
-                var escapedValue = rows[r][c]
-                    .Replace("\\", "\\\\", StringComparison.Ordinal)
-                    .Replace("\"", "\\\"", StringComparison.Ordinal);
-                var separator = c < columns.Count - 1 ? "," : string.Empty;
-                sb.Append("    \"").Append(columns[c]).Append("\": \"").Append(escapedValue).Append('"').AppendLine(separator);
-            }
-
-            var rowSeparator = r < rows.Count - 1 ? "," : string.Empty;
-            sb.Append("  }").AppendLine(rowSeparator);
-        }
-
-        sb.Append(']');
-        System.Console.WriteLine(sb.ToString());
-    }
-
-    private static void RenderMarkdown(List<string> columns, List<string[]> rows)
-    {
-        var sb = new StringBuilder();
-
-        // Header row
-        sb.Append('|');
-        foreach (var column in columns)
-        {
-            sb.Append(' ').Append(EscapeMarkdownCell(column)).Append(" |");
-        }
-
-        sb.AppendLine();
-
-        // Separator row
-        sb.Append('|');
-        for (var i = 0; i < columns.Count; i++)
-        {
-            sb.Append(" --- |");
-        }
-
-        sb.AppendLine();
-
-        // Data rows
-        foreach (var row in rows)
-        {
-            sb.Append('|');
-            foreach (var cell in row)
-            {
-                sb.Append(' ').Append(EscapeMarkdownCell(cell)).Append(" |");
-            }
-
-            sb.AppendLine();
-        }
-
-        System.Console.Write(sb.ToString());
-    }
-
-    private static string EscapeMarkdownCell(string value)
-        => value.Replace("|", "\\|", StringComparison.Ordinal);
 }
