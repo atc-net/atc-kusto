@@ -33,4 +33,23 @@ public sealed class HumanResultRenderer : IResultRenderer
         AnsiConsole.Write(table);
         AnsiConsole.MarkupLine($"[grey]({rows.Count} row(s))[/]");
     }
+
+    /// <inheritdoc />
+    public void RenderStatistics(IDictionary<string, string> statistics)
+    {
+        ArgumentNullException.ThrowIfNull(statistics);
+
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("[bold]Query Statistics[/]");
+        var statsTable = new Table();
+        statsTable.Border(TableBorder.Simple);
+        statsTable.AddColumn(new TableColumn("Statistic").NoWrap());
+        statsTable.AddColumn(new TableColumn("Value").NoWrap());
+        foreach (var kvp in statistics)
+        {
+            statsTable.AddRow(Markup.Escape(kvp.Key), Markup.Escape(kvp.Value));
+        }
+
+        AnsiConsole.Write(statsTable);
+    }
 }

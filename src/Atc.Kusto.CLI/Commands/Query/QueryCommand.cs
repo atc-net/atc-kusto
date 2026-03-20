@@ -32,16 +32,34 @@ public sealed class QueryCommand(
             logger.LogInformation("Executing query against {ClusterUrl}/{Database}", settings.ClusterUrl, settings.Database);
             logger.LogDebug("Query: {Query}", queryText);
 
-            using var reader = await queryExecutor.ExecuteQueryAsync(
+            var result = await queryExecutor.ExecuteQueryAsync(
                 settings.TenantId,
                 settings.ClusterUrl!,
                 settings.Database,
-                queryText);
+                queryText,
+                settings.ShowStats);
 
+            using var reader = result.Reader;
             var (columns, rows) = DataReaderMaterializer.Materialize(reader);
-            var outputFormat = OutputFormatParser.Parse(settings.Format);
-            var renderer = ResultRendererFactory.Create(outputFormat);
+
+            // Try to extract statistics from subsequent result sets
+            QueryStatistics? stats = null;
+            if (settings.ShowStats)
+            {
+                stats = QueryStatisticsExtractor.Extract(reader);
+            }
+
+            var renderer = ResultRendererFactory.Create(OutputFormatParser.Parse(settings.Format));
             renderer.Render(columns, rows);
+
+            if (stats is not null)
+            {
+                var statsDict = stats.ToDictionary();
+                if (statsDict.Count > 0)
+                {
+                    renderer.RenderStatistics(statsDict);
+                }
+            }
 
             return ConsoleExitStatusCodes.Success;
         }

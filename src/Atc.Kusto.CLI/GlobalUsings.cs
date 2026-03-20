@@ -1,6 +1,8 @@
 global using System.ComponentModel;
 global using System.Diagnostics.CodeAnalysis;
+global using System.Globalization;
 global using System.Text;
+global using System.Text.Json;
 global using Atc.Console.Spectre;
 global using Atc.Console.Spectre.CommandSettings;
 global using Atc.Console.Spectre.Factories;
@@ -13,6 +15,7 @@ global using Atc.Kusto.CLI.Commands.Settings;
 global using Atc.Kusto.CLI.Commands.Table;
 global using Atc.Kusto.CLI.Extensions;
 global using Atc.Kusto.CLI.Factories;
+global using Atc.Kusto.CLI.Models;
 global using Atc.Kusto.CLI.Rendering;
 global using Atc.Kusto.CLI.Services;
 global using Azure.Identity;

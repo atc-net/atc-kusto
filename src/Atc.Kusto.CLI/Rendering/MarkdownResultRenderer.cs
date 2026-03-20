@@ -46,6 +46,29 @@ public sealed class MarkdownResultRenderer : IResultRenderer
         System.Console.Write(sb.ToString());
     }
 
+    /// <inheritdoc />
+    public void RenderStatistics(IDictionary<string, string> statistics)
+    {
+        ArgumentNullException.ThrowIfNull(statistics);
+
+        var sb = new StringBuilder();
+        sb.AppendLine();
+        sb.AppendLine("### Query Statistics");
+        sb.AppendLine();
+        sb.AppendLine("| Statistic | Value |");
+        sb.AppendLine("| --- | --- |");
+        foreach (var kvp in statistics)
+        {
+            sb.Append("| ")
+                .Append(EscapeCell(kvp.Key))
+                .Append(" | ")
+                .Append(EscapeCell(kvp.Value))
+                .AppendLine(" |");
+        }
+
+        System.Console.Write(sb.ToString());
+    }
+
     private static string EscapeCell(string value)
         => value.Replace("|", "\\|", StringComparison.Ordinal);
 }

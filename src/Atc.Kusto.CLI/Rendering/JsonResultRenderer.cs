@@ -33,4 +33,29 @@ public sealed class JsonResultRenderer : IResultRenderer
         sb.Append(']');
         System.Console.WriteLine(sb.ToString());
     }
+
+    /// <inheritdoc />
+    public void RenderStatistics(IDictionary<string, string> statistics)
+    {
+        ArgumentNullException.ThrowIfNull(statistics);
+
+        var sb = new StringBuilder();
+        sb.AppendLine();
+        sb.AppendLine("{");
+        sb.AppendLine("  \"statistics\": {");
+
+        var entries = statistics.ToList();
+        for (var i = 0; i < entries.Count; i++)
+        {
+            var separator = i < entries.Count - 1 ? "," : string.Empty;
+            var escapedValue = entries[i].Value
+                .Replace("\\", "\\\\", StringComparison.Ordinal)
+                .Replace("\"", "\\\"", StringComparison.Ordinal);
+            sb.Append("    \"").Append(entries[i].Key).Append("\": \"").Append(escapedValue).Append('"').AppendLine(separator);
+        }
+
+        sb.AppendLine("  }");
+        sb.Append('}');
+        System.Console.WriteLine(sb.ToString());
+    }
 }
