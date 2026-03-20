@@ -1,10 +1,11 @@
 namespace Atc.Kusto.CLI.Services;
 
-public sealed class KustoSchemaExporter(ILoggerFactory loggerFactory)
-    : IKustoSchemaExporter, IDisposable
+public sealed class KustoSchemaExporter(
+    ILoggerFactory loggerFactory,
+    ICliKustoClientFactory clientFactory)
+    : IKustoSchemaExporter
 {
     private readonly ILogger<KustoSchemaExporter> logger = loggerFactory.CreateLogger<KustoSchemaExporter>();
-    private ICslAdminProvider? adminClient;
 
     /// <inheritdoc />
     public async Task ExportTablesAsync(
@@ -15,7 +16,7 @@ public sealed class KustoSchemaExporter(ILoggerFactory loggerFactory)
     {
         ArgumentNullException.ThrowIfNull(clusterUrl);
 
-        var client = GetOrCreateAdminClient(tenantId, clusterUrl, database);
+        var client = clientFactory.GetOrCreateAdminClient(tenantId, clusterUrl, database);
         var tablesDir = EnsureDirectory(outputDir, "Tables");
 
         using var reader = await client.ExecuteControlCommandAsync(database, ".show tables");
@@ -44,7 +45,7 @@ public sealed class KustoSchemaExporter(ILoggerFactory loggerFactory)
     {
         ArgumentNullException.ThrowIfNull(clusterUrl);
 
-        var client = GetOrCreateAdminClient(tenantId, clusterUrl, database);
+        var client = clientFactory.GetOrCreateAdminClient(tenantId, clusterUrl, database);
         var functionsDir = EnsureDirectory(outputDir, "Functions");
 
         using var reader = await client.ExecuteControlCommandAsync(database, ".show functions");
@@ -86,7 +87,7 @@ public sealed class KustoSchemaExporter(ILoggerFactory loggerFactory)
     {
         ArgumentNullException.ThrowIfNull(clusterUrl);
 
-        var client = GetOrCreateAdminClient(tenantId, clusterUrl, database);
+        var client = clientFactory.GetOrCreateAdminClient(tenantId, clusterUrl, database);
         var viewsDir = EnsureDirectory(outputDir, "MaterializedViews");
 
         using var reader = await client.ExecuteControlCommandAsync(database, ".show materialized-views");
@@ -137,7 +138,7 @@ public sealed class KustoSchemaExporter(ILoggerFactory loggerFactory)
     {
         ArgumentNullException.ThrowIfNull(clusterUrl);
 
-        var client = GetOrCreateAdminClient(tenantId, clusterUrl, database);
+        var client = clientFactory.GetOrCreateAdminClient(tenantId, clusterUrl, database);
         var externalDir = EnsureDirectory(outputDir, "ExternalTables");
 
         using var reader = await client.ExecuteControlCommandAsync(database, ".show external tables");
@@ -183,19 +184,11 @@ public sealed class KustoSchemaExporter(ILoggerFactory loggerFactory)
     {
         ArgumentNullException.ThrowIfNull(clusterUrl);
 
-        var client = GetOrCreateAdminClient(tenantId, clusterUrl, database);
+        var client = clientFactory.GetOrCreateAdminClient(tenantId, clusterUrl, database);
         var policiesDir = EnsureDirectory(outputDir, "Policies");
 
         await ExportDatabasePoliciesAsync(client, database, policiesDir);
         await ExportTablePoliciesAsync(client, database, policiesDir);
-    }
-
-    public void Dispose()
-    {
-        if (adminClient is IDisposable disposable)
-        {
-            disposable.Dispose();
-        }
     }
 
     /// <summary>
@@ -304,32 +297,6 @@ public sealed class KustoSchemaExporter(ILoggerFactory loggerFactory)
                     Encoding.UTF8);
             }
         }
-    }
-
-    /// <summary>
-    /// Gets or creates a Kusto admin client using Azure AD authentication.
-    /// </summary>
-    private ICslAdminProvider GetOrCreateAdminClient(
-        string tenantId,
-        Uri clusterUrl,
-        string database)
-    {
-        if (adminClient is not null)
-        {
-            return adminClient;
-        }
-
-        var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions
-        {
-            TenantId = tenantId,
-        });
-
-        var connectionString = new KustoConnectionStringBuilder(clusterUrl.AbsoluteUri, database)
-            .WithAadAzureTokenCredentialsAuthentication(credential);
-
-        adminClient = KustoClientFactory.CreateCslAdminProvider(connectionString);
-
-        return adminClient;
     }
 
     /// <summary>
