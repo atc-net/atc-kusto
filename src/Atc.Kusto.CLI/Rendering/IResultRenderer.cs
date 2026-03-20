@@ -11,4 +11,10 @@ public interface IResultRenderer
     /// <param name="columns">The column names.</param>
     /// <param name="rows">The data rows.</param>
     void Render(IReadOnlyList<string> columns, IReadOnlyList<string[]> rows);
+
+    /// <summary>
+    /// Renders query statistics as key-value pairs.
+    /// </summary>
+    /// <param name="statistics">The flattened statistics dictionary.</param>
+    void RenderStatistics(IDictionary<string, string> statistics);
 }
