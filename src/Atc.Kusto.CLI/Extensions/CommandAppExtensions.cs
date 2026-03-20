@@ -42,6 +42,13 @@ public static class CommandAppExtensions
                     .WithExample("export", "policies", "--tenant-id", "<GUID>", "--cluster-url", "https://mycluster.kusto.windows.net", "--database", "MyDb")
                     .WithExample("export", "policies", "--tenant-id", "<GUID>", "--cluster-url", "https://mycluster.kusto.windows.net", "--database", "MyDb", "--output-dir", "./kusto-export");
             });
+
+            config.AddCommand<QueryCommand>("query")
+                .WithDescription("Execute a KQL query against a Kusto database")
+                .WithExample("query", "\"StormEvents | take 5\"", "--tenant-id", "<GUID>", "--cluster-url", "https://mycluster.kusto.windows.net", "--database", "MyDb")
+                .WithExample("query", "--file", "myquery.kql", "--tenant-id", "<GUID>", "--cluster-url", "https://mycluster.kusto.windows.net", "--database", "MyDb")
+                .WithExample("query", "\"StormEvents | take 5\"", "--tenant-id", "<GUID>", "--cluster-url", "https://mycluster.kusto.windows.net", "--database", "MyDb", "--format", "json")
+                .WithExample("query", "\"StormEvents | take 5\"", "--tenant-id", "<GUID>", "--cluster-url", "https://mycluster.kusto.windows.net", "--database", "MyDb", "--format", "markdown");
         });
     }
 }
