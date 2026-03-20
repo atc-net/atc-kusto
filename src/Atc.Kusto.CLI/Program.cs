@@ -21,6 +21,7 @@ public static class Program
         var serviceCollection = ServiceCollectionFactory.Create(consoleLoggerConfiguration);
         serviceCollection.AddSingleton<ICliKustoClientFactory, CliKustoClientFactory>();
         serviceCollection.AddTransient<IKustoSchemaExporter, KustoSchemaExporter>();
+        serviceCollection.AddTransient<IKustoQueryExecutor, KustoQueryExecutor>();
 
         var app = CommandAppFactory.Create(serviceCollection);
         app.ConfigureCommands();
