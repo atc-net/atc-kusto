@@ -49,8 +49,11 @@ public class ClusterCommandSettings : BaseCommandSettings
     /// Must be called after validation and before using ClusterUrl.
     /// </summary>
     /// <param name="configStore">The config store to resolve cluster names.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>True if resolved successfully, false if no cluster could be determined.</returns>
-    public async Task<bool> ResolveClusterAsync(ICliConfigStore configStore)
+    public async Task<bool> ResolveClusterAsync(
+        ICliConfigStore configStore,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(configStore);
 
@@ -59,7 +62,7 @@ public class ClusterCommandSettings : BaseCommandSettings
             return true;
         }
 
-        var config = await configStore.LoadAsync();
+        var config = await configStore.LoadAsync(cancellationToken);
 
         // Try to resolve by name
         if (!string.IsNullOrWhiteSpace(ClusterName))

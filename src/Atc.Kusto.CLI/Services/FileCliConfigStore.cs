@@ -32,20 +32,23 @@ public sealed class FileCliConfigStore : ICliConfigStore
     }
 
     /// <inheritdoc />
-    public async Task<KustoCliConfig> LoadAsync()
+    public async Task<KustoCliConfig> LoadAsync(
+        CancellationToken cancellationToken = default)
     {
         if (!File.Exists(configPath))
         {
             return new KustoCliConfig();
         }
 
-        var json = await File.ReadAllTextAsync(configPath, Encoding.UTF8);
+        var json = await File.ReadAllTextAsync(configPath, Encoding.UTF8, cancellationToken);
         return JsonSerializer.Deserialize<KustoCliConfig>(json, SerializerOptions)
                ?? new KustoCliConfig();
     }
 
     /// <inheritdoc />
-    public Task SaveAsync(KustoCliConfig config)
+    public Task SaveAsync(
+        KustoCliConfig config,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(config);
 
@@ -56,6 +59,6 @@ public sealed class FileCliConfigStore : ICliConfigStore
         }
 
         var json = JsonSerializer.Serialize(config, SerializerOptions);
-        return File.WriteAllTextAsync(configPath, json, Encoding.UTF8);
+        return File.WriteAllTextAsync(configPath, json, Encoding.UTF8, cancellationToken);
     }
 }

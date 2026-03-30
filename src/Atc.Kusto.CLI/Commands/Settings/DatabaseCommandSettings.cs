@@ -27,8 +27,11 @@ public class DatabaseCommandSettings : ClusterCommandSettings
     /// Must be called after ResolveClusterAsync.
     /// </summary>
     /// <param name="configStore">The config store to resolve default database.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>True if resolved successfully, false if no database could be determined.</returns>
-    public async Task<bool> ResolveDatabaseAsync(ICliConfigStore configStore)
+    public async Task<bool> ResolveDatabaseAsync(
+        ICliConfigStore configStore,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(configStore);
 
@@ -42,7 +45,7 @@ public class DatabaseCommandSettings : ClusterCommandSettings
             return false;
         }
 
-        var config = await configStore.LoadAsync();
+        var config = await configStore.LoadAsync(cancellationToken);
         var clusterKey = ClusterUtilities.NormalizeClusterUrl(ClusterUrl.AbsoluteUri);
         if (clusterKey is not null && config.DefaultDatabases.TryGetValue(clusterKey, out var defaultDb))
         {
