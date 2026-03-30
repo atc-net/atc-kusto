@@ -47,6 +47,7 @@ public static class CommandAppExtensions
                 .WithDescription("Execute a KQL query against a Kusto database")
                 .WithExample("query", "\"StormEvents | take 5\"", "--tenant-id", "<GUID>", "--cluster-url", "https://mycluster.kusto.windows.net", "--database", "MyDb")
                 .WithExample("query", "--file", "myquery.kql", "--tenant-id", "<GUID>", "--cluster-url", "https://mycluster.kusto.windows.net", "--database", "MyDb")
+                .WithExample("query", "--file", "myquery.kql:5-10", "--tenant-id", "<GUID>", "--cluster-url", "https://mycluster.kusto.windows.net", "--database", "MyDb")
                 .WithExample("query", "\"StormEvents | take 5\"", "--tenant-id", "<GUID>", "--cluster-url", "https://mycluster.kusto.windows.net", "--database", "MyDb", "--format", "json")
                 .WithExample("query", "\"StormEvents | take 5\"", "--tenant-id", "<GUID>", "--cluster-url", "https://mycluster.kusto.windows.net", "--database", "MyDb", "--format", "markdown")
                 .WithExample("query", "\"StormEvents | take 5\"", "--tenant-id", "<GUID>", "--cluster-url", "https://mycluster.kusto.windows.net", "--database", "MyDb", "--format", "csv");
