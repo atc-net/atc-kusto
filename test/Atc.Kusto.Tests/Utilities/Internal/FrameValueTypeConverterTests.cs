@@ -163,7 +163,8 @@ public sealed class FrameValueTypeConverterTests
     [InlineData("20443.07")]
     [InlineData("12345.6789")]
     [InlineData("0.00")]
-    public void ConvertToColumnType_Should_Handle_Realistic_Kusto_Decimal_Strings(string decimalString)
+    public void ConvertToColumnType_Should_Handle_Realistic_Kusto_Decimal_Strings(
+        string decimalString)
     {
         // Arrange - this simulates the actual scenario from the Kusto progressive frames
         var targetType = typeof(SqlDecimal);

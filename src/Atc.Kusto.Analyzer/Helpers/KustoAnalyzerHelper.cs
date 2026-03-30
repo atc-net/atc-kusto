@@ -25,7 +25,8 @@ internal static class KustoAnalyzerHelper
     /// Gets the first syntax reference for the specified symbol, or null if none exists.
     /// </summary>
     /// <param name="namedTypeSymbol">The named type symbol to get the syntax reference from.</param>
-    public static SyntaxReference? GetSyntaxReference(INamedTypeSymbol namedTypeSymbol)
+    public static SyntaxReference? GetSyntaxReference(
+        INamedTypeSymbol namedTypeSymbol)
     {
         var syntaxReferences = namedTypeSymbol.DeclaringSyntaxReferences;
         return syntaxReferences.Length > 0 ? syntaxReferences[0] : null;
@@ -163,7 +164,8 @@ internal static class KustoAnalyzerHelper
     /// </summary>
     /// <param name="typeSymbol">The type symbol to get properties from.</param>
     /// <returns>A list of public property names.</returns>
-    public static IReadOnlyList<string> GetPublicPropertyNames(INamedTypeSymbol typeSymbol)
+    public static IReadOnlyList<string> GetPublicPropertyNames(
+        INamedTypeSymbol typeSymbol)
     {
         var properties = new List<string>();
 

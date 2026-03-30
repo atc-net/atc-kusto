@@ -20,7 +20,8 @@ public sealed class EmptyKustoScriptFileAnalyzer : DiagnosticAnalyzer
     private static readonly Regex MultiLineCommentRegex = new(@"/\*.*?\*/", RegexOptions.Singleline, TimeSpan.FromSeconds(1));
     private static readonly Regex ParameterDeclarationRegex = new(@"declare\s+query_parameters\s*\([^)]*\)\s*;", RegexOptions.Singleline | RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
 
-    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => [Rule];
+    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics
+        => [Rule];
 
     public override void Initialize(AnalysisContext context)
     {

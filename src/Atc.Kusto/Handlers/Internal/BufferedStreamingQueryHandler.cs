@@ -1,4 +1,6 @@
+#pragma warning disable ATC220 // Moving to GlobalUsings causes ILogger<> ambiguity with Kusto.Cloud.Platform.Utils.ILogger<T>
 using Kusto.Cloud.Platform.Utils;
+#pragma warning restore ATC220
 
 namespace Atc.Kusto.Handlers.Internal;
 
@@ -69,7 +71,8 @@ internal sealed partial class BufferedStreamingQueryHandler<T> : IScriptHandler<
     /// If execution fails <see cref="StreamingQueryResult{T}.Completion" /> will reflect the error.
     /// </returns>
     [SuppressMessage("Design", "MA0051:Method Length", Justification = "OK")]
-    public async Task<StreamingQueryResult<T>?> Execute(CancellationToken cancellationToken)
+    public async Task<StreamingQueryResult<T>?> Execute(
+        CancellationToken cancellationToken)
     {
         using var activity = KustoDiagnostics.Source.StartActivity(
             KustoDiagnostics.ActivityNames.StreamingQuery,

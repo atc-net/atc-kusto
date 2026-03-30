@@ -30,7 +30,8 @@ internal static class KustoProjectionParser
     /// A list of projected field names if a final project statement exists;
     /// null if there's no project statement or it's not the final operation.
     /// </returns>
-    public static IReadOnlyList<string>? ParseFinalProjection(string kustoFileContent)
+    public static IReadOnlyList<string>? ParseFinalProjection(
+        string kustoFileContent)
     {
         if (string.IsNullOrWhiteSpace(kustoFileContent))
         {

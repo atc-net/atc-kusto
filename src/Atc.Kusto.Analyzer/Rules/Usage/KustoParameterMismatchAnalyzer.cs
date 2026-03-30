@@ -158,7 +158,8 @@ public sealed class KustoParameterMismatchAnalyzer : DiagnosticAnalyzer
         }
     }
 
-    private static List<(string Name, string Type)> GetPrimaryConstructorParameters(INamedTypeSymbol typeSymbol)
+    private static List<(string Name, string Type)> GetPrimaryConstructorParameters(
+        INamedTypeSymbol typeSymbol)
     {
         var parameters = new List<(string Name, string Type)>();
 

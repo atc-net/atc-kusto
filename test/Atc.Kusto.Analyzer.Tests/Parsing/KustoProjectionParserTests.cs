@@ -9,7 +9,8 @@ public sealed class KustoProjectionParserTests
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   \t\n\r  ")]
-    public void ParseFinalProjection_EmptyOrNullInput_ReturnsNull(string? kustoContent)
+    public void ParseFinalProjection_EmptyOrNullInput_ReturnsNull(
+        string? kustoContent)
     {
         // Act
         var result = Atc.Kusto.Analyzer.Parsing.KustoProjectionParser.ParseFinalProjection(kustoContent!);
@@ -262,7 +263,8 @@ public sealed class KustoProjectionParserTests
     [InlineData("| PROJECT CustomerKey")]
     [InlineData("| Project CustomerKey")]
     [InlineData("| pRoJeCt CustomerKey")]
-    public void ParseFinalProjection_CaseInsensitive_ParsesCorrectly(string projectStatement)
+    public void ParseFinalProjection_CaseInsensitive_ParsesCorrectly(
+        string projectStatement)
     {
         // Arrange
         var kustoContent = $"Customers\n{projectStatement}";

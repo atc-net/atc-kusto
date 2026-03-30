@@ -11,7 +11,8 @@ public static class DataReaderMaterializer
     /// </summary>
     /// <param name="reader">The data reader to materialize.</param>
     /// <returns>A tuple of column names and row data.</returns>
-    public static (List<string> Columns, List<string[]> Rows) Materialize(System.Data.IDataReader reader)
+    public static (List<string> Columns, List<string[]> Rows) Materialize(
+        System.Data.IDataReader reader)
     {
         ArgumentNullException.ThrowIfNull(reader);
 

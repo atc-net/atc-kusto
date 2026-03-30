@@ -9,7 +9,8 @@ public sealed class KustoParameterParserTests
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   \t\n\r  ")]
-    public void ParseParameters_EmptyOrNullInput_ReturnsEmptyList(string? kustoContent)
+    public void ParseParameters_EmptyOrNullInput_ReturnsEmptyList(
+        string? kustoContent)
     {
         // Act
         var result = Atc.Kusto.Analyzer.Parsing.KustoParameterParser.ParseParameters(kustoContent!);
@@ -254,7 +255,8 @@ public sealed class KustoParameterParserTests
     [InlineData("value:long = -100")]
     [InlineData("value:long = long(null)")]
     [InlineData("value:datetime = datetime(null)")]
-    public void ParseParameters_DefaultValues_SetsHasDefaultValueTrue(string parameterDeclaration)
+    public void ParseParameters_DefaultValues_SetsHasDefaultValueTrue(
+        string parameterDeclaration)
     {
         // Arrange
         var kustoContent = $"declare query_parameters ({parameterDeclaration});";
@@ -271,7 +273,8 @@ public sealed class KustoParameterParserTests
     [InlineData("declare query_parameters(customerId:long);")]
     [InlineData("declare query_parameters (customerId  :  long);")]
     [InlineData("declare\tquery_parameters\t(customerId:long);")]
-    public void ParseParameters_WhitespaceVariations_ParsesCorrectly(string kustoContent)
+    public void ParseParameters_WhitespaceVariations_ParsesCorrectly(
+        string kustoContent)
     {
         // Act
         var result = Atc.Kusto.Analyzer.Parsing.KustoParameterParser.ParseParameters(kustoContent);
@@ -300,7 +303,8 @@ public sealed class KustoParameterParserTests
     [Theory]
     [InlineData("DECLARE QUERY_PARAMETERS (customerId:long);")]
     [InlineData("DeCLaRe QuErY_PaRaMeTeRs (customerId:long);")]
-    public void ParseParameters_DeclareKeywordCaseInsensitive_ParsesCorrectly(string kustoContent)
+    public void ParseParameters_DeclareKeywordCaseInsensitive_ParsesCorrectly(
+        string kustoContent)
     {
         // Act
         var result = Atc.Kusto.Analyzer.Parsing.KustoParameterParser.ParseParameters(kustoContent);

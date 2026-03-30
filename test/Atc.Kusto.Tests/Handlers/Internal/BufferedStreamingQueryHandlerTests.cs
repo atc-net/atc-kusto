@@ -233,7 +233,8 @@ public sealed class BufferedStreamingQueryHandlerTests
 
 internal static class ProgressiveDataSetBuilder
 {
-    internal static ProgressiveDataSet BuildPrimaryResult(params string[] values)
+    internal static ProgressiveDataSet BuildPrimaryResult(
+        params string[] values)
     {
         var table = new DataTable(WellKnownDataSet.PrimaryResult.ToString());
         table.Columns.Add("col", typeof(string));

@@ -21,7 +21,8 @@ internal static class KustoParameterParser
     /// </summary>
     /// <param name="kustoFileContent">The content of the .kusto file.</param>
     /// <returns>A list of parsed parameters in the order they appear.</returns>
-    public static IReadOnlyList<KustoParameter> ParseParameters(string kustoFileContent)
+    public static IReadOnlyList<KustoParameter> ParseParameters(
+        string kustoFileContent)
     {
         if (string.IsNullOrWhiteSpace(kustoFileContent))
         {

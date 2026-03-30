@@ -218,7 +218,9 @@ public sealed class ProjectionMismatchAnalyzer : DiagnosticAnalyzer
     /// <summary>
     /// Finds a potential property match for a snake_case field name.
     /// </summary>
-    private static string? FindPotentialNamingMatch(string field, IReadOnlyList<string> properties)
+    private static string? FindPotentialNamingMatch(
+        string field,
+        IReadOnlyList<string> properties)
     {
         // Only check if the field contains underscores (snake_case)
         if (!field.Contains('_'))

@@ -13,7 +13,9 @@ public static class FilterBuilder
     /// <param name="columnName">The KQL column name to filter on.</param>
     /// <param name="filter">The filter expression.</param>
     /// <returns>A KQL where-clause fragment, e.g. "| where TableName contains 'Storm'".</returns>
-    public static string Build(string columnName, string filter)
+    public static string Build(
+        string columnName,
+        string filter)
     {
         ArgumentNullException.ThrowIfNull(columnName);
         ArgumentNullException.ThrowIfNull(filter);

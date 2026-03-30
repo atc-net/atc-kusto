@@ -6,7 +6,9 @@ namespace Atc.Kusto.CLI.Rendering;
 public sealed class MarkdownResultRenderer : IResultRenderer
 {
     /// <inheritdoc />
-    public void Render(IReadOnlyList<string> columns, IReadOnlyList<string[]> rows)
+    public void Render(
+        IReadOnlyList<string> columns,
+        IReadOnlyList<string[]> rows)
     {
         ArgumentNullException.ThrowIfNull(columns);
         ArgumentNullException.ThrowIfNull(rows);

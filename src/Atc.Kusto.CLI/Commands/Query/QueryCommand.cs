@@ -70,7 +70,8 @@ public sealed class QueryCommand(
         }
     }
 
-    private static async Task<string> ResolveQueryTextAsync(QueryCommandSettings settings)
+    private static async Task<string> ResolveQueryTextAsync(
+        QueryCommandSettings settings)
     {
         if (settings.FilePath is not null)
         {

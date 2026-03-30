@@ -6,7 +6,9 @@ namespace Atc.Kusto.CLI.Rendering;
 public sealed class JsonResultRenderer : IResultRenderer
 {
     /// <inheritdoc />
-    public void Render(IReadOnlyList<string> columns, IReadOnlyList<string[]> rows)
+    public void Render(
+        IReadOnlyList<string> columns,
+        IReadOnlyList<string[]> rows)
     {
         ArgumentNullException.ThrowIfNull(columns);
         ArgumentNullException.ThrowIfNull(rows);
