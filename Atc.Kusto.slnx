@@ -18,6 +18,7 @@
   <Folder Name="/test/">
     <Project Path="test/Atc.Kusto.Analyzer.CodeFixes.Tests/Atc.Kusto.Analyzer.CodeFixes.Tests.csproj" />
     <Project Path="test/Atc.Kusto.Analyzer.Tests/Atc.Kusto.Analyzer.Tests.csproj" />
+    <Project Path="test/Atc.Kusto.CLI.Tests/Atc.Kusto.CLI.Tests.csproj" />
     <Project Path="test/Atc.Kusto.Tests/Atc.Kusto.Tests.csproj" />
   </Folder>
 </Solution>
