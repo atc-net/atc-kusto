@@ -2,7 +2,7 @@ namespace Atc.Kusto.CLI.Commands.Settings;
 
 /// <summary>
 /// Base settings for commands that require a Kusto cluster connection.
-/// Supports both explicit --cluster-url or a saved --cluster name.
+/// Supports explicit --cluster-url, saved --cluster name, or default from config.
 /// </summary>
 public class ClusterCommandSettings : BaseCommandSettings
 {
@@ -15,7 +15,7 @@ public class ClusterCommandSettings : BaseCommandSettings
     public Uri? ClusterUrl { get; set; }
 
     [CommandOption("--cluster <NAME>")]
-    [Description("Saved cluster name (from 'cluster add')")]
+    [Description("Saved cluster name (from 'cluster add'), or omit to use default")]
     public string? ClusterName { get; init; }
 
     public override ValidationResult Validate()
@@ -29,11 +29,6 @@ public class ClusterCommandSettings : BaseCommandSettings
         if (string.IsNullOrWhiteSpace(TenantId))
         {
             return ValidationResult.Error("--tenant-id is required.");
-        }
-
-        if (ClusterUrl is null && string.IsNullOrWhiteSpace(ClusterName))
-        {
-            return ValidationResult.Error("Either --cluster-url or --cluster is required.");
         }
 
         if (ClusterUrl is not null && !string.IsNullOrWhiteSpace(ClusterName))
@@ -50,11 +45,11 @@ public class ClusterCommandSettings : BaseCommandSettings
     }
 
     /// <summary>
-    /// Resolves the cluster URL from either --cluster-url or --cluster name.
+    /// Resolves the cluster URL from --cluster-url, --cluster name, or default config.
     /// Must be called after validation and before using ClusterUrl.
     /// </summary>
     /// <param name="configStore">The config store to resolve cluster names.</param>
-    /// <returns>True if resolved successfully, false if cluster name not found.</returns>
+    /// <returns>True if resolved successfully, false if no cluster could be determined.</returns>
     public async Task<bool> ResolveClusterAsync(ICliConfigStore configStore)
     {
         ArgumentNullException.ThrowIfNull(configStore);
@@ -64,25 +59,34 @@ public class ClusterCommandSettings : BaseCommandSettings
             return true;
         }
 
-        if (string.IsNullOrWhiteSpace(ClusterName))
-        {
-            return false;
-        }
-
         var config = await configStore.LoadAsync();
-        var cluster = ClusterUtilities.FindCluster(config, ClusterName);
-        if (cluster is null)
+
+        // Try to resolve by name
+        if (!string.IsNullOrWhiteSpace(ClusterName))
         {
-            return false;
+            var cluster = ClusterUtilities.FindCluster(config, ClusterName);
+            if (cluster is null)
+            {
+                return false;
+            }
+
+            var normalized = ClusterUtilities.NormalizeClusterUrl(cluster.Url);
+            if (normalized is null)
+            {
+                return false;
+            }
+
+            ClusterUrl = new Uri(normalized);
+            return true;
         }
 
-        var normalized = ClusterUtilities.NormalizeClusterUrl(cluster.Url);
-        if (normalized is null)
+        // Fall back to default cluster from config
+        if (!string.IsNullOrWhiteSpace(config.DefaultClusterUrl))
         {
-            return false;
+            ClusterUrl = new Uri(config.DefaultClusterUrl);
+            return true;
         }
 
-        ClusterUrl = new Uri(normalized);
-        return true;
+        return false;
     }
 }

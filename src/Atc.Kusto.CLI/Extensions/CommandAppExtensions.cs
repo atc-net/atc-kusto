@@ -104,6 +104,11 @@ public static class CommandAppExtensions
         database.AddCommand<DatabaseShowCommand>("show")
             .WithDescription("Show details for a database")
             .WithExample("database", "show", "MyDb", "--tenant-id", "<GUID>", "--cluster-url", "https://mycluster.kusto.windows.net");
+
+        database.AddCommand<DatabaseSetDefaultCommand>("set-default")
+            .WithDescription("Set the default database for a cluster")
+            .WithExample("database", "set-default", "MyDb", "--tenant-id", "<GUID>", "--cluster", "prod")
+            .WithExample("database", "set-default", "Samples", "--tenant-id", "<GUID>", "--cluster-url", "https://help.kusto.windows.net");
     }
 
     private static void ConfigureTableCommands(
