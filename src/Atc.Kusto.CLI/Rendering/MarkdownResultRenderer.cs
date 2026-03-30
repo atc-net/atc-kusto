@@ -71,6 +71,15 @@ public sealed class MarkdownResultRenderer : IResultRenderer
         System.Console.Write(sb.ToString());
     }
 
+    /// <inheritdoc />
+    public void RenderWebExplorerUrl(Uri url)
+    {
+        ArgumentNullException.ThrowIfNull(url);
+
+        System.Console.WriteLine();
+        System.Console.WriteLine($"[Open in Web Explorer]({url.AbsoluteUri})");
+    }
+
     private static string EscapeCell(string value)
         => value.Replace("|", "\\|", StringComparison.Ordinal);
 }

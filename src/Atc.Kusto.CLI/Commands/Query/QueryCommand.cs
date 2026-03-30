@@ -61,6 +61,16 @@ public sealed class QueryCommand(
                 }
             }
 
+            var webExplorerUrl = KustoWebExplorerUrlBuilder.Build(
+                settings.ClusterUrl!,
+                settings.Database,
+                queryText);
+
+            if (webExplorerUrl is not null)
+            {
+                renderer.RenderWebExplorerUrl(webExplorerUrl);
+            }
+
             return ConsoleExitStatusCodes.Success;
         }
         catch (Exception ex)

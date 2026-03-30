@@ -19,4 +19,10 @@ public interface IResultRenderer
     /// </summary>
     /// <param name="statistics">The flattened statistics dictionary.</param>
     void RenderStatistics(IDictionary<string, string> statistics);
+
+    /// <summary>
+    /// Renders a web explorer URL for opening the query in Azure Data Explorer.
+    /// </summary>
+    /// <param name="url">The web explorer deep-link URL.</param>
+    void RenderWebExplorerUrl(Uri url);
 }
