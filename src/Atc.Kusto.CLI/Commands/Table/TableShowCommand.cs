@@ -16,7 +16,8 @@ public sealed class TableShowCommand(
         return ExecuteInternalAsync(settings);
     }
 
-    private async Task<int> ExecuteInternalAsync(TableShowCommandSettings settings)
+    private async Task<int> ExecuteInternalAsync(
+        TableShowCommandSettings settings)
     {
         ConsoleHelper.WriteHeader();
 

@@ -88,8 +88,7 @@ public static class DataReaderExtensions
     /// <typeparam name="T">The type of objects to convert the data into.</typeparam>
     /// <param name="reader">The <see cref="IDataReader"/> from which to read the data.</param>
     /// <returns>An array of objects of type <typeparamref name="T"/> representing the data from the next result set, or an empty array if there is no next result set.</returns>
-    public static T[] ReadObjectsFromNextResult<T>(
-        this IDataReader reader)
+    public static T[] ReadObjectsFromNextResult<T>(this IDataReader reader)
     {
         ArgumentNullException.ThrowIfNull(reader);
 

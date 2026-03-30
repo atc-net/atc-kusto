@@ -55,8 +55,7 @@ public static class KustoScriptExtensions
     /// </summary>
     /// <param name="value">The value to be converted to CSL string representation.</param>
     /// <returns>A string representing the value in CSL format.</returns>
-    public static string GetCslValue(
-        object value)
+    public static string GetCslValue(object value)
         => value switch
         {
             bool b => CslBoolLiteral.AsCslString(b),

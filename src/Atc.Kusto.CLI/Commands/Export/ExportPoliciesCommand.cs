@@ -16,7 +16,8 @@ public sealed class ExportPoliciesCommand(
         return ExecuteInternalAsync(settings);
     }
 
-    private async Task<int> ExecuteInternalAsync(ExportBaseCommandSettings settings)
+    private async Task<int> ExecuteInternalAsync(
+        ExportBaseCommandSettings settings)
     {
         ConsoleHelper.WriteHeader();
 

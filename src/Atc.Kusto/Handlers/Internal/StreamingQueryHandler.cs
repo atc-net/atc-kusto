@@ -58,7 +58,8 @@ internal sealed partial class StreamingQueryHandler<T> : IStreamingScriptHandler
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     [SuppressMessage("Design", "MA0051:Method Length", Justification = "OK")]
-    public async IAsyncEnumerable<T> Execute([EnumeratorCancellation] CancellationToken cancellationToken)
+    public async IAsyncEnumerable<T> Execute(
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         using var activity = KustoDiagnostics.Source.StartActivity(
             KustoDiagnostics.ActivityNames.StreamingQuery,

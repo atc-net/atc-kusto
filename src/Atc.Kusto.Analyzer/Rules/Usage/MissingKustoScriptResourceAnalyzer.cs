@@ -13,7 +13,8 @@ public sealed class MissingKustoScriptResourceAnalyzer : DiagnosticAnalyzer
         description: "Classes inheriting from KustoScript must have a corresponding .kusto file as an embedded resource with a name matching the fully qualified class name.",
         helpLinkUri: RuleIdentifierHelper.GetHelpUri(RuleIdentifierConstants.Usage.MissingKustoScriptResource));
 
-    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => [Rule];
+    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics
+        => [Rule];
 
     public override void Initialize(AnalysisContext context)
     {

@@ -8,7 +8,8 @@ internal sealed class AutoNSubstituteDataWithAtcKustoOptionsAttribute : AutoData
     /// </summary>
     public bool WithCredential { get; }
 
-    public AutoNSubstituteDataWithAtcKustoOptionsAttribute(bool withCredential = true)
+    public AutoNSubstituteDataWithAtcKustoOptionsAttribute(
+        bool withCredential = true)
         : base(() =>
             new Fixture()
                 .Customize(new AutoNSubstituteCustomization())

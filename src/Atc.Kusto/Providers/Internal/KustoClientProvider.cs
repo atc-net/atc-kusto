@@ -36,7 +36,8 @@ public sealed class KustoClientProvider : IDisposable, IKustoClientProvider
         => KustoClientFactory.CreateCslAdminProvider(
             GetConnectionString(clientCacheKey));
 
-    private KustoConnectionStringBuilder GetConnectionString(ClientCacheKey clientCacheKey)
+    private KustoConnectionStringBuilder GetConnectionString(
+        ClientCacheKey clientCacheKey)
         => monitor.Get(clientCacheKey.ConnectionName) switch
         {
             { HostAddress: { } host, DatabaseName: { } db, Credential: { } cred } =>

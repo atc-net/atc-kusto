@@ -54,7 +54,8 @@ internal sealed partial class ExistingPagedStoredQueryHandler<T> : IScriptHandle
     /// if the query succeeds, or null if the continuation token is invalid or the query fails.
     /// </returns>
     [SuppressMessage("Design", "MA0076:Do not use implicit culture-sensitive ToString in interpolated strings", Justification = "OK - Not needed for long")]
-    public async Task<PagedResult<T>?> Execute(CancellationToken cancellationToken)
+    public async Task<PagedResult<T>?> Execute(
+        CancellationToken cancellationToken)
     {
         var split = continuationToken.Split(';');
         if (split.Length != 2)

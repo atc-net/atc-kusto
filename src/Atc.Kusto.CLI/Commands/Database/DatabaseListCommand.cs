@@ -16,7 +16,8 @@ public sealed class DatabaseListCommand(
         return ExecuteInternalAsync(settings);
     }
 
-    private async Task<int> ExecuteInternalAsync(DatabaseListCommandSettings settings)
+    private async Task<int> ExecuteInternalAsync(
+        DatabaseListCommandSettings settings)
     {
         ConsoleHelper.WriteHeader();
 
