@@ -12,7 +12,10 @@ public sealed class OutputFormatParserTests
         string input,
         OutputFormat expected)
     {
+        // Act
         var result = OutputFormatParser.Parse(input);
+
+        // Assert
         result.Should().Be(expected);
     }
 
@@ -22,7 +25,10 @@ public sealed class OutputFormatParserTests
     [InlineData("")]
     public void Parse_UnknownFormat_DefaultsToHuman(string input)
     {
+        // Act
         var result = OutputFormatParser.Parse(input);
+
+        // Assert
         result.Should().Be(OutputFormat.Human);
     }
 }

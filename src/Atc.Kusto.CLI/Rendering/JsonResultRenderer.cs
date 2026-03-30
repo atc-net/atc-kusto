@@ -53,11 +53,32 @@ public sealed class JsonResultRenderer : IResultRenderer
             var escapedValue = entries[i].Value
                 .Replace("\\", "\\\\", StringComparison.Ordinal)
                 .Replace("\"", "\\\"", StringComparison.Ordinal);
-            sb.Append("    \"").Append(entries[i].Key).Append("\": \"").Append(escapedValue).Append('"').AppendLine(separator);
+
+            sb
+                .Append("    \"")
+                .Append(entries[i].Key)
+                .Append("\": \"")
+                .Append(escapedValue)
+                .Append('"')
+                .AppendLine(separator);
         }
 
         sb.AppendLine("  }");
         sb.Append('}');
+
         System.Console.WriteLine(sb.ToString());
+    }
+
+    /// <inheritdoc />
+    public void RenderWebExplorerUrl(Uri url)
+    {
+        ArgumentNullException.ThrowIfNull(url);
+
+        var escapedUrl = url.AbsoluteUri
+            .Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("\"", "\\\"", StringComparison.Ordinal);
+
+        System.Console.WriteLine();
+        System.Console.WriteLine($"{{\"webExplorerUrl\": \"{escapedUrl}\"}}");
     }
 }

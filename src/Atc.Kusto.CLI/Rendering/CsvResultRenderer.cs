@@ -65,6 +65,12 @@ public sealed class CsvResultRenderer : IResultRenderer
         System.Console.Write(sb.ToString());
     }
 
+    /// <inheritdoc />
+    public void RenderWebExplorerUrl(Uri url)
+    {
+        // CSV output omits non-tabular metadata
+    }
+
     private static string EscapeField(string value)
     {
         if (value.Contains('"', StringComparison.Ordinal) ||

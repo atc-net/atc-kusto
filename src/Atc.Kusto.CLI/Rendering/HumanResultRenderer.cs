@@ -54,4 +54,13 @@ public sealed class HumanResultRenderer : IResultRenderer
 
         AnsiConsole.Write(statsTable);
     }
+
+    /// <inheritdoc />
+    public void RenderWebExplorerUrl(Uri url)
+    {
+        ArgumentNullException.ThrowIfNull(url);
+
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine($"[link={Markup.Escape(url.AbsoluteUri)}]Open in Web Explorer[/]");
+    }
 }
