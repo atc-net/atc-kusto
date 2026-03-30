@@ -11,9 +11,20 @@ The library provides a streamlined interface for handling Kusto operations, maki
   - [Features](#features)
   - [CLI Tool](#cli-tool)
     - [Installation](#installation)
-    - [Usage](#usage)
-    - [Export Commands](#export-commands)
+    - [Quick Start](#quick-start)
     - [Authentication](#authentication)
+    - [Configuration](#configuration)
+    - [Cluster Management](#cluster-management)
+    - [Connection Options](#connection-options)
+    - [Query Command](#query-command)
+      - [Query Options](#query-options)
+      - [Output Formats](#output-formats)
+      - [Query Validation](#query-validation)
+      - [Query Statistics](#query-statistics)
+      - [Web Explorer Link](#web-explorer-link)
+    - [Database Commands](#database-commands)
+    - [Table Commands](#table-commands)
+    - [Export Commands](#export-commands)
   - [Getting started](#getting-started)
     - [Configuring the Atc.Kusto library using ServiceCollection Extensions](#configuring-the-atckusto-library-using-servicecollection-extensions)
       - [Setup with Explicit Parameters](#setup-with-explicit-parameters)
@@ -52,7 +63,7 @@ The library provides a streamlined interface for handling Kusto operations, maki
 
 The library extends the official .NET SDK, and adds the following add-on functionality, which supports passing parameters and proper deserialization:
 
-- **CLI Tool**: Export full Kusto database schemas (tables, functions, materialized views, external tables, and policies) as `.kql` files for version control and review.
+- **CLI Tool**: Interactive Kusto CLI with query execution, schema export, cluster management, database/table browsing, and multiple output formats.
 - **Kusto Query and Command Execution**: Simplifies the execution of Kusto queries and commands with asynchronous support through embedded .kusto scripts.
 - **Decimal Type Deserialization**: Seamless handling of ADX decimal values (including those surfaced via structured SqlDecimal representations) through internal custom JSON converters bridging Newtonsoft.Json and System.Text.Json.
 - **Paged Query Support**: Efficient handling of large datasets with built-in support for paginated query results through stored query results.
@@ -63,7 +74,7 @@ The library extends the official .NET SDK, and adds the following add-on functio
 
 ## CLI Tool
 
-The `atc-kusto` CLI tool exports Azure Data Explorer database schemas as `.kql` files, making it easy to version-control and review your Kusto database definitions.
+The `atc-kusto` CLI tool provides interactive Kusto query execution, schema export, cluster management, and database/table browsing with multiple output formats.
 
 ### Installation
 
@@ -77,7 +88,213 @@ Or run directly from the project:
 dotnet run --project src/Atc.Kusto.CLI
 ```
 
-### Usage
+### Quick Start
+
+```bash
+# 1) Save a cluster connection (first cluster becomes default automatically)
+atc-kusto cluster add help https://help.kusto.windows.net --use
+
+# 2) Set a default database for that cluster
+atc-kusto database set-default Samples --tenant-id <GUID> --cluster help
+
+# 3) Run a query (uses saved defaults - no --cluster-url or --database needed)
+atc-kusto query "StormEvents | take 5" --tenant-id <GUID>
+
+# Output as CSV and redirect to a file
+atc-kusto query "StormEvents | summarize Count=count() by State | top 10 by Count desc" \
+  --tenant-id <GUID> --format csv > top-states.csv
+
+# Run a query from a file
+atc-kusto query --file myquery.kql --tenant-id <GUID>
+
+# Run specific lines from a query file
+atc-kusto query --file queries.kql:5-10 --tenant-id <GUID>
+```
+
+### Authentication
+
+The CLI uses `DefaultAzureCredential` from Azure Identity, scoped to the tenant specified via `--tenant-id`. This supports multiple authentication methods including:
+
+- Azure CLI (`az login --tenant <GUID>`)
+- Visual Studio / VS Code credentials
+- Managed Identity (when running in Azure)
+- Environment variables
+
+Ensure you are authenticated before running commands, for example via `az login --tenant <GUID>`.
+
+### Configuration
+
+The CLI stores saved clusters and default databases at:
+
+- **Default**: `{LocalApplicationData}/atc-kusto/config.json`
+  - Windows: `%LOCALAPPDATA%\atc-kusto\config.json`
+  - Linux/macOS: `~/.local/share/atc-kusto/config.json`
+- **Override**: Set the `KUSTO_CLI_CONFIG_PATH` environment variable
+
+### Cluster Management
+
+Save cluster connections by name so you can reference them with `--cluster` instead of typing full URLs.
+
+| Command | Description |
+|---------|-------------|
+| `cluster list` | List all saved clusters |
+| `cluster show <name>` | Show details for a saved cluster |
+| `cluster add <name> <url>` | Save a new cluster connection (`--use` to set as default) |
+| `cluster remove <name>` | Remove a saved cluster |
+| `cluster set-default <name>` | Set the default cluster |
+
+```bash
+# Add a cluster and set it as default
+atc-kusto cluster add prod https://prod.kusto.windows.net --use
+
+# List saved clusters
+atc-kusto cluster list
+
+# Switch default cluster
+atc-kusto cluster set-default staging
+```
+
+### Connection Options
+
+All commands that connect to a cluster accept these options:
+
+| Option | Description |
+|--------|-------------|
+| `--tenant-id <GUID>` | **(Required)** Azure AD tenant ID |
+| `--cluster-url <URL>` | Kusto cluster URL (e.g. `https://mycluster.kusto.windows.net`) |
+| `--cluster <NAME>` | Saved cluster name (from `cluster add`) |
+| `--database <NAME>` | Database name |
+
+You must provide either `--cluster-url` or `--cluster`, or have a default cluster configured. Similarly, `--database` can be omitted if a default database is set for the cluster.
+
+### Query Command
+
+Execute KQL queries against a Kusto database with inline text, files, or stdin.
+
+```bash
+# Inline query
+atc-kusto query "StormEvents | take 5" --tenant-id <GUID> --cluster prod --database Samples
+
+# From a file
+atc-kusto query --file myquery.kql --tenant-id <GUID> --cluster prod --database Samples
+
+# From specific lines in a file (line range syntax: path:start-end)
+atc-kusto query --file queries.kql:12-15 --tenant-id <GUID> --cluster prod --database Samples
+
+# From stdin
+echo "StormEvents | count" | atc-kusto query - --tenant-id <GUID> --cluster prod --database Samples
+```
+
+#### Query Options
+
+| Option | Description |
+|--------|-------------|
+| `[QUERY]` | Inline KQL query text, or `-` to read from stdin |
+| `--file\|-f <PATH>` | Read query from a file (supports `:start-end` line range) |
+| `--format <FORMAT>` | Output format: `human`, `json`, `markdown` (or `md`), `csv` (default: `human`) |
+| `--show-stats` | Include query execution statistics in output |
+
+#### Output Formats
+
+| Format | Description |
+|--------|-------------|
+| `human` | Spectre.Console table with ANSI colors and borders (default) |
+| `json` | JSON array for scripting and automation |
+| `markdown` | GitHub Flavored Markdown table (`md` is accepted as an alias) |
+| `csv` | Comma-separated values (RFC 4180 quoting) |
+
+```bash
+# JSON output for scripting
+atc-kusto query "StormEvents | take 5" --format json --tenant-id <GUID>
+
+# Markdown output
+atc-kusto query "StormEvents | take 5" --format markdown --tenant-id <GUID>
+
+# CSV output redirected to file
+atc-kusto query "StormEvents | take 5" --format csv --tenant-id <GUID> > results.csv
+```
+
+#### Query Validation
+
+Queries are validated locally using the KQL parser before being sent to the server. Syntax errors are reported with line and column numbers without a network round-trip.
+
+#### Query Statistics
+
+Use `--show-stats` to display execution statistics after query results. Statistics include CPU time, memory usage, cache hit/miss ratios, extents scanned, and result size.
+
+```bash
+atc-kusto query "StormEvents | count" --show-stats --tenant-id <GUID>
+```
+
+> Note: `--show-stats` cannot be used with `--format csv`.
+
+#### Web Explorer Link
+
+For recognized Azure cloud clusters, query results include a deep-link URL to open the query in the Azure Data Explorer web UI. The query is GZip-compressed and Base64-encoded in the URL.
+
+Supported clouds: Public (`.kusto.windows.net`, `.kusto.data.microsoft.com`, `.kusto.fabric.microsoft.com`), US Government (`.kusto.usgovcloudapi.net`), China (`.kusto.chinacloudapi.cn`).
+
+### Database Commands
+
+| Command | Description |
+|---------|-------------|
+| `database list` | List databases in a cluster |
+| `database show <name>` | Show details for a database |
+| `database set-default <name>` | Set the default database for a cluster |
+
+Available options for `database list`:
+
+| Option | Description |
+|--------|-------------|
+| `--format <FORMAT>` | Output format: `human`, `json`, `markdown` (`md` is accepted as an alias) (default: `human`) |
+| `--filter <PATTERN>` | Filter databases by name. Supports `^prefix`, `suffix$`, `^exact$`, or plain substring match |
+| `--take <N>` | Limit the number of results returned |
+
+```bash
+# List databases (with optional filter)
+atc-kusto database list --tenant-id <GUID> --cluster prod
+atc-kusto database list --filter "^prod" --tenant-id <GUID> --cluster prod
+
+# Set default database for a cluster
+atc-kusto database set-default Samples --tenant-id <GUID> --cluster help
+```
+
+### Table Commands
+
+| Command | Description |
+|---------|-------------|
+| `table list` | List tables in a database |
+| `table show <name>` | Show table schema and column details |
+
+Available options for `table list`:
+
+| Option | Description |
+|--------|-------------|
+| `--format <FORMAT>` | Output format: `human`, `json`, `markdown` (`md` is accepted as an alias) (default: `human`) |
+| `--filter <PATTERN>` | Filter tables by name. Supports `^prefix`, `suffix$`, `^exact$`, or plain substring match |
+| `--take <N>` | Limit the number of results returned |
+
+```bash
+# List tables (with optional filter and limit)
+atc-kusto table list --tenant-id <GUID> --cluster prod --database MyDb
+atc-kusto table list --filter "Storm" --take 10 --tenant-id <GUID> --cluster prod --database MyDb
+
+# Show table schema
+atc-kusto table show StormEvents --tenant-id <GUID> --cluster prod --database Samples
+```
+
+### Export Commands
+
+Export Azure Data Explorer database schemas as `.kql` files for version control and review.
+
+| Command | Description |
+|---------|-------------|
+| `export schema` | Export the full database schema (tables, functions, materialized views, external tables, and policies) |
+| `export tables` | Export table schemas only |
+| `export functions` | Export functions only |
+| `export materialized-views` | Export materialized views only |
+| `export external-tables` | Export external tables only |
+| `export policies` | Export retention and caching policies only |
 
 ```bash
 atc-kusto export schema \
@@ -106,37 +323,11 @@ kusto-schema/
     └── MyTable_CachingPolicy.kql
 ```
 
-### Export Commands
-
-| Command | Description |
-|---------|-------------|
-| `export schema` | Export the full database schema (tables, functions, materialized views, external tables, and policies) |
-| `export tables` | Export table schemas only |
-| `export functions` | Export functions only |
-| `export materialized-views` | Export materialized views only |
-| `export external-tables` | Export external tables only |
-| `export policies` | Export retention and caching policies only |
-
-All export commands accept the following options:
+Additional export options:
 
 | Option | Description |
 |--------|-------------|
-| `--tenant-id <GUID>` | **(Required)** Azure AD tenant ID |
-| `--cluster-url <URL>` | **(Required)** Kusto cluster URL (e.g. `https://mycluster.kusto.windows.net`) |
-| `--database <NAME>` | **(Required)** Database name |
 | `--output-dir <PATH>` | Output directory (defaults to current directory) |
-| `--verbose` | Enable verbose logging |
-
-### Authentication
-
-The CLI uses `DefaultAzureCredential` from Azure Identity, scoped to the tenant specified via `--tenant-id`. This supports multiple authentication methods including:
-
-- Azure CLI (`az login --tenant <GUID>`)
-- Visual Studio / VS Code credentials
-- Managed Identity (when running in Azure)
-- Environment variables
-
-Ensure you are authenticated before running export commands, for example via `az login --tenant <GUID>`.
 
 ## Getting started
 
