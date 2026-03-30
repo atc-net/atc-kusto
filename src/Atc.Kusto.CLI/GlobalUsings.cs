@@ -27,6 +27,7 @@ global using Azure.Identity;
 global using Kusto.Data;
 global using Kusto.Data.Common;
 global using Kusto.Data.Net.Client;
+global using Kusto.Language;
 global using Microsoft.Extensions.Configuration;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Logging;

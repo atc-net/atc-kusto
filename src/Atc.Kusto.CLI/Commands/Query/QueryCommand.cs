@@ -36,6 +36,13 @@ public sealed class QueryCommand(
                 return ConsoleExitStatusCodes.Failure;
             }
 
+            var validationError = QueryValidator.Validate(queryText);
+            if (validationError is not null)
+            {
+                logger.LogError("{ValidationError}", validationError);
+                return ConsoleExitStatusCodes.Failure;
+            }
+
             logger.LogInformation("Executing query against {ClusterUrl}/{Database}", settings.ClusterUrl, settings.Database);
             logger.LogDebug("Query: {Query}", queryText);
 
