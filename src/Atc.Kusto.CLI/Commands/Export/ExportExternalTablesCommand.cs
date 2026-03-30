@@ -28,6 +28,12 @@ public sealed class ExportExternalTablesCommand(
             return ConsoleExitStatusCodes.Failure;
         }
 
+        if (!await settings.ResolveDatabaseAsync(configStore))
+        {
+            AnsiConsole.MarkupLine("[red]No database specified. Use --database or 'database set-default'.[/]");
+            return ConsoleExitStatusCodes.Failure;
+        }
+
         try
         {
             logger.LogInformation("Exporting external tables from {ClusterUrl}/{Database}", settings.ClusterUrl, settings.Database);

@@ -28,6 +28,12 @@ public sealed class TableShowCommand(
             return ConsoleExitStatusCodes.Failure;
         }
 
+        if (!await settings.ResolveDatabaseAsync(configStore))
+        {
+            AnsiConsole.MarkupLine("[red]No database specified. Use --database or 'database set-default'.[/]");
+            return ConsoleExitStatusCodes.Failure;
+        }
+
         try
         {
             logger.LogInformation("Showing table {Name} in {ClusterUrl}/{Database}", settings.Name, settings.ClusterUrl, settings.Database);
