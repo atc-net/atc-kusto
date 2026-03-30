@@ -12,9 +12,8 @@ public sealed class DatabaseSetDefaultCommand(
         ArgumentNullException.ThrowIfNull(settings);
         ConsoleHelper.WriteHeader();
 
-        if (!await settings.ResolveClusterAsync(configStore, cancellationToken))
+        if (!await ConnectionResolver.ResolveCluster(settings, configStore, cancellationToken))
         {
-            AnsiConsole.MarkupLine("[red]No cluster specified. Use --cluster, --cluster-url, or set a default with 'cluster set-default'.[/]");
             return ConsoleExitStatusCodes.Failure;
         }
 
