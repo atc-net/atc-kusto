@@ -36,7 +36,7 @@ public sealed class ExportFunctionsCommand(
         try
         {
             logger.LogInformation("Exporting functions from {ClusterUrl}/{Database}", settings.ClusterUrl, settings.Database);
-            await exporter.ExportFunctionsAsync(settings.TenantId, settings.ClusterUrl!, settings.Database, settings.OutputDir);
+            await exporter.ExportFunctionsAsync(settings.TenantId, settings.ClusterUrl!, settings.Database, settings.OutputDir, cancellationToken);
             logger.LogInformation("Function export completed successfully");
             return ConsoleExitStatusCodes.Success;
         }

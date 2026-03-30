@@ -36,7 +36,7 @@ public sealed class ExportTablesCommand(
         try
         {
             logger.LogInformation("Exporting tables from {ClusterUrl}/{Database}", settings.ClusterUrl, settings.Database);
-            await exporter.ExportTablesAsync(settings.TenantId, settings.ClusterUrl!, settings.Database, settings.OutputDir);
+            await exporter.ExportTablesAsync(settings.TenantId, settings.ClusterUrl!, settings.Database, settings.OutputDir, cancellationToken);
             logger.LogInformation("Table export completed successfully");
             return ConsoleExitStatusCodes.Success;
         }
