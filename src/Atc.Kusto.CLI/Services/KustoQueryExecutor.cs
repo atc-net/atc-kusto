@@ -8,24 +8,15 @@ public sealed class KustoQueryExecutor(
     : IKustoQueryExecutor
 {
     /// <inheritdoc />
-    public async Task<(System.Data.IDataReader Reader, QueryStatistics? Statistics)> ExecuteQueryAsync(
+    public Task<IDataReader> ExecuteQueryAsync(
         string tenantId,
         Uri clusterUrl,
         string database,
-        string query,
-        bool includeStatistics = false)
+        string query)
     {
         ArgumentNullException.ThrowIfNull(clusterUrl);
 
         var client = clientFactory.GetOrCreateQueryClient(tenantId, clusterUrl, database);
-        var properties = new ClientRequestProperties();
-
-        if (includeStatistics)
-        {
-            properties.SetOption("deferpartialqueryfailures", true);
-        }
-
-        var reader = await client.ExecuteQueryAsync(database, query, properties);
-        return (reader, null);
+        return client.ExecuteQueryAsync(database, query, new ClientRequestProperties());
     }
 }

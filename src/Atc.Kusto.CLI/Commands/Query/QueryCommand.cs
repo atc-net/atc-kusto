@@ -52,14 +52,11 @@ public sealed class QueryCommand(
             logger.LogInformation("Executing query against {ClusterUrl}/{Database}", settings.ClusterUrl, settings.Database);
             logger.LogDebug("Query: {Query}", queryText);
 
-            var result = await queryExecutor.ExecuteQueryAsync(
+            using var reader = await queryExecutor.ExecuteQueryAsync(
                 settings.TenantId,
                 settings.ClusterUrl!,
                 settings.Database,
-                queryText,
-                settings.ShowStats);
-
-            using var reader = result.Reader;
+                queryText);
             var (columns, rows) = DataReaderMaterializer.Materialize(reader);
 
             // Try to extract statistics from subsequent result sets
