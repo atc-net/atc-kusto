@@ -41,12 +41,12 @@ public sealed class DatabaseListCommand(
 
             if (settings.Filter is not null)
             {
-                query = query + " " + Helpers.FilterBuilder.Build("DatabaseName", settings.Filter);
+                query = query + " " + FilterBuilder.Build("DatabaseName", settings.Filter);
             }
 
             if (settings.Take is not null)
             {
-                query = query + " | take " + settings.Take.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                query = query + " | take " + settings.Take.Value.ToString(CultureInfo.InvariantCulture);
             }
 
             using var reader = await client.ExecuteControlCommandAsync(string.Empty, query);
