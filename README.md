@@ -239,7 +239,7 @@ Supported clouds: Public (`.kusto.windows.net`, `.kusto.data.microsoft.com`, `.k
 | Command | Description |
 |---------|-------------|
 | `database list` | List databases in a cluster |
-| `database show <name>` | Show details for a database |
+| `database show <name>` | Show details for a database (accepts `--format`) |
 | `database set-default <name>` | Set the default database for a cluster |
 
 Available options for `database list`:
@@ -264,7 +264,7 @@ atc-kusto database set-default Samples --tenant-id <GUID> --cluster help
 | Command | Description |
 |---------|-------------|
 | `table list` | List tables in a database |
-| `table show <name>` | Show table schema and column details |
+| `table show <name>` | Show table schema and column details (accepts `--format`) |
 
 Available options for `table list`:
 
@@ -328,6 +328,8 @@ Additional export options:
 | Option | Description |
 |--------|-------------|
 | `--output-dir <PATH>` | Output directory (defaults to current directory) |
+
+> All export commands also accept the [connection options](#connection-options) (`--tenant-id`, `--cluster-url`, `--cluster`, `--database`).
 
 ## Getting started
 

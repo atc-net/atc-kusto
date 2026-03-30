@@ -36,7 +36,7 @@ public sealed class ExportPoliciesCommand(
         try
         {
             logger.LogInformation("Exporting policies from {ClusterUrl}/{Database}", settings.ClusterUrl, settings.Database);
-            await exporter.ExportPoliciesAsync(settings.TenantId, settings.ClusterUrl!, settings.Database, settings.OutputDir);
+            await exporter.ExportPoliciesAsync(settings.TenantId, settings.ClusterUrl!, settings.Database, settings.OutputDir, cancellationToken);
             logger.LogInformation("Policy export completed successfully");
             return ConsoleExitStatusCodes.Success;
         }

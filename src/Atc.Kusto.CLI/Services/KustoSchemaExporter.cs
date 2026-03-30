@@ -12,7 +12,8 @@ public sealed class KustoSchemaExporter(
         string tenantId,
         Uri clusterUrl,
         string database,
-        string outputDir)
+        string outputDir,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(clusterUrl);
 
@@ -32,7 +33,7 @@ public sealed class KustoSchemaExporter(
 
         foreach (var tableName in tableNames)
         {
-            await ExportTableAsync(client, database, tablesDir, tableName);
+            await ExportTableAsync(client, database, tablesDir, tableName, cancellationToken);
         }
     }
 
@@ -41,7 +42,8 @@ public sealed class KustoSchemaExporter(
         string tenantId,
         Uri clusterUrl,
         string database,
-        string outputDir)
+        string outputDir,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(clusterUrl);
 
@@ -73,7 +75,7 @@ public sealed class KustoSchemaExporter(
         {
             var kql = FormatFunction(name, parameters, body, folder, docString);
             var filePath = Path.Combine(functionsDir, SanitizeFileName(name) + ".kql");
-            await File.WriteAllTextAsync(filePath, kql, Encoding.UTF8);
+            await File.WriteAllTextAsync(filePath, kql, Encoding.UTF8, cancellationToken);
             logger.LogDebug("Exported function {FunctionName}", name);
         }
     }
@@ -83,7 +85,8 @@ public sealed class KustoSchemaExporter(
         string tenantId,
         Uri clusterUrl,
         string database,
-        string outputDir)
+        string outputDir,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(clusterUrl);
 
@@ -123,7 +126,7 @@ public sealed class KustoSchemaExporter(
                 AppendKustoBody(sb, query.Trim());
                 var kql = sb.ToString();
                 var filePath = Path.Combine(viewsDir, SanitizeFileName(viewName) + ".kql");
-                await File.WriteAllTextAsync(filePath, kql, Encoding.UTF8);
+                await File.WriteAllTextAsync(filePath, kql, Encoding.UTF8, cancellationToken);
                 logger.LogDebug("Exported materialized view {ViewName}", viewName);
             }
         }
@@ -134,7 +137,8 @@ public sealed class KustoSchemaExporter(
         string tenantId,
         Uri clusterUrl,
         string database,
-        string outputDir)
+        string outputDir,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(clusterUrl);
 
@@ -169,7 +173,7 @@ public sealed class KustoSchemaExporter(
 
                 var kql = sb.ToString();
                 var filePath = Path.Combine(externalDir, SanitizeFileName(tableName) + ".kql");
-                await File.WriteAllTextAsync(filePath, kql, Encoding.UTF8);
+                await File.WriteAllTextAsync(filePath, kql, Encoding.UTF8, cancellationToken);
                 logger.LogDebug("Exported external table {TableName}", tableName);
             }
         }
@@ -180,15 +184,16 @@ public sealed class KustoSchemaExporter(
         string tenantId,
         Uri clusterUrl,
         string database,
-        string outputDir)
+        string outputDir,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(clusterUrl);
 
         var client = clientFactory.GetOrCreateAdminClient(tenantId, clusterUrl, database);
         var policiesDir = EnsureDirectory(outputDir, "Policies");
 
-        await ExportDatabasePoliciesAsync(client, database, policiesDir);
-        await ExportTablePoliciesAsync(client, database, policiesDir);
+        await ExportDatabasePoliciesAsync(client, database, policiesDir, cancellationToken);
+        await ExportTablePoliciesAsync(client, database, policiesDir, cancellationToken);
     }
 
     /// <summary>
@@ -197,7 +202,8 @@ public sealed class KustoSchemaExporter(
     private static async Task ExportDatabasePoliciesAsync(
         ICslAdminProvider client,
         string database,
-        string policiesDir)
+        string policiesDir,
+        CancellationToken cancellationToken)
     {
         // Database retention policy
         using (var reader = await client.ExecuteControlCommandAsync(
@@ -214,7 +220,8 @@ public sealed class KustoSchemaExporter(
                     await File.WriteAllTextAsync(
                         Path.Combine(policiesDir, "Database_RetentionPolicy.kql"),
                         kql,
-                        Encoding.UTF8);
+                        Encoding.UTF8,
+                        cancellationToken);
                 }
             }
         }
@@ -234,7 +241,8 @@ public sealed class KustoSchemaExporter(
                     await File.WriteAllTextAsync(
                         Path.Combine(policiesDir, "Database_CachingPolicy.kql"),
                         kql,
-                        Encoding.UTF8);
+                        Encoding.UTF8,
+                        cancellationToken);
                 }
             }
         }
@@ -246,7 +254,8 @@ public sealed class KustoSchemaExporter(
     private static async Task ExportTablePoliciesAsync(
         ICslAdminProvider client,
         string database,
-        string policiesDir)
+        string policiesDir,
+        CancellationToken cancellationToken)
     {
         // Table retention policies
         using (var reader = await client.ExecuteControlCommandAsync(
@@ -269,7 +278,8 @@ public sealed class KustoSchemaExporter(
                 await File.WriteAllTextAsync(
                     Path.Combine(policiesDir, SanitizeFileName(tableName) + "_RetentionPolicy.kql"),
                     kql,
-                    Encoding.UTF8);
+                    Encoding.UTF8,
+                    cancellationToken);
             }
         }
 
@@ -294,7 +304,8 @@ public sealed class KustoSchemaExporter(
                 await File.WriteAllTextAsync(
                     Path.Combine(policiesDir, SanitizeFileName(tableName) + "_CachingPolicy.kql"),
                     kql,
-                    Encoding.UTF8);
+                    Encoding.UTF8,
+                    cancellationToken);
             }
         }
     }
@@ -306,7 +317,8 @@ public sealed class KustoSchemaExporter(
         ICslAdminProvider client,
         string database,
         string tablesDir,
-        string tableName)
+        string tableName,
+        CancellationToken cancellationToken)
     {
         using var schemaReader = await client.ExecuteControlCommandAsync(
             database,
@@ -336,7 +348,8 @@ public sealed class KustoSchemaExporter(
         await File.WriteAllTextAsync(
             Path.Combine(tablesDir, SanitizeFileName(tableName) + ".kql"),
             sb.ToString(),
-            Encoding.UTF8);
+            Encoding.UTF8,
+            cancellationToken);
     }
 
     /// <summary>

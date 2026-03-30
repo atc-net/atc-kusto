@@ -36,7 +36,7 @@ public sealed class ExportMaterializedViewsCommand(
         try
         {
             logger.LogInformation("Exporting materialized views from {ClusterUrl}/{Database}", settings.ClusterUrl, settings.Database);
-            await exporter.ExportMaterializedViewsAsync(settings.TenantId, settings.ClusterUrl!, settings.Database, settings.OutputDir);
+            await exporter.ExportMaterializedViewsAsync(settings.TenantId, settings.ClusterUrl!, settings.Database, settings.OutputDir, cancellationToken);
             logger.LogInformation("Materialized view export completed successfully");
             return ConsoleExitStatusCodes.Success;
         }
