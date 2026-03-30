@@ -19,4 +19,9 @@ public enum OutputFormat
     /// GitHub Flavored Markdown table output.
     /// </summary>
     Markdown,
+
+    /// <summary>
+    /// Comma-separated values output.
+    /// </summary>
+    Csv,
 }

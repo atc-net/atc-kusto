@@ -18,6 +18,7 @@ public static class OutputFormatParser
         {
             "json" => OutputFormat.Json,
             "markdown" or "md" => OutputFormat.Markdown,
+            "csv" => OutputFormat.Csv,
             _ => OutputFormat.Human,
         };
     }

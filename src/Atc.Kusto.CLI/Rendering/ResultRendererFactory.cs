@@ -15,6 +15,7 @@ public static class ResultRendererFactory
         {
             OutputFormat.Json => new JsonResultRenderer(),
             OutputFormat.Markdown => new MarkdownResultRenderer(),
+            OutputFormat.Csv => new CsvResultRenderer(),
             _ => new HumanResultRenderer(),
         };
 }
