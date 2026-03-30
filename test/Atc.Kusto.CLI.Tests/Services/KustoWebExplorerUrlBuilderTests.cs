@@ -8,7 +8,6 @@ public sealed class KustoWebExplorerUrlBuilderTests
     [InlineData("https://mycluster.kusto.fabric.microsoft.com", "https://dataexplorer.azure.com")]
     [InlineData("https://mycluster.kusto.usgovcloudapi.net", "https://dataexplorer.azure.us")]
     [InlineData("https://mycluster.kusto.chinacloudapi.cn", "https://dataexplorer.azure.cn")]
-    [SuppressMessage("Design", "CA1054:URI parameters should not be strings", Justification = "Test data from InlineData")]
     public void Build_RecognizedCluster_ReturnsUrlWithCorrectBase(
         string clusterUrl,
         string expectedBase)
@@ -96,15 +95,14 @@ public sealed class KustoWebExplorerUrlBuilderTests
     [Fact]
     public void Build_VeryLongQuery_ReturnsNullWhenUrlExceedsLimit()
     {
-        // Arrange - use random-like data that doesn't compress well
-        var random = new Random(42);
-        var chars = new char[10000];
-        for (var i = 0; i < chars.Length; i++)
+        // Arrange - build a string from GUIDs which resists compression
+        var sb = new StringBuilder();
+        while (sb.Length < 20000)
         {
-            chars[i] = (char)('A' + random.Next(26));
+            sb.Append(Guid.NewGuid().ToString("N"));
         }
 
-        var longQuery = new string(chars);
+        var longQuery = sb.ToString();
 
         // Act
         var url = KustoWebExplorerUrlBuilder.Build(

@@ -2,7 +2,8 @@ namespace Atc.Kusto.CLI.Commands.Export;
 
 public sealed class ExportSchemaCommand(
     ILoggerFactory loggerFactory,
-    IKustoSchemaExporter exporter)
+    IKustoSchemaExporter exporter,
+    ICliConfigStore configStore)
     : AsyncCommand<ExportBaseCommandSettings>
 {
     private readonly ILogger<ExportSchemaCommand> logger = loggerFactory.CreateLogger<ExportSchemaCommand>();
@@ -20,6 +21,12 @@ public sealed class ExportSchemaCommand(
         ExportBaseCommandSettings settings)
     {
         ConsoleHelper.WriteHeader();
+
+        if (!await settings.ResolveClusterAsync(configStore))
+        {
+            AnsiConsole.MarkupLine($"[red]Cluster '{Markup.Escape(settings.ClusterName ?? string.Empty)}' not found. Use 'cluster add' to save it.[/]");
+            return ConsoleExitStatusCodes.Failure;
+        }
 
         try
         {

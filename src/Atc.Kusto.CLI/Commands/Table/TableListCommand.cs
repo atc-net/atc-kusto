@@ -2,7 +2,8 @@ namespace Atc.Kusto.CLI.Commands.Table;
 
 public sealed class TableListCommand(
     ILoggerFactory loggerFactory,
-    ICliKustoClientFactory clientFactory)
+    ICliKustoClientFactory clientFactory,
+    ICliConfigStore configStore)
     : AsyncCommand<TableListCommandSettings>
 {
     private readonly ILogger<TableListCommand> logger = loggerFactory.CreateLogger<TableListCommand>();
@@ -20,6 +21,12 @@ public sealed class TableListCommand(
         TableListCommandSettings settings)
     {
         ConsoleHelper.WriteHeader();
+
+        if (!await settings.ResolveClusterAsync(configStore))
+        {
+            AnsiConsole.MarkupLine($"[red]Cluster '{Markup.Escape(settings.ClusterName ?? string.Empty)}' not found. Use 'cluster add' to save it.[/]");
+            return ConsoleExitStatusCodes.Failure;
+        }
 
         try
         {
