@@ -18,7 +18,7 @@ public static class QueryStatisticsExtractor
     /// </summary>
     /// <param name="reader">The data reader positioned after the primary results.</param>
     /// <returns>Extracted statistics, or null if not available.</returns>
-    public static QueryStatistics? Extract(System.Data.IDataReader reader)
+    public static QueryStatistics? Extract(IDataReader reader)
     {
         ArgumentNullException.ThrowIfNull(reader);
 
@@ -37,7 +37,7 @@ public static class QueryStatisticsExtractor
     }
 
     private static QueryStatistics? TryExtractFromCurrentResultSet(
-        System.Data.IDataReader reader)
+        IDataReader reader)
     {
         // Look for columns that indicate this is a QueryCompletionInformation frame
         var statusDescriptionOrdinal = TryGetOrdinal(reader, "StatusDescription");
@@ -281,7 +281,7 @@ public static class QueryStatisticsExtractor
     }
 
     private static int TryGetOrdinal(
-        System.Data.IDataReader reader,
+        IDataReader reader,
         string name)
     {
         try

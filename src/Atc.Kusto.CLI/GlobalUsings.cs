@@ -1,4 +1,5 @@
 global using System.ComponentModel;
+global using System.Data;
 global using System.Diagnostics.CodeAnalysis;
 global using System.Globalization;
 global using System.IO.Compression;
@@ -20,6 +21,7 @@ global using Atc.Kusto.CLI.Commands.Settings;
 global using Atc.Kusto.CLI.Commands.Table;
 global using Atc.Kusto.CLI.Extensions;
 global using Atc.Kusto.CLI.Factories;
+global using Atc.Kusto.CLI.Helpers;
 global using Atc.Kusto.CLI.Models;
 global using Atc.Kusto.CLI.Rendering;
 global using Atc.Kusto.CLI.Services;

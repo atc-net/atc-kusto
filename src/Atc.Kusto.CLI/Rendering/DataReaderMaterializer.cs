@@ -1,7 +1,7 @@
 namespace Atc.Kusto.CLI.Rendering;
 
 /// <summary>
-/// Materializes an <see cref="System.Data.IDataReader"/> into column names and string rows
+/// Materializes an <see cref="IDataReader"/> into column names and string rows
 /// suitable for rendering.
 /// </summary>
 public static class DataReaderMaterializer
@@ -12,7 +12,7 @@ public static class DataReaderMaterializer
     /// <param name="reader">The data reader to materialize.</param>
     /// <returns>A tuple of column names and row data.</returns>
     public static (List<string> Columns, List<string[]> Rows) Materialize(
-        System.Data.IDataReader reader)
+        IDataReader reader)
     {
         ArgumentNullException.ThrowIfNull(reader);
 

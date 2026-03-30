@@ -47,12 +47,12 @@ public sealed class TableListCommand(
 
             if (settings.Filter is not null)
             {
-                query = query + " " + Helpers.FilterBuilder.Build("TableName", settings.Filter);
+                query = query + " " + FilterBuilder.Build("TableName", settings.Filter);
             }
 
             if (settings.Take is not null)
             {
-                query = query + " | take " + settings.Take.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                query = query + " | take " + settings.Take.Value.ToString(CultureInfo.InvariantCulture);
             }
 
             using var reader = await client.ExecuteControlCommandAsync(settings.Database, query);
