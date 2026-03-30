@@ -5,6 +5,11 @@ namespace Atc.Kusto.CLI.Rendering;
 /// </summary>
 public sealed class JsonResultRenderer : IResultRenderer
 {
+    private static readonly JsonSerializerOptions SerializerOptions = new()
+    {
+        WriteIndented = true,
+    };
+
     /// <inheritdoc />
     public void Render(
         IReadOnlyList<string> columns,
@@ -13,27 +18,19 @@ public sealed class JsonResultRenderer : IResultRenderer
         ArgumentNullException.ThrowIfNull(columns);
         ArgumentNullException.ThrowIfNull(rows);
 
-        var sb = new StringBuilder();
-        sb.AppendLine("[");
-
-        for (var r = 0; r < rows.Count; r++)
+        var result = new List<Dictionary<string, string>>(rows.Count);
+        foreach (var row in rows)
         {
-            sb.AppendLine("  {");
+            var obj = new Dictionary<string, string>(StringComparer.Ordinal);
             for (var c = 0; c < columns.Count; c++)
             {
-                var escapedValue = rows[r][c]
-                    .Replace("\\", "\\\\", StringComparison.Ordinal)
-                    .Replace("\"", "\\\"", StringComparison.Ordinal);
-                var separator = c < columns.Count - 1 ? "," : string.Empty;
-                sb.Append("    \"").Append(columns[c]).Append("\": \"").Append(escapedValue).Append('"').AppendLine(separator);
+                obj[columns[c]] = row[c];
             }
 
-            var rowSeparator = r < rows.Count - 1 ? "," : string.Empty;
-            sb.Append("  }").AppendLine(rowSeparator);
+            result.Add(obj);
         }
 
-        sb.Append(']');
-        System.Console.WriteLine(sb.ToString());
+        System.Console.WriteLine(JsonSerializer.Serialize(result, SerializerOptions));
     }
 
     /// <inheritdoc />
@@ -41,32 +38,13 @@ public sealed class JsonResultRenderer : IResultRenderer
     {
         ArgumentNullException.ThrowIfNull(statistics);
 
-        var sb = new StringBuilder();
-        sb.AppendLine();
-        sb.AppendLine("{");
-        sb.AppendLine("  \"statistics\": {");
-
-        var entries = statistics.ToList();
-        for (var i = 0; i < entries.Count; i++)
+        var wrapper = new Dictionary<string, object>(StringComparer.Ordinal)
         {
-            var separator = i < entries.Count - 1 ? "," : string.Empty;
-            var escapedValue = entries[i].Value
-                .Replace("\\", "\\\\", StringComparison.Ordinal)
-                .Replace("\"", "\\\"", StringComparison.Ordinal);
+            ["statistics"] = statistics,
+        };
 
-            sb
-                .Append("    \"")
-                .Append(entries[i].Key)
-                .Append("\": \"")
-                .Append(escapedValue)
-                .Append('"')
-                .AppendLine(separator);
-        }
-
-        sb.AppendLine("  }");
-        sb.Append('}');
-
-        System.Console.WriteLine(sb.ToString());
+        System.Console.WriteLine();
+        System.Console.WriteLine(JsonSerializer.Serialize(wrapper, SerializerOptions));
     }
 
     /// <inheritdoc />
@@ -74,11 +52,12 @@ public sealed class JsonResultRenderer : IResultRenderer
     {
         ArgumentNullException.ThrowIfNull(url);
 
-        var escapedUrl = url.AbsoluteUri
-            .Replace("\\", "\\\\", StringComparison.Ordinal)
-            .Replace("\"", "\\\"", StringComparison.Ordinal);
+        var wrapper = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["webExplorerUrl"] = url.AbsoluteUri,
+        };
 
         System.Console.WriteLine();
-        System.Console.WriteLine($"{{\"webExplorerUrl\": \"{escapedUrl}\"}}");
+        System.Console.WriteLine(JsonSerializer.Serialize(wrapper, SerializerOptions));
     }
 }
