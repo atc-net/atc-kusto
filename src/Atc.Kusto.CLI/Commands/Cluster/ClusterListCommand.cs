@@ -10,7 +10,7 @@ public sealed class ClusterListCommand(
     {
         ConsoleHelper.WriteHeader();
 
-        var config = await configStore.LoadAsync();
+        var config = await configStore.LoadAsync(cancellationToken);
 
         if (config.Clusters.Count == 0)
         {

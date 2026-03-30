@@ -12,7 +12,7 @@ public sealed class ClusterRemoveCommand(
         ArgumentNullException.ThrowIfNull(settings);
         ConsoleHelper.WriteHeader();
 
-        var config = await configStore.LoadAsync();
+        var config = await configStore.LoadAsync(cancellationToken);
         var cluster = ClusterUtilities.FindCluster(config, settings.Name);
 
         if (cluster is null)
@@ -31,7 +31,7 @@ public sealed class ClusterRemoveCommand(
             config.DefaultClusterUrl = null;
         }
 
-        await configStore.SaveAsync(config);
+        await configStore.SaveAsync(config, cancellationToken);
         AnsiConsole.MarkupLine($"[green]Cluster '{Markup.Escape(cluster.Name)}' removed.[/]");
         return ConsoleExitStatusCodes.Success;
     }

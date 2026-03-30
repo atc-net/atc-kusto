@@ -14,20 +14,22 @@ public sealed class QueryCommand(
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(settings);
-        return ExecuteInternalAsync(settings);
+        return ExecuteInternalAsync(settings, cancellationToken);
     }
 
-    private async Task<int> ExecuteInternalAsync(QueryCommandSettings settings)
+    private async Task<int> ExecuteInternalAsync(
+        QueryCommandSettings settings,
+        CancellationToken cancellationToken)
     {
         ConsoleHelper.WriteHeader();
 
-        if (!await settings.ResolveClusterAsync(configStore))
+        if (!await settings.ResolveClusterAsync(configStore, cancellationToken))
         {
             AnsiConsole.MarkupLine($"[red]Cluster '{Markup.Escape(settings.ClusterName ?? string.Empty)}' not found. Use 'cluster add' to save it.[/]");
             return ConsoleExitStatusCodes.Failure;
         }
 
-        if (!await settings.ResolveDatabaseAsync(configStore))
+        if (!await settings.ResolveDatabaseAsync(configStore, cancellationToken))
         {
             AnsiConsole.MarkupLine("[red]No database specified. Use --database or 'database set-default'.[/]");
             return ConsoleExitStatusCodes.Failure;
@@ -35,7 +37,7 @@ public sealed class QueryCommand(
 
         try
         {
-            var queryText = await ResolveQueryTextAsync(settings);
+            var queryText = await ResolveQueryTextAsync(settings, cancellationToken);
             if (string.IsNullOrWhiteSpace(queryText))
             {
                 logger.LogError("Query text is empty");
@@ -98,18 +100,19 @@ public sealed class QueryCommand(
     }
 
     private static async Task<string> ResolveQueryTextAsync(
-        QueryCommandSettings settings)
+        QueryCommandSettings settings,
+        CancellationToken cancellationToken)
     {
         if (settings.FilePath is not null)
         {
-            return await ReadQueryFromFileAsync(settings.FilePath);
+            return await ReadQueryFromFileAsync(settings.FilePath, cancellationToken);
         }
 
         if (settings.Query is not null)
         {
             if (settings.Query == "-")
             {
-                return await System.Console.In.ReadToEndAsync();
+                return await System.Console.In.ReadToEndAsync(cancellationToken);
             }
 
             return settings.Query;
@@ -117,23 +120,24 @@ public sealed class QueryCommand(
 
         if (System.Console.IsInputRedirected)
         {
-            return await System.Console.In.ReadToEndAsync();
+            return await System.Console.In.ReadToEndAsync(cancellationToken);
         }
 
         return string.Empty;
     }
 
     private static async Task<string> ReadQueryFromFileAsync(
-        string fileReference)
+        string fileReference,
+        CancellationToken cancellationToken)
     {
         var parsed = QueryFileReferenceParser.Parse(fileReference);
 
         if (parsed.LineRange is null)
         {
-            return (await File.ReadAllTextAsync(parsed.Path, Encoding.UTF8)).Trim();
+            return (await File.ReadAllTextAsync(parsed.Path, Encoding.UTF8, cancellationToken)).Trim();
         }
 
-        var allLines = await File.ReadAllLinesAsync(parsed.Path, Encoding.UTF8);
+        var allLines = await File.ReadAllLinesAsync(parsed.Path, Encoding.UTF8, cancellationToken);
         var range = parsed.LineRange.Value;
 
         if (range.StartLine > allLines.Length || range.EndLine > allLines.Length)

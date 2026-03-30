@@ -12,7 +12,7 @@ public sealed class ClusterAddCommand(
         ArgumentNullException.ThrowIfNull(settings);
         ConsoleHelper.WriteHeader();
 
-        var config = await configStore.LoadAsync();
+        var config = await configStore.LoadAsync(cancellationToken);
         var normalizedUrl = ClusterUtilities.NormalizeClusterUrl(settings.Url)!;
 
         // Check for duplicate name
@@ -48,7 +48,7 @@ public sealed class ClusterAddCommand(
             config.DefaultClusterUrl = normalizedUrl;
         }
 
-        await configStore.SaveAsync(config);
+        await configStore.SaveAsync(config, cancellationToken);
         AnsiConsole.MarkupLine($"[green]Cluster '{Markup.Escape(settings.Name)}' added ({Markup.Escape(normalizedUrl)}).[/]");
 
         if (string.Equals(config.DefaultClusterUrl, normalizedUrl, StringComparison.OrdinalIgnoreCase))

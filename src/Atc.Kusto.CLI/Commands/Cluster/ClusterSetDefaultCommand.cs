@@ -12,7 +12,7 @@ public sealed class ClusterSetDefaultCommand(
         ArgumentNullException.ThrowIfNull(settings);
         ConsoleHelper.WriteHeader();
 
-        var config = await configStore.LoadAsync();
+        var config = await configStore.LoadAsync(cancellationToken);
         var cluster = ClusterUtilities.FindCluster(config, settings.Name);
 
         if (cluster is null)
@@ -22,7 +22,7 @@ public sealed class ClusterSetDefaultCommand(
         }
 
         config.DefaultClusterUrl = ClusterUtilities.NormalizeClusterUrl(cluster.Url) ?? cluster.Url;
-        await configStore.SaveAsync(config);
+        await configStore.SaveAsync(config, cancellationToken);
 
         AnsiConsole.MarkupLine($"[green]Default cluster set to '{Markup.Escape(cluster.Name)}'.[/]");
         return ConsoleExitStatusCodes.Success;

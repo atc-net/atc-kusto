@@ -12,13 +12,13 @@ public sealed class DatabaseSetDefaultCommand(
         ArgumentNullException.ThrowIfNull(settings);
         ConsoleHelper.WriteHeader();
 
-        if (!await settings.ResolveClusterAsync(configStore))
+        if (!await settings.ResolveClusterAsync(configStore, cancellationToken))
         {
             AnsiConsole.MarkupLine("[red]No cluster specified. Use --cluster, --cluster-url, or set a default with 'cluster set-default'.[/]");
             return ConsoleExitStatusCodes.Failure;
         }
 
-        var config = await configStore.LoadAsync();
+        var config = await configStore.LoadAsync(cancellationToken);
         var clusterKey = ClusterUtilities.NormalizeClusterUrl(settings.ClusterUrl!.AbsoluteUri);
         if (clusterKey is null)
         {
@@ -27,7 +27,7 @@ public sealed class DatabaseSetDefaultCommand(
         }
 
         config.DefaultDatabases[clusterKey] = settings.DatabaseName;
-        await configStore.SaveAsync(config);
+        await configStore.SaveAsync(config, cancellationToken);
 
         AnsiConsole.MarkupLine($"[green]Default database for '{Markup.Escape(clusterKey)}' set to '{Markup.Escape(settings.DatabaseName)}'.[/]");
         return ConsoleExitStatusCodes.Success;

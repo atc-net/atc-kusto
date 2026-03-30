@@ -12,7 +12,7 @@ public sealed class ClusterShowCommand(
         ArgumentNullException.ThrowIfNull(settings);
         ConsoleHelper.WriteHeader();
 
-        var config = await configStore.LoadAsync();
+        var config = await configStore.LoadAsync(cancellationToken);
         var cluster = ClusterUtilities.FindCluster(config, settings.Name);
 
         if (cluster is null)
