@@ -10,7 +10,7 @@ public class QueryCommandSettings : DatabaseCommandSettings
     public string? Query { get; init; }
 
     [CommandOption("--file|-f <PATH>")]
-    [Description("Read query from a file")]
+    [Description("Read query from a file (supports :start-end line range, e.g. query.kql:5-10)")]
     public string? FilePath { get; init; }
 
     [CommandOption("--format <FORMAT>")]
@@ -39,9 +39,20 @@ public class QueryCommandSettings : DatabaseCommandSettings
             return ValidationResult.Error("Provide a query as an argument, via --file, or pipe to stdin.");
         }
 
-        if (FilePath is not null && !File.Exists(FilePath))
+        if (FilePath is not null)
         {
-            return ValidationResult.Error($"File not found: {FilePath}");
+            try
+            {
+                var fileRef = QueryFileReferenceParser.Parse(FilePath);
+                if (!File.Exists(fileRef.Path))
+                {
+                    return ValidationResult.Error($"File not found: {fileRef.Path}");
+                }
+            }
+            catch (ArgumentException ex)
+            {
+                return ValidationResult.Error(ex.Message);
+            }
         }
 
         if (Format is not "human" and not "json" and not "markdown" and not "md" and not "csv")

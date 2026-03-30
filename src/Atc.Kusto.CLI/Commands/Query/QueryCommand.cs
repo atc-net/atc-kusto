@@ -75,7 +75,7 @@ public sealed class QueryCommand(
     {
         if (settings.FilePath is not null)
         {
-            return await File.ReadAllTextAsync(settings.FilePath, Encoding.UTF8);
+            return await ReadQueryFromFileAsync(settings.FilePath);
         }
 
         if (settings.Query is not null)
@@ -94,5 +94,31 @@ public sealed class QueryCommand(
         }
 
         return string.Empty;
+    }
+
+    private static async Task<string> ReadQueryFromFileAsync(
+        string fileReference)
+    {
+        var parsed = QueryFileReferenceParser.Parse(fileReference);
+
+        if (parsed.LineRange is null)
+        {
+            return (await File.ReadAllTextAsync(parsed.Path, Encoding.UTF8)).Trim();
+        }
+
+        var allLines = await File.ReadAllLinesAsync(parsed.Path, Encoding.UTF8);
+        var range = parsed.LineRange.Value;
+
+        if (range.StartLine > allLines.Length || range.EndLine > allLines.Length)
+        {
+            throw new InvalidOperationException(
+                $"Query file range '{range.StartLine}-{range.EndLine}' is out of range for '{parsed.Path}', which has {allLines.Length} line{(allLines.Length == 1 ? string.Empty : "s")}.");
+        }
+
+        var selectedLines = allLines
+            .Skip(range.StartLine - 1)
+            .Take(range.LineCount);
+
+        return string.Join(Environment.NewLine, selectedLines).Trim();
     }
 }
