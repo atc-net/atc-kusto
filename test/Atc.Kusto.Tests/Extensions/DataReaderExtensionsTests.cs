@@ -31,7 +31,7 @@ public sealed class DataReaderExtensionsTests
 
         dataReader
             .GetName(0)
-            .ReturnsForAnyArgs(c => fieldNames[c.Arg<int>()]);
+            .ReturnsForAnyArgs(x => fieldNames[x.Arg<int>()]);
 
         dataReader
             .Read()
@@ -39,11 +39,11 @@ public sealed class DataReaderExtensionsTests
 
         dataReader
             .GetValues(null!)
-            .ReturnsForAnyArgs(c => c.Arg<object[]>().CopyFrom(values[index], 0));
+            .ReturnsForAnyArgs(x => x.Arg<object[]>().CopyFrom(values[index], 0));
 
         dataReader
             .GetValue(0)
-            .ReturnsForAnyArgs(c => values[index][c.Arg<int>()]);
+            .ReturnsForAnyArgs(x => values[index][x.Arg<int>()]);
 
         // Act
         var actual = dataReader.ReadObjects<TestObject>();
@@ -68,19 +68,19 @@ public sealed class DataReaderExtensionsTests
 
         dataReader
             .GetName(0)
-            .ReturnsForAnyArgs(c => fieldNames[c.Arg<int>()]);
+            .ReturnsForAnyArgs(x => fieldNames[x.Arg<int>()]);
 
         dataReader
             .Read()
-            .Returns(c => ++index < data.Count);
+            .Returns(_ => ++index < data.Count);
 
         dataReader
             .GetValues(null!)
-            .ReturnsForAnyArgs(c => c.Arg<object[]>().CopyFrom(values[index], 0));
+            .ReturnsForAnyArgs(x => x.Arg<object[]>().CopyFrom(values[index], 0));
 
         dataReader
             .GetValue(0)
-            .ReturnsForAnyArgs(c => values[index][c.Arg<int>()]);
+            .ReturnsForAnyArgs(x => values[index][x.Arg<int>()]);
 
         dataReader
             .NextResult()
@@ -115,7 +115,7 @@ public sealed class DataReaderExtensionsTests
 
         dataReader
             .GetName(Arg.Any<int>())
-            .Returns(c => fieldNames[c.Arg<int>()]);
+            .Returns(x => fieldNames[x.Arg<int>()]);
 
         var readCount = 0;
         dataReader
@@ -124,7 +124,7 @@ public sealed class DataReaderExtensionsTests
 
         dataReader
             .GetValue(Arg.Any<int>())
-            .Returns(c => rowValues[c.Arg<int>()]);
+            .Returns(x => rowValues[x.Arg<int>()]);
 
         // Act
         var actual = dataReader.ReadObjects<BooleanTestObject>();
@@ -150,7 +150,7 @@ public sealed class DataReaderExtensionsTests
 
         dataReader
             .GetName(Arg.Any<int>())
-            .Returns(c => fieldNames[c.Arg<int>()]);
+            .Returns(x => fieldNames[x.Arg<int>()]);
 
         var readCount = 0;
         dataReader
@@ -159,7 +159,7 @@ public sealed class DataReaderExtensionsTests
 
         dataReader
             .GetValue(Arg.Any<int>())
-            .Returns(c => rowValues[c.Arg<int>()]);
+            .Returns(x => rowValues[x.Arg<int>()]);
 
         // Act
         var actual = dataReader.ReadObjects<DateOnlyTestObject>();

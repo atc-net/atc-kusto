@@ -49,7 +49,7 @@ public sealed class MissingKustoScriptResourceCodeFixProvider : CodeFixProvider
         context.RegisterCodeFix(
             CodeAction.Create(
                 title: "Create empty .kusto file",
-                createChangedSolution: c => CreateKustoFileAsync(context.Document, classFilePath.FilePath),
+                createChangedSolution: _ => CreateKustoFileAsync(context.Document, classFilePath.FilePath),
                 equivalenceKey: nameof(MissingKustoScriptResourceCodeFixProvider)),
             context.Diagnostics);
     }

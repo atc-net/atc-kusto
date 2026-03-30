@@ -166,9 +166,7 @@ public sealed class KustoParameterMismatchAnalyzer : DiagnosticAnalyzer
         // For records, parameters are properties
         // For classes with primary constructors (C# 12+), they are also properties
         // We look for the primary constructor
-        var primaryConstructor = typeSymbol.Constructors
-            .FirstOrDefault(c => c.Parameters.Length > 0 && !c.IsImplicitlyDeclared);
-
+        var primaryConstructor = typeSymbol.Constructors.FirstOrDefault(x => x.Parameters.Length > 0 && !x.IsImplicitlyDeclared);
         if (primaryConstructor is not null)
         {
             foreach (var param in primaryConstructor.Parameters)
