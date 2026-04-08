@@ -13,12 +13,21 @@ public sealed class HumanResultRenderer : IResultRenderer
         ArgumentNullException.ThrowIfNull(columns);
         ArgumentNullException.ThrowIfNull(rows);
 
+        // Detect numeric columns from raw data before formatting
+        var rightAligned = DetectNumericColumns(columns.Count, rows);
+
         var table = new Table();
         table.Border(TableBorder.Rounded);
 
-        foreach (var column in columns)
+        for (var i = 0; i < columns.Count; i++)
         {
-            table.AddColumn(new TableColumn(Markup.Escape(column)).NoWrap());
+            var col = new TableColumn(Markup.Escape(columns[i])).NoWrap();
+            if (rightAligned[i])
+            {
+                col.RightAligned();
+            }
+
+            table.AddColumn(col);
         }
 
         foreach (var row in rows)
@@ -26,7 +35,7 @@ public sealed class HumanResultRenderer : IResultRenderer
             var renderedCells = new string[row.Length];
             for (var i = 0; i < row.Length; i++)
             {
-                renderedCells[i] = Markup.Escape(row[i]);
+                renderedCells[i] = Markup.Escape(DisplayValueFormatter.FormatCellValue(row[i]));
             }
 
             table.AddRow(renderedCells);
@@ -62,5 +71,38 @@ public sealed class HumanResultRenderer : IResultRenderer
 
         AnsiConsole.WriteLine();
         AnsiConsole.MarkupLine($"[link={Markup.Escape(url.AbsoluteUri)}]Open in Web Explorer[/]");
+    }
+
+    private static bool[] DetectNumericColumns(
+        int columnCount,
+        IReadOnlyList<string[]> rows)
+    {
+        var result = new bool[columnCount];
+        if (rows.Count == 0)
+        {
+            return result;
+        }
+
+        for (var i = 0; i < columnCount; i++)
+        {
+            var allNumeric = true;
+            foreach (var row in rows)
+            {
+                if (i >= row.Length || string.IsNullOrEmpty(row[i]))
+                {
+                    continue;
+                }
+
+                if (!DisplayValueFormatter.IsNumericValue(row[i]))
+                {
+                    allNumeric = false;
+                    break;
+                }
+            }
+
+            result[i] = allNumeric;
+        }
+
+        return result;
     }
 }
