@@ -1,13 +1,13 @@
 namespace Atc.Kusto.CLI.Tests.Rendering;
 
 [Collection("ConsoleOutput")]
-public sealed class CsvResultRendererTests
+public sealed class TsvResultRendererTests
 {
     [Fact]
     public void Render_TableOutput_WritesHeadersAndRows()
     {
         // Arrange
-        var renderer = new CsvResultRenderer();
+        var renderer = new TsvResultRenderer();
         var columns = new List<string> { "Name", "Count" };
         var rows = new List<string[]>
         {
@@ -23,19 +23,19 @@ public sealed class CsvResultRendererTests
 
         // Assert
         var output = writer.ToString();
-        var expected = $"Name,Count{Environment.NewLine}alpha,42{Environment.NewLine}beta,7{Environment.NewLine}";
+        var expected = $"Name\tCount{Environment.NewLine}alpha\t42{Environment.NewLine}beta\t7{Environment.NewLine}";
         output.Should().Be(expected);
     }
 
     [Fact]
-    public void Render_EscapesSpecialCharacters()
+    public void Render_EscapesTabsInValues()
     {
         // Arrange
-        var renderer = new CsvResultRenderer();
-        var columns = new List<string> { "Name", "Notes", "Quote" };
+        var renderer = new TsvResultRenderer();
+        var columns = new List<string> { "Name", "Notes" };
         var rows = new List<string[]>
         {
-            new[] { "alpha,beta", $"line1{Environment.NewLine}line2", "he said \"hi\"" },
+            new[] { "alpha\tbeta", "simple" },
         };
 
         using var writer = new StringWriter();
@@ -46,15 +46,37 @@ public sealed class CsvResultRendererTests
 
         // Assert
         var output = writer.ToString();
-        output.Should().Contain("\"alpha,beta\"");
-        output.Should().Contain("\"he said \"\"hi\"\"\"");
+        output.Should().Contain("\"alpha\tbeta\"");
+    }
+
+    [Fact]
+    public void Render_DoesNotEscapeCommas()
+    {
+        // Arrange
+        var renderer = new TsvResultRenderer();
+        var columns = new List<string> { "Name" };
+        var rows = new List<string[]>
+        {
+            new[] { "alpha,beta" },
+        };
+
+        using var writer = new StringWriter();
+        System.Console.SetOut(writer);
+
+        // Act
+        renderer.Render(columns, rows);
+
+        // Assert
+        var output = writer.ToString();
+        output.Should().Contain("alpha,beta");
+        output.Should().NotContain("\"alpha,beta\"");
     }
 
     [Fact]
     public void Render_EmptyRows_WritesOnlyHeader()
     {
         // Arrange
-        var renderer = new CsvResultRenderer();
+        var renderer = new TsvResultRenderer();
         var columns = new List<string> { "Name" };
         var rows = new List<string[]>();
 
@@ -67,29 +89,5 @@ public sealed class CsvResultRendererTests
         // Assert
         var output = writer.ToString();
         output.Should().Be($"Name{Environment.NewLine}");
-    }
-
-    [Fact]
-    public void RenderStatistics_WritesStatisticCsv()
-    {
-        // Arrange
-        var renderer = new CsvResultRenderer();
-        var stats = new Dictionary<string, string>(StringComparer.Ordinal)
-        {
-            ["ExecutionTimeSec"] = "1.23",
-            ["Cpu.Total"] = "00:00:01.5",
-        };
-
-        using var writer = new StringWriter();
-        System.Console.SetOut(writer);
-
-        // Act
-        renderer.RenderStatistics(stats);
-
-        // Assert
-        var output = writer.ToString();
-        output.Should().Contain("Statistic,Value");
-        output.Should().Contain("ExecutionTimeSec,1.23");
-        output.Should().Contain("Cpu.Total,00:00:01.5");
     }
 }

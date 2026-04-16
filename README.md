@@ -104,6 +104,10 @@ atc-kusto query "StormEvents | take 5" --tenant-id <GUID>
 atc-kusto query "StormEvents | summarize Count=count() by State | top 10 by Count desc" \
   --tenant-id <GUID> --format csv > top-states.csv
 
+# Output as TSV and redirect to a file
+atc-kusto query "StormEvents | summarize Count=count() by State | top 10 by Count desc" \
+  --tenant-id <GUID> --format tsv > top-states.tsv
+
 # Run a query from a file
 atc-kusto query --file myquery.kql --tenant-id <GUID>
 
@@ -191,7 +195,7 @@ echo "StormEvents | count" | atc-kusto query - --tenant-id <GUID> --cluster prod
 |--------|-------------|
 | `[QUERY]` | Inline KQL query text, or `-` to read from stdin |
 | `--file\|-f <PATH>` | Read query from a file (supports `:start-end` line range) |
-| `--format <FORMAT>` | Output format: `human`, `json`, `markdown` (or `md`), `csv` (default: `human`) |
+| `--format <FORMAT>` | Output format: `human`, `json`, `markdown` (or `md`), `csv`, `tsv` (default: `human`) |
 | `--show-stats` | Include query execution statistics in output |
 
 #### Output Formats
@@ -202,6 +206,7 @@ echo "StormEvents | count" | atc-kusto query - --tenant-id <GUID> --cluster prod
 | `json` | JSON array for scripting and automation |
 | `markdown` | GitHub Flavored Markdown table (`md` is accepted as an alias) |
 | `csv` | Comma-separated values (RFC 4180 quoting) |
+| `tsv` | Tab-separated values |
 
 ```bash
 # JSON output for scripting
@@ -212,6 +217,9 @@ atc-kusto query "StormEvents | take 5" --format markdown --tenant-id <GUID>
 
 # CSV output redirected to file
 atc-kusto query "StormEvents | take 5" --format csv --tenant-id <GUID> > results.csv
+
+# TSV output redirected to file
+atc-kusto query "StormEvents | take 5" --format tsv --tenant-id <GUID> > results.tsv
 ```
 
 #### Query Validation
@@ -226,7 +234,7 @@ Use `--show-stats` to display execution statistics after query results. Statisti
 atc-kusto query "StormEvents | count" --show-stats --tenant-id <GUID>
 ```
 
-> Note: `--show-stats` cannot be used with `--format csv`.
+> Note: `--show-stats` cannot be used with `--format csv` or `--format tsv`.
 
 #### Web Explorer Link
 

@@ -8,6 +8,7 @@ public sealed class OutputFormatParserTests
     [InlineData("markdown", OutputFormat.Markdown)]
     [InlineData("md", OutputFormat.Markdown)]
     [InlineData("csv", OutputFormat.Csv)]
+    [InlineData("tsv", OutputFormat.Tsv)]
     public void Parse_ValidFormat_ReturnsExpected(
         string input,
         OutputFormat expected)
