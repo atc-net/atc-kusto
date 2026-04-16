@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.5.0](https://github.com/atc-net/atc-kusto/compare/v3.4.0...v3.5.0) (2026-04-16)
+
+
+### Features
+
+* **cli:** add human-friendly value formatting for query results ([0265e49](https://github.com/atc-net/atc-kusto/commit/0265e4963d3c8da3a01fda4575f408bedae236c0))
+* **cli:** add TSV query output format ([c2fecf8](https://github.com/atc-net/atc-kusto/commit/c2fecf8e9f837bd62edfda3359065207bcaf6ef9))
+
 ## [3.4.0](https://github.com/atc-net/atc-kusto/compare/v3.3.1...v3.4.0) (2026-03-31)
 
 
