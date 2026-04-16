@@ -61,7 +61,8 @@ public static class CommandAppExtensions
             .WithExample("query", "--file", "myquery.kql", "--tenant-id", "<GUID>", "--cluster", "mycluster", "--database", "MyDb")
             .WithExample("query", "--file", "myquery.kql:5-10", "--tenant-id", "<GUID>", "--cluster", "mycluster", "--database", "MyDb")
             .WithExample("query", "\"StormEvents | take 5\"", "--tenant-id", "<GUID>", "--cluster", "mycluster", "--database", "MyDb", "--format", "json")
-            .WithExample("query", "\"StormEvents | take 5\"", "--tenant-id", "<GUID>", "--cluster", "mycluster", "--database", "MyDb", "--format", "csv");
+            .WithExample("query", "\"StormEvents | take 5\"", "--tenant-id", "<GUID>", "--cluster", "mycluster", "--database", "MyDb", "--format", "csv")
+            .WithExample("query", "\"StormEvents | take 5\"", "--tenant-id", "<GUID>", "--cluster", "mycluster", "--database", "MyDb", "--format", "tsv");
     }
 
     private static void ConfigureClusterCommands(

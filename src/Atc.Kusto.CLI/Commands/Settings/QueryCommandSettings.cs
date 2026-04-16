@@ -14,7 +14,7 @@ public class QueryCommandSettings : DatabaseCommandSettings
     public string? FilePath { get; init; }
 
     [CommandOption("--format <FORMAT>")]
-    [Description("Output format: human, json, markdown, or csv (default: human)")]
+    [Description("Output format: human, json, markdown, csv, or tsv (default: human)")]
     public string Format { get; init; } = "human";
 
     [CommandOption("--show-stats")]
@@ -55,14 +55,14 @@ public class QueryCommandSettings : DatabaseCommandSettings
             }
         }
 
-        if (Format is not "human" and not "json" and not "markdown" and not "md" and not "csv")
+        if (Format is not "human" and not "json" and not "markdown" and not "md" and not "csv" and not "tsv")
         {
-            return ValidationResult.Error("--format must be one of: human, json, markdown, csv.");
+            return ValidationResult.Error("--format must be one of: human, json, markdown, csv, tsv.");
         }
 
-        if (ShowStats && Format is "csv")
+        if (ShowStats && Format is "csv" or "tsv")
         {
-            return ValidationResult.Error("--show-stats cannot be used with --format csv.");
+            return ValidationResult.Error($"--show-stats cannot be used with --format {Format}.");
         }
 
         return ValidationResult.Success();

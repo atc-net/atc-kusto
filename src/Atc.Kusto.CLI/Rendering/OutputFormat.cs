@@ -24,4 +24,9 @@ public enum OutputFormat
     /// Comma-separated values output.
     /// </summary>
     Csv,
+
+    /// <summary>
+    /// Tab-separated values output.
+    /// </summary>
+    Tsv,
 }

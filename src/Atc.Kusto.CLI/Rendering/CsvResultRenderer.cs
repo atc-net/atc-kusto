@@ -3,8 +3,27 @@ namespace Atc.Kusto.CLI.Rendering;
 /// <summary>
 /// Renders results as comma-separated values (CSV) with RFC 4180 quoting.
 /// </summary>
-public sealed class CsvResultRenderer : IResultRenderer
+public class CsvResultRenderer : IResultRenderer
 {
+    private readonly char delimiter;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CsvResultRenderer"/> class using comma as delimiter.
+    /// </summary>
+    public CsvResultRenderer()
+        : this(',')
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CsvResultRenderer"/> class.
+    /// </summary>
+    /// <param name="delimiter">The field delimiter character.</param>
+    protected CsvResultRenderer(char delimiter)
+    {
+        this.delimiter = delimiter;
+    }
+
     /// <inheritdoc />
     public void Render(
         IReadOnlyList<string> columns,
@@ -20,7 +39,7 @@ public sealed class CsvResultRenderer : IResultRenderer
         {
             if (i > 0)
             {
-                sb.Append(',');
+                sb.Append(delimiter);
             }
 
             sb.Append(EscapeField(columns[i]));
@@ -35,7 +54,7 @@ public sealed class CsvResultRenderer : IResultRenderer
             {
                 if (i > 0)
                 {
-                    sb.Append(',');
+                    sb.Append(delimiter);
                 }
 
                 sb.Append(EscapeField(row[i]));
@@ -54,11 +73,11 @@ public sealed class CsvResultRenderer : IResultRenderer
 
         var sb = new StringBuilder();
         sb.AppendLine();
-        sb.AppendLine("Statistic,Value");
+        sb.Append("Statistic").Append(delimiter).AppendLine("Value");
         foreach (var kvp in statistics)
         {
             sb.Append(EscapeField(kvp.Key))
-                .Append(',')
+                .Append(delimiter)
                 .AppendLine(EscapeField(kvp.Value));
         }
 
@@ -68,13 +87,13 @@ public sealed class CsvResultRenderer : IResultRenderer
     /// <inheritdoc />
     public void RenderWebExplorerUrl(Uri url)
     {
-        // CSV output omits non-tabular metadata
+        // Delimited output omits non-tabular metadata
     }
 
-    private static string EscapeField(string value)
+    private string EscapeField(string value)
     {
         if (value.Contains('"', StringComparison.Ordinal) ||
-            value.Contains(',', StringComparison.Ordinal) ||
+            value.Contains(delimiter, StringComparison.Ordinal) ||
             value.Contains('\n', StringComparison.Ordinal) ||
             value.Contains('\r', StringComparison.Ordinal))
         {
