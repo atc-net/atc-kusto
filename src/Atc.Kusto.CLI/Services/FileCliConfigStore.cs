@@ -41,8 +41,9 @@ public sealed class FileCliConfigStore : ICliConfigStore
         }
 
         var json = await File.ReadAllTextAsync(configPath, Encoding.UTF8, cancellationToken);
-        return JsonSerializer.Deserialize<KustoCliConfig>(json, SerializerOptions)
-               ?? new KustoCliConfig();
+        var config = JsonSerializer.Deserialize<KustoCliConfig>(json, SerializerOptions)
+                     ?? new KustoCliConfig();
+        return ClusterUtilities.NormalizeConfig(config);
     }
 
     /// <inheritdoc />
@@ -51,6 +52,8 @@ public sealed class FileCliConfigStore : ICliConfigStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(config);
+
+        ClusterUtilities.NormalizeConfig(config);
 
         var directory = Path.GetDirectoryName(configPath);
         if (directory is not null && !Directory.Exists(directory))
