@@ -15,7 +15,7 @@
       "extra-files": ["Directory.Build.props"]
     },
     "src/Atc.Kusto.CLI": {
-      "component": "atc-kusto",
+      "component": "atc-kusto-cli",
       "release-type": "simple",
       "changelog-path": "CHANGELOG.md",
       "pull-request-title-pattern": "chore(cli): release version ${version}",
