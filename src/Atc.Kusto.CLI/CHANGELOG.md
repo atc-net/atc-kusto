@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.5.1](https://github.com/atc-net/atc-kusto/compare/atc-kusto@v3.5.0...atc-kusto@v3.5.1) (2026-04-18)
+
+
+### Bug fixes
+
+* **cli:** preserve resource path for ADE/ADX proxy cluster URLs ([74a7822](https://github.com/atc-net/atc-kusto/commit/74a78228632184cc42c1337b8e082024a5f37488))
+
 ## [3.5.0](https://github.com/atc-net/atc-kusto/compare/v3.4.0...v3.5.0) (2026-04-16)
 
 
