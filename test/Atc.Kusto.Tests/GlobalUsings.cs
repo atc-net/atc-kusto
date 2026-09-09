@@ -14,6 +14,7 @@ global using Atc.Kusto.Factories.Internal;
 global using Atc.Kusto.Handlers;
 global using Atc.Kusto.Handlers.Internal;
 global using Atc.Kusto.HealthChecks;
+global using Atc.Kusto.Ingestion.Internal;
 global using Atc.Kusto.Options;
 global using Atc.Kusto.Providers.Internal;
 global using Atc.Kusto.Tests.AutoNSubstituteDataAttributes;
