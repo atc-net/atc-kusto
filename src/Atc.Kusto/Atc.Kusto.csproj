@@ -22,10 +22,11 @@
 
   <ItemGroup>
     <PackageReference Include="Atc" Version="2.0.555" />
-    <PackageReference Include="Microsoft.Azure.Kusto.Data" Version="14.0.1" />
+    <PackageReference Include="Microsoft.Azure.Kusto.Data" Version="14.2.2" />
+    <PackageReference Include="Microsoft.Azure.Kusto.Ingest.V2" Version="[0.0.9]" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="9.0.8" />
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="9.8.0" />
-    <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.8" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.3" />
   </ItemGroup>
 
   <ItemGroup>
