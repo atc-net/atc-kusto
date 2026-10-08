@@ -9,11 +9,25 @@ public sealed class KustoClientProvider : IDisposable, IKustoClientProvider, IKu
     private readonly IOptionsMonitor<AtcKustoOptions> monitor;
     private readonly IKustoIngestClientFactory ingestClientFactory;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="KustoClientProvider"/> class.
+    /// </summary>
+    /// <param name="monitor">The options monitor resolving <see cref="AtcKustoOptions"/> per named connection.</param>
     public KustoClientProvider(IOptionsMonitor<AtcKustoOptions> monitor)
         : this(monitor, new KustoIngestClientFactory())
     {
     }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="KustoClientProvider"/> class with a custom
+    /// ingest-client factory.
+    /// </summary>
+    /// <remarks>
+    /// Internal because <see cref="IKustoIngestClientFactory"/> is internal; used by tests to observe
+    /// client creation. Dependency injection uses the public constructor.
+    /// </remarks>
+    /// <param name="monitor">The options monitor resolving <see cref="AtcKustoOptions"/> per named connection.</param>
+    /// <param name="ingestClientFactory">The factory that creates ingest clients.</param>
     internal KustoClientProvider(
         IOptionsMonitor<AtcKustoOptions> monitor,
         IKustoIngestClientFactory ingestClientFactory)
