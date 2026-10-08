@@ -23,6 +23,15 @@ public sealed record KustoIngestionResult
     public required IngestionMode Mode { get; init; }
 
     /// <summary>
+    /// Gets the identifier the service assigned to the ingestion operation.
+    /// </summary>
+    /// <remarks>
+    /// Useful for correlating logs with the cluster. Set whenever the request reached the service;
+    /// <see langword="null"/> when the ingestion failed or was skipped before that.
+    /// </remarks>
+    public string? OperationId { get; init; }
+
+    /// <summary>
     /// Gets a serialized operation handle for later tracking.
     /// </summary>
     /// <remarks>
