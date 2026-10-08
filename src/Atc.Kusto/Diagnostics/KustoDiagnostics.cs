@@ -25,6 +25,7 @@ public static class KustoDiagnostics
         public const string Query = "kusto.query";
         public const string Command = "kusto.command";
         public const string StreamingQuery = "kusto.streaming";
+        public const string Ingest = "kusto.ingest";
     }
 
     internal static class TagNames

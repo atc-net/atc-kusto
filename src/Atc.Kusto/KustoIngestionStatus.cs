@@ -22,6 +22,15 @@ public enum KustoIngestionStatus
     Queued,
 
     /// <summary>
+    /// Nothing was ingested because there was nothing to send.
+    /// </summary>
+    /// <remarks>
+    /// Returned for empty input (no rows, or a zero-length stream) without contacting the cluster.
+    /// This is not an error; it lets callers ingest batches that may be empty without special-casing them.
+    /// </remarks>
+    Skipped,
+
+    /// <summary>
     /// The ingestion request failed.
     /// </summary>
     /// <remarks>
