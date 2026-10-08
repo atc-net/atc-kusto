@@ -91,18 +91,11 @@ public sealed class KustoClientProvider : IDisposable, IKustoClientProvider, IKu
         IngestClientCacheKey ingestClientCacheKey)
     {
         var options = monitor.Get(ingestClientCacheKey.ConnectionName);
-
-        if (options.HostAddress is not { } host ||
-            options.Credential is not { } credential)
-        {
-            throw new InvalidOperationException(
-                $"Ingestion requires both HostAddress and Credential for kusto connection: {ingestClientCacheKey.ConnectionName}. " +
-                "ConnectionString-only or credential-less configurations are not supported for ingestion.");
-        }
+        KustoIngestTargetValidator.ValidateConnection(options, ingestClientCacheKey.ConnectionName);
 
         return ingestClientFactory.Create(
-            host,
-            credential,
+            options.HostAddress!,
+            options.Credential!,
             options.IngestUploadContainers,
             ingestClientCacheKey.Mode);
     }

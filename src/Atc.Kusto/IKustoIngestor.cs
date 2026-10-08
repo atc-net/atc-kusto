@@ -4,35 +4,63 @@ namespace Atc.Kusto;
 /// Ingests data into Azure Data Explorer.
 /// </summary>
 /// <remarks>
-/// Registered automatically by <c>ConfigureAzureDataExplorer(...)</c>. Operational failures are
-/// reported on <see cref="KustoIngestionResult"/>; only argument validation and cancellation
-/// throw. Ingestion is at-least-once, so prefer idempotent tables or caller-side de-duplication.
+/// <para>
+/// Registered automatically by <c>ConfigureAzureDataExplorer(...)</c>. The connection must be configured
+/// with a <c>HostAddress</c> and a <c>Credential</c>.
+/// </para>
+/// <para>
+/// <b>Failures are returned, not thrown.</b> When the service rejects the request, or a network or
+/// credential problem occurs, the call completes with <see cref="KustoIngestionStatus.Failed"/> and an
+/// <see cref="KustoIngestionResult.ErrorMessage"/>. Always check <see cref="KustoIngestionResult.IsSuccess"/>,
+/// or call <see cref="KustoIngestionResult.EnsureSuccess"/> to throw a <see cref="KustoIngestionException"/>
+/// instead. Only invalid arguments, a connection not configured for ingestion, and cancellation throw.
+/// </para>
+/// <para>
+/// Ingestion is at-least-once, so prefer idempotent tables or caller-side de-duplication.
+/// </para>
 /// </remarks>
 public interface IKustoIngestor
 {
     /// <summary>
-    /// Ingests in-memory rows, serialized to multijson.
+    /// Ingests in-memory rows, serialized to multijson (one JSON object per line).
     /// </summary>
     /// <remarks>
+    /// <para>
     /// <see cref="KustoIngestTarget.Format"/> must be <see cref="KustoIngestFormat.Json"/> or
-    /// <see cref="KustoIngestFormat.MultiJson"/>, so that the declared format matches the bytes
-    /// produced.
+    /// <see cref="KustoIngestFormat.MultiJson"/>, so that the declared format matches the bytes produced.
+    /// </para>
+    /// <para>
+    /// By default property names are written in camelCase (<c>SerialNumber</c> → <c>"serialNumber"</c>).
+    /// The table's JSON ingestion mapping paths are case-sensitive and must match (<c>$.serialNumber</c>);
+    /// a mismatch does not fail, the column is just left empty. Use <paramref name="serializerOptions"/>
+    /// or <c>[JsonPropertyName]</c> to change names.
+    /// </para>
+    /// <para>
+    /// The rows are enumerated once and buffered in memory; validation happens before enumeration.
+    /// </para>
     /// </remarks>
     /// <typeparam name="T">The row type.</typeparam>
-    /// <param name="rows">The rows to ingest.</param>
+    /// <param name="rows">The rows to ingest. An empty sequence returns <see cref="KustoIngestionStatus.Skipped"/>.</param>
     /// <param name="target">The ingestion target.</param>
-    /// <param name="serializerOptions">Optional serializer override; defaults to the library's Kusto JSON options.</param>
+    /// <param name="serializerOptions">
+    /// Optional serializer options; when <see langword="null"/>, the library's Kusto JSON options are used
+    /// (camelCase names, enums as strings, Kusto boolean and <see cref="DateOnly"/> handling). Supplied
+    /// options replace those defaults entirely.
+    /// </param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>
     /// The result. <see cref="KustoIngestionResult.Status"/> tells how far the data got:
     /// <see cref="KustoIngestionStatus.Succeeded"/> (in the table), <see cref="KustoIngestionStatus.Queued"/>
-    /// (accepted, processed later) or <see cref="KustoIngestionStatus.Failed"/>.
+    /// (accepted, processed later), <see cref="KustoIngestionStatus.Skipped"/> (no rows) or
+    /// <see cref="KustoIngestionStatus.Failed"/>.
     /// </returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="rows"/> or <paramref name="target"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">
     /// Thrown when the target is invalid, for example a missing table name, a JSON format without a
-    /// mapping reference, a non-JSON format, or no resolvable database.
+    /// mapping reference, a non-JSON format, no resolvable database, or more than 10 MB for
+    /// <see cref="IngestionMode.Streaming"/>.
     /// </exception>
+    /// <exception cref="InvalidOperationException">Thrown when the connection has no HostAddress or Credential.</exception>
     /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is cancelled.</exception>
     Task<KustoIngestionResult> IngestAsync<T>(
         IEnumerable<T> rows,
@@ -44,18 +72,23 @@ public interface IKustoIngestor
     /// Ingests data from a stream.
     /// </summary>
     /// <remarks>
-    /// The stream is owned by the caller and is not disposed.
+    /// The stream must be seekable; the data from its current position to the end is ingested. The
+    /// stream is owned by the caller: it is neither disposed nor closed.
     /// </remarks>
-    /// <param name="data">The payload, matching <see cref="KustoIngestTarget.Format"/>, positioned at the start of the data.</param>
+    /// <param name="data">
+    /// The payload, matching <see cref="KustoIngestTarget.Format"/>. Nothing remaining after the current
+    /// position returns <see cref="KustoIngestionStatus.Skipped"/>.
+    /// </param>
     /// <param name="target">The ingestion target.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The result; see <see cref="KustoIngestionResult.Status"/>.</returns>
+    /// <returns>The result; see <see cref="KustoIngestionResult.Status"/> and <see cref="KustoIngestionResult.IsSuccess"/>.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="data"/> or <paramref name="target"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">
-    /// Thrown when the target is invalid, for example a missing table name, a JSON format without a
-    /// mapping reference, a payload over 10 MB for <see cref="IngestionMode.Streaming"/>, or no
-    /// resolvable database.
+    /// Thrown when <paramref name="data"/> is not seekable, or the target is invalid, for example a missing
+    /// table name, a JSON format without a mapping reference, no resolvable database, or more than 10 MB
+    /// for <see cref="IngestionMode.Streaming"/>.
     /// </exception>
+    /// <exception cref="InvalidOperationException">Thrown when the connection has no HostAddress or Credential.</exception>
     /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is cancelled.</exception>
     Task<KustoIngestionResult> IngestAsync(
         Stream data,
@@ -66,18 +99,20 @@ public interface IKustoIngestor
     /// Ingests from a blob.
     /// </summary>
     /// <remarks>
-    /// The caller must ensure the URI is cluster-readable, either via a SAS token or by granting
-    /// the ingestion identity Storage Blob Data Reader.
+    /// The cluster reads the blob itself, so the URI must be cluster-readable, either via a SAS token or
+    /// by granting the ingestion identity Storage Blob Data Reader. Compression is inferred by the service,
+    /// for example from a <c>.gz</c> extension.
     /// </remarks>
     /// <param name="blobUri">The absolute blob URI, including a SAS token when one is used.</param>
     /// <param name="target">The ingestion target.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The result; see <see cref="KustoIngestionResult.Status"/>.</returns>
+    /// <returns>The result; see <see cref="KustoIngestionResult.Status"/> and <see cref="KustoIngestionResult.IsSuccess"/>.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="blobUri"/> or <paramref name="target"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">
-    /// Thrown when the target is invalid, for example a missing table name, a JSON format without a
-    /// mapping reference, or no resolvable database.
+    /// Thrown when <paramref name="blobUri"/> is relative, or the target is invalid, for example a missing
+    /// table name, a JSON format without a mapping reference, or no resolvable database.
     /// </exception>
+    /// <exception cref="InvalidOperationException">Thrown when the connection has no HostAddress or Credential.</exception>
     /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is cancelled.</exception>
     Task<KustoIngestionResult> IngestFromBlobAsync(
         Uri blobUri,

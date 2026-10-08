@@ -55,7 +55,8 @@ public sealed class KustoIngestTargetValidatorTests
     [Theory]
     [InlineData(KustoIngestFormat.Csv)]
     [InlineData(KustoIngestFormat.Tsv)]
-    public void Validate_Throws_When_Inline_Rows_Not_Json(KustoIngestFormat format)
+    public void Validate_Throws_When_Inline_Rows_Not_Json(
+        KustoIngestFormat format)
     {
         var act = () => KustoIngestTargetValidator.Validate(
             Target(format),
@@ -93,7 +94,8 @@ public sealed class KustoIngestTargetValidatorTests
     [Theory]
     [InlineData(IngestionMode.ManagedStreaming)]
     [InlineData(IngestionMode.Queued)]
-    public void Validate_Allows_Oversize_Payload_For_Non_Streaming_Modes(IngestionMode mode)
+    public void Validate_Allows_Oversize_Payload_For_Non_Streaming_Modes(
+        IngestionMode mode)
     {
         var act = () => KustoIngestTargetValidator.Validate(
             Target(),
@@ -126,5 +128,50 @@ public sealed class KustoIngestTargetValidatorTests
             isInlineRows: false);
 
         act.Should().Throw<ArgumentException>().WithMessage("*EnableTracking*");
+    }
+
+    [Fact]
+    public void ValidatePayloadSize_Reports_The_Callers_Parameter_Name()
+    {
+        var act = () => KustoIngestTargetValidator.ValidatePayloadSize(
+            IngestionMode.Streaming,
+            KustoIngestTargetValidator.StreamingIngestionMaxBytes + 1,
+            "data");
+
+        act.Should().Throw<ArgumentException>().Which.ParamName.Should().Be("data");
+    }
+
+    [Fact]
+    public void ValidateConnection_Throws_When_Credential_Missing()
+    {
+        var options = new AtcKustoOptions { HostAddress = new Uri("https://example.kusto.windows.net") };
+
+        var act = () => KustoIngestTargetValidator.ValidateConnection(options, "Sales");
+
+        act.Should().Throw<InvalidOperationException>().WithMessage("*HostAddress and Credential*Sales*");
+    }
+
+    [Fact]
+    public void ValidateConnection_Throws_For_ConnectionString_Only()
+    {
+        var options = new AtcKustoOptions { ConnectionString = "Data Source=https://example.kusto.windows.net" };
+
+        var act = () => KustoIngestTargetValidator.ValidateConnection(options, connectionName: null);
+
+        act.Should().Throw<InvalidOperationException>().WithMessage("*(default)*");
+    }
+
+    [Fact]
+    public void ValidateConnection_Allows_HostAddress_And_Credential()
+    {
+        var options = new AtcKustoOptions
+        {
+            HostAddress = new Uri("https://example.kusto.windows.net"),
+            Credential = Substitute.For<Azure.Core.TokenCredential>(),
+        };
+
+        var act = () => KustoIngestTargetValidator.ValidateConnection(options, connectionName: null);
+
+        act.Should().NotThrow();
     }
 }

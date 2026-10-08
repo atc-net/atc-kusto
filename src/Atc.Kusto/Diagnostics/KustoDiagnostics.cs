@@ -31,5 +31,10 @@ public static class KustoDiagnostics
     internal static class TagNames
     {
         public const string DbStatement = "db.statement";
+        public const string IngestDatabase = "kusto.ingest.database";
+        public const string IngestTable = "kusto.ingest.table";
+        public const string IngestMode = "kusto.ingest.mode";
+        public const string IngestStatus = "kusto.ingest.status";
+        public const string IngestOperationId = "kusto.ingest.operation_id";
     }
 }

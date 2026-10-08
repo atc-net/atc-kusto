@@ -32,7 +32,6 @@ internal static class KustoIngestFormatExtensions
     /// The JSON family requires a mapping reference, which is what callers use this for.
     /// </remarks>
     /// <param name="format">The format to test.</param>
-    public static bool IsJson(
-        this KustoIngestFormat format)
+    public static bool IsJson(this KustoIngestFormat format)
         => format is KustoIngestFormat.Json or KustoIngestFormat.MultiJson;
 }

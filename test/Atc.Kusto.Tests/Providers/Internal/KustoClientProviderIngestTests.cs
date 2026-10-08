@@ -136,7 +136,11 @@ public sealed class KustoClientProviderIngestTests
         var creations = 0;
         using var neverSet = new ManualResetEventSlim();
         factory
-            .Create(default!, default!, default!, default)
+            .Create(
+                clusterUri: null,
+                credential: null,
+                uploadContainers: null,
+                mode: default)
             .ReturnsForAnyArgs(_ =>
             {
                 Interlocked.Increment(ref creations);
@@ -192,7 +196,13 @@ public sealed class KustoClientProviderIngestTests
 
         // Assert
         client.Should().NotBeNull();
-        factory.ReceivedWithAnyArgs(1).Create(default!, default!, default!, default);
+        factory
+            .ReceivedWithAnyArgs(1)
+            .Create(
+                clusterUri: null,
+                credential: null,
+                uploadContainers: null,
+                mode: default);
     }
 
     [Theory, AutoNSubstituteDataWithAtcKustoOptions(withCredential: true)]
@@ -204,7 +214,11 @@ public sealed class KustoClientProviderIngestTests
         // Arrange
         monitor.Get(null).Returns(options);
         factory
-            .Create(default!, default!, default!, default)
+            .Create(
+                clusterUri: null,
+                credential: null,
+                uploadContainers: null,
+                mode: default)
             .ReturnsForAnyArgs(_ => Substitute.For<IKustoIngestClient>());
 
         var sut = new KustoClientProvider(monitor, factory);

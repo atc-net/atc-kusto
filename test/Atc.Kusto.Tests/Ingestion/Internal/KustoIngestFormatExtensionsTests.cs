@@ -7,7 +7,9 @@ public sealed class KustoIngestFormatExtensionsTests
     [InlineData(KustoIngestFormat.Json, DataSourceFormat.json)]
     [InlineData(KustoIngestFormat.Csv, DataSourceFormat.csv)]
     [InlineData(KustoIngestFormat.Tsv, DataSourceFormat.tsv)]
-    public void ToDataSourceFormat_Maps_Each_Value(KustoIngestFormat input, DataSourceFormat expected)
+    public void ToDataSourceFormat_Maps_Each_Value(
+        KustoIngestFormat input,
+        DataSourceFormat expected)
         => input.ToDataSourceFormat().Should().Be(expected);
 
     [Fact]
@@ -23,6 +25,8 @@ public sealed class KustoIngestFormatExtensionsTests
     [InlineData(KustoIngestFormat.MultiJson, true)]
     [InlineData(KustoIngestFormat.Csv, false)]
     [InlineData(KustoIngestFormat.Tsv, false)]
-    public void IsJson_True_Only_For_Json_Family(KustoIngestFormat input, bool expected)
+    public void IsJson_True_Only_For_Json_Family(
+        KustoIngestFormat input,
+        bool expected)
         => input.IsJson().Should().Be(expected);
 }
