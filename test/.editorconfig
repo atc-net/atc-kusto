@@ -67,3 +67,7 @@ dotnet_diagnostic.SA1118.severity = none            #
 dotnet_diagnostic.SA1402.severity = none            #
 
 dotnet_diagnostic.S107.severity = none              #
+
+# ReSharper / Rider heap-allocation hints: assertion lambdas in tests must capture locals (e.g. `() => sut.IngestAsync(..., cts.Token)`).
+resharper_heap_view_closure_allocation_highlighting = none
+resharper_heap_view_delegate_allocation_highlighting = none
