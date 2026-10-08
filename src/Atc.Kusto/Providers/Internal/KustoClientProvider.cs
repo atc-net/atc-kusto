@@ -4,13 +4,22 @@ public sealed class KustoClientProvider : IDisposable, IKustoClientProvider, IKu
 {
     private readonly ConcurrentDictionary<ClientCacheKey, ICslQueryProvider> queryClients = new();
     private readonly ConcurrentDictionary<ClientCacheKey, ICslAdminProvider> adminClients = new();
-    private readonly ConcurrentDictionary<IngestClientCacheKey, IKustoIngestClient> ingestClients = new();
+    private readonly ConcurrentDictionary<IngestClientCacheKey, Lazy<IKustoIngestClient>> ingestClients = new();
 
     private readonly IOptionsMonitor<AtcKustoOptions> monitor;
+    private readonly IKustoIngestClientFactory ingestClientFactory;
 
     public KustoClientProvider(IOptionsMonitor<AtcKustoOptions> monitor)
+        : this(monitor, new KustoIngestClientFactory())
+    {
+    }
+
+    internal KustoClientProvider(
+        IOptionsMonitor<AtcKustoOptions> monitor,
+        IKustoIngestClientFactory ingestClientFactory)
     {
         this.monitor = monitor;
+        this.ingestClientFactory = ingestClientFactory;
     }
 
     /// <inheritdoc />
@@ -31,17 +40,41 @@ public sealed class KustoClientProvider : IDisposable, IKustoClientProvider, IKu
 
     /// <inheritdoc />
     /// <remarks>
+    /// <para>
     /// Implemented explicitly because <see cref="IKustoIngestClient"/> is internal and this class
     /// is public, so the member cannot be exposed publicly.
+    /// </para>
+    /// <para>
+    /// The cache holds <see cref="Lazy{T}"/> values because <c>GetOrAdd</c> may run its value factory
+    /// more than once under contention; a discarded ingest client would never be disposed. A failed
+    /// creation is evicted rather than cached, so a corrected configuration can be retried.
+    /// </para>
     /// </remarks>
     IKustoIngestClient IKustoIngestClientProvider.GetIngestClient(
         IngestionMode mode,
         string? connectionName)
-        => ingestClients.GetOrAdd(
-            new IngestClientCacheKey(connectionName, mode),
-            CreateIngestClient);
+    {
+        var key = new IngestClientCacheKey(connectionName, mode);
+        var lazyClient = ingestClients.GetOrAdd(
+            key,
+            static (cacheKey, provider) => new Lazy<IKustoIngestClient>(
+                () => provider.CreateIngestClient(cacheKey),
+                LazyThreadSafetyMode.ExecutionAndPublication),
+            this);
 
-    private IKustoIngestClient CreateIngestClient(IngestClientCacheKey ingestClientCacheKey)
+        try
+        {
+            return lazyClient.Value;
+        }
+        catch
+        {
+            ingestClients.TryRemove(new KeyValuePair<IngestClientCacheKey, Lazy<IKustoIngestClient>>(key, lazyClient));
+            throw;
+        }
+    }
+
+    private IKustoIngestClient CreateIngestClient(
+        IngestClientCacheKey ingestClientCacheKey)
     {
         var options = monitor.Get(ingestClientCacheKey.ConnectionName);
 
@@ -53,7 +86,7 @@ public sealed class KustoClientProvider : IDisposable, IKustoClientProvider, IKu
                 "ConnectionString-only or credential-less configurations are not supported for ingestion.");
         }
 
-        return new KustoIngestClient(
+        return ingestClientFactory.Create(
             host,
             credential,
             options.IngestUploadContainers,
@@ -105,9 +138,9 @@ public sealed class KustoClientProvider : IDisposable, IKustoClientProvider, IKu
             queryClient.Dispose();
         }
 
-        foreach (var ingestClient in ingestClients.Values)
+        foreach (var lazyClient in ingestClients.Values.Where(x => x.IsValueCreated))
         {
-            ingestClient.Dispose();
+            lazyClient.Value.Dispose();
         }
     }
 }
