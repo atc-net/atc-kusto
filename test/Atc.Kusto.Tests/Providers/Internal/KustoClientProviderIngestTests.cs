@@ -123,4 +123,100 @@ public sealed class KustoClientProviderIngestTests
         // Assert
         Assert.NotSame(defaultClient, namedClient);
     }
+
+    [Theory, AutoNSubstituteDataWithAtcKustoOptions(withCredential: true)]
+    internal void GetIngestClient_Creates_One_Client_When_Called_Concurrently(
+        IOptionsMonitor<AtcKustoOptions> monitor,
+        IKustoIngestClientFactory factory,
+        AtcKustoOptions options)
+    {
+        // Arrange
+        monitor.Get(null).Returns(options);
+
+        var creations = 0;
+        using var neverSet = new ManualResetEventSlim();
+        factory
+            .Create(default!, default!, default!, default)
+            .ReturnsForAnyArgs(_ =>
+            {
+                Interlocked.Increment(ref creations);
+
+                // Widen the race window so an unsynchronised cache would create more than one client.
+                neverSet.Wait(TimeSpan.FromMilliseconds(50));
+                return Substitute.For<IKustoIngestClient>();
+            });
+
+        using var sut = new KustoClientProvider(monitor, factory);
+        var provider = (IKustoIngestClientProvider)sut;
+
+        var clients = new IKustoIngestClient[8];
+        using var start = new ManualResetEventSlim();
+        var threads = Enumerable
+            .Range(0, clients.Length)
+            .Select(i => new Thread(() =>
+            {
+                start.Wait();
+                clients[i] = provider.GetIngestClient(IngestionMode.Queued);
+            }))
+            .ToList();
+
+        // Act
+        threads.ForEach(t => t.Start());
+        start.Set();
+        threads.ForEach(t => t.Join());
+
+        // Assert
+        creations.Should().Be(1);
+        clients.Should().AllSatisfy(c => c.Should().BeSameAs(clients[0]));
+    }
+
+    [Theory, AutoNSubstituteDataWithAtcKustoOptions(withCredential: false)]
+    internal void GetIngestClient_Does_Not_Cache_A_Failed_Creation(
+        IOptionsMonitor<AtcKustoOptions> monitor,
+        IKustoIngestClientFactory factory,
+        AtcKustoOptions options,
+        Azure.Core.TokenCredential credential)
+    {
+        // Arrange
+        monitor.Get(null).Returns(options);
+        using var sut = new KustoClientProvider(monitor, factory);
+        var provider = (IKustoIngestClientProvider)sut;
+
+        var failingCall = () => provider.GetIngestClient(IngestionMode.Streaming);
+        failingCall.Should().Throw<InvalidOperationException>();
+
+        options.Credential = credential;
+
+        // Act
+        var client = provider.GetIngestClient(IngestionMode.Streaming);
+
+        // Assert
+        client.Should().NotBeNull();
+        factory.ReceivedWithAnyArgs(1).Create(default!, default!, default!, default);
+    }
+
+    [Theory, AutoNSubstituteDataWithAtcKustoOptions(withCredential: true)]
+    internal void Dispose_Disposes_Created_Ingest_Clients(
+        IOptionsMonitor<AtcKustoOptions> monitor,
+        IKustoIngestClientFactory factory,
+        AtcKustoOptions options)
+    {
+        // Arrange
+        monitor.Get(null).Returns(options);
+        factory
+            .Create(default!, default!, default!, default)
+            .ReturnsForAnyArgs(_ => Substitute.For<IKustoIngestClient>());
+
+        var sut = new KustoClientProvider(monitor, factory);
+        var provider = (IKustoIngestClientProvider)sut;
+        var streaming = provider.GetIngestClient(IngestionMode.Streaming);
+        var queued = provider.GetIngestClient(IngestionMode.Queued);
+
+        // Act
+        sut.Dispose();
+
+        // Assert
+        streaming.Received(1).Dispose();
+        queued.Received(1).Dispose();
+    }
 }
