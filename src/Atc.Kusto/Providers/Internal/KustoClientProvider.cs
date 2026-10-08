@@ -1,9 +1,10 @@
 namespace Atc.Kusto.Providers.Internal;
 
-public sealed class KustoClientProvider : IDisposable, IKustoClientProvider
+public sealed class KustoClientProvider : IDisposable, IKustoClientProvider, IKustoIngestClientProvider
 {
     private readonly ConcurrentDictionary<ClientCacheKey, ICslQueryProvider> queryClients = new();
     private readonly ConcurrentDictionary<ClientCacheKey, ICslAdminProvider> adminClients = new();
+    private readonly ConcurrentDictionary<IngestClientCacheKey, IKustoIngestClient> ingestClients = new();
 
     private readonly IOptionsMonitor<AtcKustoOptions> monitor;
 
@@ -27,6 +28,37 @@ public sealed class KustoClientProvider : IDisposable, IKustoClientProvider
         => adminClients.GetOrAdd(
             new ClientCacheKey(connectionName, databaseName),
             CreateAdminClient);
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Implemented explicitly because <see cref="IKustoIngestClient"/> is internal and this class
+    /// is public, so the member cannot be exposed publicly.
+    /// </remarks>
+    IKustoIngestClient IKustoIngestClientProvider.GetIngestClient(
+        IngestionMode mode,
+        string? connectionName)
+        => ingestClients.GetOrAdd(
+            new IngestClientCacheKey(connectionName, mode),
+            CreateIngestClient);
+
+    private IKustoIngestClient CreateIngestClient(IngestClientCacheKey ingestClientCacheKey)
+    {
+        var options = monitor.Get(ingestClientCacheKey.ConnectionName);
+
+        if (options.HostAddress is not { } host ||
+            options.Credential is not { } credential)
+        {
+            throw new InvalidOperationException(
+                $"Ingestion requires both HostAddress and Credential for kusto connection: {ingestClientCacheKey.ConnectionName}. " +
+                "ConnectionString-only or credential-less configurations are not supported for ingestion.");
+        }
+
+        return new KustoIngestClient(
+            host,
+            credential,
+            options.IngestUploadContainers,
+            ingestClientCacheKey.Mode);
+    }
 
     private ICslQueryProvider CreateQueryClient(ClientCacheKey clientCacheKey)
         => KustoClientFactory.CreateCslQueryProvider(
@@ -71,6 +103,11 @@ public sealed class KustoClientProvider : IDisposable, IKustoClientProvider
         foreach (var queryClient in queryClients.Values)
         {
             queryClient.Dispose();
+        }
+
+        foreach (var ingestClient in ingestClients.Values)
+        {
+            ingestClient.Dispose();
         }
     }
 }
