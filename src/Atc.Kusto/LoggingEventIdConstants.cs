@@ -52,4 +52,13 @@ public static class LoggingEventIdConstants
         public const int KustoCancelCommandFailed = 70_000;
         public const int FailedToScheduleKustoCancel = 70_010;
     }
+
+    internal static class KustoIngestor
+    {
+        public const int Started = 80_000;
+        public const int Succeeded = 80_010;
+        public const int Queued = 80_020;
+        public const int Skipped = 80_030;
+        public const int Failed = 80_040;
+    }
 }
