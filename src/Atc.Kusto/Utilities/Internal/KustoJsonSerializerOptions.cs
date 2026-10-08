@@ -6,13 +6,20 @@ namespace Atc.Kusto.Utilities.Internal;
 internal static class KustoJsonSerializerOptions
 {
     /// <summary>
-    /// Gets the default JSON serializer options configured for Kusto data deserialization.
-    /// Includes enum string conversion, case-insensitive property matching, and support for reading numbers from strings.
+    /// Gets the default JSON serializer options used for reading query results and writing ingestion payloads.
+    /// Includes enum string conversion, the Kusto boolean and <see cref="DateOnly"/> converters, case-insensitive
+    /// property matching, support for reading numbers from strings, and camelCase property names.
     /// </summary>
+    /// <remarks>
+    /// The camelCase naming policy only changes what is <em>written</em> (ingestion JSON, e.g. <c>{"serialNumber":…}</c>),
+    /// so that it matches the camelCase column names and <c>$.camelCase</c> ingestion mapping paths typical of Kusto
+    /// tables fed by Event Hubs. Reading is unaffected because property matching is case-insensitive.
+    /// </remarks>
     public static JsonSerializerOptions Default { get; } = new()
     {
         Converters = { new JsonStringEnumConverter(), new KustoBooleanJsonConverter(), new KustoDateOnlyJsonConverter() },
         PropertyNameCaseInsensitive = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         NumberHandling = JsonNumberHandling.AllowReadingFromString,
     };
 }

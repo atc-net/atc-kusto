@@ -5,7 +5,7 @@ public sealed class MultiJsonSerializerTests
     private sealed record Person(string FirstName, int Age);
 
     [Fact]
-    public void Serialize_Writes_One_Json_Object_Per_Line_With_Default_Options()
+    public void Serialize_Writes_One_CamelCase_Json_Object_Per_Line_With_Default_Options()
     {
         // Arrange
         var rows = new[] { new Person("Ada", 36), new Person("Linus", 54) };
@@ -18,8 +18,8 @@ public sealed class MultiJsonSerializerTests
         var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries);
 
         lines.Should().HaveCount(2);
-        lines[0].Should().Be("{\"FirstName\":\"Ada\",\"Age\":36}");
-        lines[1].Should().Be("{\"FirstName\":\"Linus\",\"Age\":54}");
+        lines[0].Should().Be("{\"firstName\":\"Ada\",\"age\":36}");
+        lines[1].Should().Be("{\"firstName\":\"Linus\",\"age\":54}");
         stream.Position.Should().Be(0);
     }
 
@@ -28,15 +28,15 @@ public sealed class MultiJsonSerializerTests
     {
         // Arrange
         var rows = new[] { new Person("Ada", 36) };
-        var camel = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        var verbatim = new JsonSerializerOptions { PropertyNamingPolicy = null };
 
         // Act
-        using var stream = MultiJsonSerializer.Serialize(rows, camel);
+        using var stream = MultiJsonSerializer.Serialize(rows, verbatim);
 
         // Assert
         var text = Encoding.UTF8.GetString(stream.ToArray()).TrimEnd('\n');
 
-        text.Should().Be("{\"firstName\":\"Ada\",\"age\":36}");
+        text.Should().Be("{\"FirstName\":\"Ada\",\"Age\":36}");
     }
 
     [Fact]
@@ -48,5 +48,19 @@ public sealed class MultiJsonSerializerTests
         // Assert
         stream.Length.Should().Be(0);
         stream.Position.Should().Be(0);
+    }
+
+    [Fact]
+    public void Serialize_Throws_When_Cancelled()
+    {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        // Act
+        var act = () => MultiJsonSerializer.Serialize(new[] { new Person("Ada", 36) }, serializerOptions: null, cts.Token);
+
+        // Assert
+        act.Should().Throw<OperationCanceledException>();
     }
 }

@@ -4,8 +4,11 @@ namespace Atc.Kusto;
 /// The mode-agnostic result of an ingestion request.
 /// </summary>
 /// <remarks>
-/// Operational failures are reported here rather than thrown; only argument validation and
-/// cancellation raise exceptions.
+/// Operational failures are reported here rather than thrown; only argument validation, a connection
+/// not configured for ingestion, and cancellation raise exceptions. <b>Always check the result</b>:
+/// inspect <see cref="IsSuccess"/> / <see cref="Status"/>, or call <see cref="EnsureSuccess"/> to throw
+/// a <see cref="KustoIngestionException"/> on failure. Ignoring the result means a failed ingestion
+/// goes unnoticed by the calling code (it is still logged at error level).
 /// </remarks>
 public sealed record KustoIngestionResult
 {
@@ -48,4 +51,29 @@ public sealed record KustoIngestionResult
     /// <see langword="null"/>.
     /// </remarks>
     public string? ErrorMessage { get; init; }
+
+    /// <summary>
+    /// Gets a value indicating whether the ingestion did not fail.
+    /// </summary>
+    /// <remarks>
+    /// <see langword="true"/> for <see cref="KustoIngestionStatus.Succeeded"/>,
+    /// <see cref="KustoIngestionStatus.Queued"/> (accepted, processed later) and
+    /// <see cref="KustoIngestionStatus.Skipped"/> (nothing to send); <see langword="false"/> only for
+    /// <see cref="KustoIngestionStatus.Failed"/>.
+    /// </remarks>
+    public bool IsSuccess => Status != KustoIngestionStatus.Failed;
+
+    /// <summary>
+    /// Throws a <see cref="KustoIngestionException"/> when the ingestion failed; otherwise returns this result.
+    /// </summary>
+    /// <remarks>
+    /// Use it when a failure should stop the calling code, e.g.
+    /// <c>(await ingestor.IngestAsync(rows, target)).EnsureSuccess();</c>.
+    /// </remarks>
+    /// <returns>This result, to allow chaining.</returns>
+    /// <exception cref="KustoIngestionException">Thrown when <see cref="Status"/> is <see cref="KustoIngestionStatus.Failed"/>.</exception>
+    public KustoIngestionResult EnsureSuccess()
+        => IsSuccess
+            ? this
+            : throw new KustoIngestionException(this);
 }
