@@ -233,4 +233,31 @@ public sealed class KustoClientProviderIngestTests
         streaming.Received(1).Dispose();
         queued.Received(1).Dispose();
     }
+
+    [Theory, AutoNSubstituteDataWithAtcKustoOptions(withCredential: true)]
+    internal void Dispose_Called_Multiple_Times_Disposes_Cached_Clients_Only_Once(
+        IOptionsMonitor<AtcKustoOptions> monitor,
+        IKustoIngestClientFactory factory,
+        AtcKustoOptions options)
+    {
+        // Arrange
+        monitor.Get(null).Returns(options);
+        factory
+            .Create(
+                clusterUri: null,
+                credential: null,
+                uploadContainers: null,
+                mode: default)
+            .ReturnsForAnyArgs(_ => Substitute.For<IKustoIngestClient>());
+
+        var sut = new KustoClientProvider(monitor, factory);
+        var client = ((IKustoIngestClientProvider)sut).GetIngestClient(IngestionMode.Queued);
+
+        // Act
+        sut.Dispose();
+        sut.Dispose();
+
+        // Assert
+        client.Received(1).Dispose();
+    }
 }

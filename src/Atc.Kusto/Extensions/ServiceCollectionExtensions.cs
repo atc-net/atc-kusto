@@ -60,23 +60,15 @@ public static class ServiceCollectionExtensions
         AtcKustoOptions kustoOptions,
         string? configurationName = null)
     {
+        ArgumentNullException.ThrowIfNull(kustoOptions);
+
         if (string.IsNullOrWhiteSpace(configurationName))
         {
-            services.AddOptions<AtcKustoOptions>().Configure(o =>
-            {
-                o.HostAddress = kustoOptions.HostAddress;
-                o.DatabaseName = kustoOptions.DatabaseName;
-                o.Credential = kustoOptions.Credential;
-            });
+            services.AddOptions<AtcKustoOptions>().Configure(o => CopyOptions(kustoOptions, o));
         }
         else
         {
-            services.AddOptions<AtcKustoOptions>(configurationName).Configure(o =>
-            {
-                o.HostAddress = kustoOptions.HostAddress;
-                o.DatabaseName = kustoOptions.DatabaseName;
-                o.Credential = kustoOptions.Credential;
-            });
+            services.AddOptions<AtcKustoOptions>(configurationName).Configure(o => CopyOptions(kustoOptions, o));
         }
 
         return services.AddKustoServices();
@@ -109,19 +101,58 @@ public static class ServiceCollectionExtensions
         return services.AddKustoServices();
     }
 
+    /// <summary>
+    /// Copies every setting from a caller-supplied options instance onto the registered one.
+    /// </summary>
+    /// <remarks>
+    /// Copy every property here: anything missed is silently dropped for callers using the
+    /// <see cref="ConfigureAzureDataExplorer(IServiceCollection, AtcKustoOptions, string?)"/> overload.
+    /// </remarks>
+    private static void CopyOptions(
+        AtcKustoOptions source,
+        AtcKustoOptions target)
+    {
+        target.HostAddress = source.HostAddress;
+        target.DatabaseName = source.DatabaseName;
+        target.Credential = source.Credential;
+        target.ConnectionString = source.ConnectionString;
+        target.DefaultIngestionMode = source.DefaultIngestionMode;
+
+        foreach (var container in source.IngestUploadContainers)
+        {
+            target.IngestUploadContainers.Add(container);
+        }
+    }
+
+    /// <summary>
+    /// Registers the shared Kusto services.
+    /// </summary>
+    /// <remarks>
+    /// Runs on every <c>ConfigureAzureDataExplorer</c> call (once per named connection), so every
+    /// registration uses <c>TryAdd</c>: the first call registers, later calls are no-ops, and services
+    /// a consumer registered beforehand are respected.
+    /// </remarks>
     private static IServiceCollection AddKustoServices(
         this IServiceCollection services)
     {
         services.AddLogging();
 
-        services.AddKeyedSingleton(Constants.ResiliencePipelineKey, ResiliencePipelineImplementationFactory);
+        services.TryAddKeyedSingleton(Constants.ResiliencePipelineKey, ResiliencePipelineImplementationFactory);
 
-        return services
-            .AddSingleton<IKustoClientProvider, KustoClientProvider>()
-            .AddSingleton<IQueryIdProvider, QueryIdProvider>()
-            .AddSingleton<IScriptHandlerFactory, ScriptHandlerFactory>()
-            .AddSingleton<IKustoProcessorFactory, KustoProcessorFactory>()
-            .AddSingleton(s => s.GetRequiredService<IKustoProcessorFactory>().Create());
+        services.TryAddSingleton<KustoClientProvider>();
+        services.TryAddSingleton<IKustoClientProvider>(s => s.GetRequiredService<KustoClientProvider>());
+        services.TryAddSingleton<IKustoIngestClientProvider>(s => s.GetRequiredService<KustoClientProvider>());
+
+        services.TryAddSingleton<IQueryIdProvider, QueryIdProvider>();
+        services.TryAddSingleton<IScriptHandlerFactory, ScriptHandlerFactory>();
+        services.TryAddSingleton<IKustoProcessorFactory, KustoProcessorFactory>();
+        services.TryAddSingleton(s => s.GetRequiredService<IKustoProcessorFactory>().Create());
+
+        // Ingestion has no resilience pipeline on purpose: the Ingest V2 SDK retries transient
+        // failures itself, and retrying a write on top of that risks duplicate ingestion.
+        services.TryAddSingleton<IKustoIngestor, KustoIngestor>();
+
+        return services;
 
         ResiliencePipeline ResiliencePipelineImplementationFactory(
             IServiceProvider serviceProvider,
