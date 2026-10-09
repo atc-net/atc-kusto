@@ -47,87 +47,102 @@ app.UseHttpsRedirection();
 
 app.MapGet(
         "/customers",
-        async static (
+        async static Task<Results<Ok<PagedResult<Customer>>, ProblemHttpResult>> (
                 [FromHeader(Name = "x-client-session-id")] string? sessionId,
                 [FromHeader(Name = "x-pageSize")] int? pageSize,
                 [FromHeader(Name = "x-continuation-token")] string? continuationToken,
                 IKustoProcessorFactory processorFactory,
                 CancellationToken cancellationToken)
             => await processorFactory
-                .Create("ContosoSales")
-                .ExecutePagedQuery(
-                    new CustomersQuery(),
-                    sessionId,
-                    pageSize ?? 100,
-                    continuationToken,
-                    cancellationToken))
+                    .Create("ContosoSales")
+                    .ExecutePagedQuery(
+                        new CustomersQuery(),
+                        sessionId,
+                        pageSize ?? 100,
+                        continuationToken,
+                        cancellationToken)
+                switch
+                {
+                    { } page => TypedResults.Ok(page),
+
+                    // null today means an invalid/expired continuation token, or a failed query (logged).
+                    _ when continuationToken is not null => TypedResults.Problem(
+                        "The continuation token is invalid or has expired. Start again without a token.",
+                        statusCode: StatusCodes.Status400BadRequest),
+                    _ => QueryFailed(),
+                })
     .WithName("GetCustomers")
+    .ProducesProblem(StatusCodes.Status400BadRequest)
+    .ProducesProblem(StatusCodes.Status502BadGateway)
     .WithDescription("Get all customers")
     .WithOpenApi();
 
 app.MapGet(
         "/customers/{customerId}",
-        async static (
+        async static Task<Results<Ok<Customer>, NotFound>> (
             long customerId,
             IKustoProcessorFactory processorFactory,
             CancellationToken cancellationToken)
-            => (IResult)(await processorFactory.Create("ContosoSales")
+            => await processorFactory.Create("ContosoSales")
                     .ExecuteQuery(
                         new CustomersQuery(customerId),
                         cancellationToken: cancellationToken)
                 switch
                 {
-                    [{ } customer] => TypedResults.Ok((object?)customer),
+                    [{ } customer] => TypedResults.Ok(customer),
                     _ => TypedResults.NotFound(),
-                }))
+                })
     .WithName("GetCustomerById")
     .WithDescription("Get customer by id")
     .WithOpenApi();
 
 app.MapGet(
         "/customers/sales",
-        (
+        async static Task<Results<Ok<CustomerSales[]>, ProblemHttpResult>> (
             IKustoProcessorFactory processorFactory,
             CancellationToken cancellationToken)
-            => processorFactory.Create("ContosoSales")
-                .ExecuteQuery(
-                    new CustomerSalesQuery(),
-                    new AtcQueryOptions
-                    {
-                        QueryTakeMaxRecords = 10,
-                        TruncationMaxRecords = 20,
-                    },
-                    cancellationToken: cancellationToken))
+            => await processorFactory.Create("ContosoSales")
+                    .ExecuteQuery(
+                        new CustomerSalesQuery(),
+                        new AtcQueryOptions
+                        {
+                            QueryTakeMaxRecords = 10,
+                            TruncationMaxRecords = 20,
+                        },
+                        cancellationToken: cancellationToken)
+                is { } sales
+                    ? TypedResults.Ok(sales)
+                    : QueryFailed())
     .WithName("GetCustomerSales")
+    .ProducesProblem(StatusCodes.Status502BadGateway)
     .WithDescription("Get summarized sales amounts per customer")
     .WithOpenApi();
 
 app.MapGet(
         "/customers/stream-with-streaming-query-result",
-        async static (
+        async static Task<Results<Ok<StreamingQueryResult<Customer>>, ProblemHttpResult>> (
             [FromHeader(Name = "x-client-session-id")] string? sessionId,
             IKustoProcessorFactory processorFactory,
             CancellationToken cancellationToken)
-            =>
-            {
-                var streamingQueryResult = await processorFactory.Create("ContosoSales")
+            => await processorFactory.Create("ContosoSales")
                     .ExecuteBufferedStreamingQuery(
                         new CustomersStreamingQuery(),
-                        cancellationToken);
-
-                return TypedResults.Ok(streamingQueryResult);
-            })
+                        cancellationToken)
+                is { } streamingQueryResult
+                    ? TypedResults.Ok(streamingQueryResult)
+                    : QueryFailed())
     .WithName("GetCustomersStreamWithStreamingQueryResult")
+    .ProducesProblem(StatusCodes.Status502BadGateway)
     .WithDescription("Streaming customers with streaming query result")
     .WithOpenApi();
 
 app.MapGet(
         "/customers/stream",
-        (
+        static (
             [FromHeader(Name = "x-client-session-id")] string? sessionId,
             IKustoProcessorFactory processorFactory,
             CancellationToken cancellationToken)
-            => Task.FromResult(processorFactory.Create("ContosoSales")
+            => TypedResults.Ok(processorFactory.Create("ContosoSales")
                 .ExecuteStreamingQuery(
                     new CustomersStreamingQuery(),
                     cancellationToken)))
@@ -137,7 +152,7 @@ app.MapGet(
 
 app.MapGet(
         "/customers/stream-cancel-demo",
-        async (
+        async Task<Results<Ok, StatusCodeHttpResult>> (
             IKustoProcessorFactory processorFactory,
             CancellationToken cancellationToken) =>
         {
@@ -152,20 +167,21 @@ app.MapGet(
                     // no-op
                 }
 
-                return Results.Ok();
+                return TypedResults.Ok();
             }
             catch (OperationCanceledException)
             {
-                return Results.StatusCode(StatusCodes.Status499ClientClosedRequest);
+                return TypedResults.StatusCode(StatusCodes.Status499ClientClosedRequest);
             }
         })
     .WithName("GetCustomersStreamCancelDemo")
+    .Produces(StatusCodes.Status499ClientClosedRequest)
     .WithDescription("Demonstrates cancellation of streaming with server-side cancel enabled")
     .WithOpenApi();
 
 app.MapGet(
         "/customers/stream-cancel-demo-no-server",
-        async (
+        async Task<Results<Ok, StatusCodeHttpResult>> (
             IKustoProcessorFactory processorFactory,
             CancellationToken cancellationToken) =>
         {
@@ -180,47 +196,47 @@ app.MapGet(
                     // no-op
                 }
 
-                return Results.Ok();
+                return TypedResults.Ok();
             }
             catch (OperationCanceledException)
             {
-                return Results.StatusCode(StatusCodes.Status499ClientClosedRequest);
+                return TypedResults.StatusCode(StatusCodes.Status499ClientClosedRequest);
             }
         })
     .WithName("GetCustomersStreamCancelDemoNoServer")
+    .Produces(StatusCodes.Status499ClientClosedRequest)
     .WithDescription("Demonstrates cancellation of streaming with server-side cancel disabled")
     .WithOpenApi();
 
 app.MapGet(
         "/nyctaxitrips/stream-with-streaming-query-result",
-        async static (
+        async static Task<Results<Ok<StreamingQueryResult<NycTaxiTrip>>, ProblemHttpResult>> (
             [FromHeader(Name = "x-client-session-id")] string? sessionId,
             IKustoProcessorFactory processorFactory,
             CancellationToken cancellationToken)
-            =>
-            {
-                var streamingQueryResult = await processorFactory.Create("Samples")
+            => await processorFactory.Create("Samples")
                     .ExecuteBufferedStreamingQuery(
                         new NycTaxiTripsStreamingQuery(),
                         new AtcStreamingQueryOptions
                         {
                             NoTruncation = true,
                         },
-                        cancellationToken);
-
-                return TypedResults.Ok(streamingQueryResult);
-            })
+                        cancellationToken)
+                is { } streamingQueryResult
+                    ? TypedResults.Ok(streamingQueryResult)
+                    : QueryFailed())
     .WithName("GetNycTaxiTripsStreamWithStreamingQueryResult")
+    .ProducesProblem(StatusCodes.Status502BadGateway)
     .WithDescription("Streaming nyc taxi trips with streaming query result")
     .WithOpenApi();
 
 app.MapGet(
         "/nyctaxitrips/stream",
-        (
+        static (
             [FromHeader(Name = "x-client-session-id")] string? sessionId,
             IKustoProcessorFactory processorFactory,
             CancellationToken cancellationToken)
-            => Task.FromResult(processorFactory.Create("Samples")
+            => TypedResults.Ok(processorFactory.Create("Samples")
                 .ExecuteStreamingQuery(
                     new NycTaxiTripsStreamingQuery(),
                     new AtcStreamingQueryOptions
@@ -281,7 +297,16 @@ app.MapPost(
             };
         })
     .WithName("IngestDeviceReadings")
+    .ProducesProblem(StatusCodes.Status502BadGateway)
+    .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
     .WithDescription("Ingest device readings (200 = in the table, 202 = queued, 502 = failed). Optional ?mode=Streaming|ManagedStreaming|Queued")
     .WithOpenApi();
 
 await app.RunAsync();
+
+// Atc.Kusto query methods return null when the query failed (the error is logged by the library).
+static ProblemHttpResult QueryFailed()
+    => TypedResults.Problem(
+        "The Kusto query failed; see the application logs.",
+        statusCode: StatusCodes.Status502BadGateway,
+        title: "Query failed");
