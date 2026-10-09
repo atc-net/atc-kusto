@@ -21,4 +21,28 @@ Accept: application/json
 GET {{Atc.Kusto.Api.Sample_HostAddress}}/customers/stream
 Accept: application/json
 
+### IngestDeviceReadings (default mode: ManagedStreaming -> 200 when streamed, 202 when it fell back to queued)
+# Needs Ingestion:HostAddress / Ingestion:DatabaseName in appsettings and setup.kql from Atc.Kusto.Ingestion.Sample.
+POST {{Atc.Kusto.Api.Sample_HostAddress}}/device-readings
+Content-Type: application/json
+
+[
+  { "deviceId": "device-1", "serialNumber": "SN-0001", "value": 21.5, "timestamp": "2026-10-09T08:00:00Z" },
+  { "deviceId": "device-2", "serialNumber": "SN-0002", "value": 22.0, "timestamp": "2026-10-09T08:00:00Z" }
+]
+
+### IngestDeviceReadings queued (-> 202 Accepted)
+POST {{Atc.Kusto.Api.Sample_HostAddress}}/device-readings?mode=Queued
+Content-Type: application/json
+
+[
+  { "deviceId": "device-3", "serialNumber": "SN-0003", "value": 19.0, "timestamp": "2026-10-09T08:05:00Z" }
+]
+
+### IngestDeviceReadings empty batch (-> 200 with status Skipped, cluster not contacted)
+POST {{Atc.Kusto.Api.Sample_HostAddress}}/device-readings
+Content-Type: application/json
+
+[]
+
 ###

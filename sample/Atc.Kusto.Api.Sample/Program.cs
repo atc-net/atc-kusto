@@ -18,6 +18,22 @@ builder.Services.ConfigureAzureDataExplorer(
     },
     "Samples");
 
+// Optional writable connection for POST /device-readings (help.kusto.windows.net is read-only).
+// Run sample/Atc.Kusto.Ingestion.Sample/setup.kql against the database first.
+var ingestionHostAddress = builder.Configuration["Ingestion:HostAddress"];
+var ingestionDatabaseName = builder.Configuration["Ingestion:DatabaseName"];
+var isIngestionConfigured = !string.IsNullOrWhiteSpace(ingestionHostAddress) &&
+                            !string.IsNullOrWhiteSpace(ingestionDatabaseName);
+
+if (isIngestionConfigured)
+{
+    builder.Services.ConfigureAzureDataExplorer(
+        new Uri(ingestionHostAddress!),
+        ingestionDatabaseName!,
+        new DefaultAzureCredential(),
+        "Ingestion");
+}
+
 builder.Services.AddAuthorization();
 
 builder.Services.AddEndpointsApiExplorer();
@@ -214,6 +230,58 @@ app.MapGet(
                     cancellationToken)))
     .WithName("GetNycTaxiTripsStream")
     .WithDescription("Streaming nyc taxi trips")
+    .WithOpenApi();
+
+app.MapPost(
+        "/device-readings",
+        async Task<Results<Ok<KustoIngestionResult>, Accepted<KustoIngestionResult>, ProblemHttpResult>> (
+            DeviceReadingRequest[] readings,
+            IngestionMode? mode,
+            IKustoIngestor ingestor,
+            CancellationToken cancellationToken) =>
+        {
+            if (!isIngestionConfigured)
+            {
+                return TypedResults.Problem(
+                    "Set Ingestion:HostAddress and Ingestion:DatabaseName to a writable cluster and run setup.kql from Atc.Kusto.Ingestion.Sample.",
+                    statusCode: StatusCodes.Status503ServiceUnavailable,
+                    title: "Ingestion is not configured");
+            }
+
+            var runId = Guid.NewGuid().ToString("N");
+            var rows = readings.Select(r => new IngestedDeviceReading(
+                runId,
+                Scenario: "api",
+                r.DeviceId,
+                r.SerialNumber,
+                r.Value,
+                r.Timestamp));
+
+            var result = await ingestor.IngestAsync(
+                rows,
+                new KustoIngestTarget
+                {
+                    TableName = "SampleDeviceReadings",
+                    Format = KustoIngestFormat.MultiJson,
+                    MappingReference = "SampleDeviceReadings_mapping",
+                    ConnectionName = "Ingestion",
+                    Mode = mode,
+                },
+                cancellationToken: cancellationToken);
+
+            // Ingestion failures are returned, not thrown, so map every status explicitly.
+            return result.Status switch
+            {
+                KustoIngestionStatus.Succeeded or KustoIngestionStatus.Skipped => TypedResults.Ok(result),
+                KustoIngestionStatus.Queued => TypedResults.Accepted(uri: (string?)null, value: result),
+                _ => TypedResults.Problem(
+                    result.ErrorMessage,
+                    statusCode: StatusCodes.Status502BadGateway,
+                    title: "Ingestion failed"),
+            };
+        })
+    .WithName("IngestDeviceReadings")
+    .WithDescription("Ingest device readings (200 = in the table, 202 = queued, 502 = failed). Optional ?mode=Streaming|ManagedStreaming|Queued")
     .WithOpenApi();
 
 await app.RunAsync();
