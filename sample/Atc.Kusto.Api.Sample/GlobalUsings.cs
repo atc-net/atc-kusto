@@ -5,4 +5,5 @@ global using Atc.Kusto.Api.Sample.Queries;
 global using Atc.Kusto.Factories;
 global using Atc.Kusto.Options;
 global using Azure.Identity;
+global using Microsoft.AspNetCore.Http.HttpResults;
 global using Microsoft.AspNetCore.Mvc;
