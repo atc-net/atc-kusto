@@ -1,0 +1,10 @@
+global using System.Globalization;
+global using System.Text;
+global using System.Text.Json;
+global using Atc.Kusto;
+global using Atc.Kusto.Ingestion.Sample;
+global using Atc.Kusto.Ingestion.Sample.Contracts;
+global using Atc.Kusto.Ingestion.Sample.Queries;
+global using Azure.Identity;
+global using Microsoft.Extensions.DependencyInjection;
+global using Microsoft.Extensions.Logging;

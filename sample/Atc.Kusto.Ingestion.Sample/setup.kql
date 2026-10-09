@@ -1,0 +1,30 @@
+// One-time setup for Atc.Kusto.Ingestion.Sample. Run these commands against the target database.
+
+// The table. Column names are camelCase, as in tables typically fed by Event Hubs.
+.create-merge table SampleDeviceReadings (
+    runId: string,
+    scenario: string,
+    deviceId: string,
+    serialNumber: string,
+    value: real,
+    timestamp: datetime
+)
+
+// The JSON mapping used by the JSON scenarios. Paths are case-sensitive and must match the
+// property names the library writes (camelCase by default).
+.create-or-alter table SampleDeviceReadings ingestion json mapping "SampleDeviceReadings_mapping"
+    '['
+        '{"column": "runId", "path": "$.runId"},'
+        '{"column": "scenario", "path": "$.scenario"},'
+        '{"column": "deviceId", "path": "$.deviceId"},'
+        '{"column": "serialNumber", "path": "$.serialNumber"},'
+        '{"column": "value", "path": "$.value"},'
+        '{"column": "timestamp", "path": "$.timestamp"}'
+    ']'
+
+// Enables real streaming ingestion for the table (streaming must also be enabled on the cluster).
+// Without it, ManagedStreaming falls back to queued and the Streaming scenario fails.
+.alter table SampleDeviceReadings policy streamingingestion enable
+
+// Optional clean-up afterwards:
+// .drop table SampleDeviceReadings

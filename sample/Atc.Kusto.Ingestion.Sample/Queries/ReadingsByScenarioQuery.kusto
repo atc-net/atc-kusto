@@ -1,0 +1,13 @@
+declare query_parameters (
+    runId:string,
+    scenario:string
+);
+let param_runId = runId;
+let param_scenario = scenario;
+SampleDeviceReadings
+| where runId == param_runId and scenario == param_scenario
+| project
+    DeviceId = deviceId,
+    SerialNumber = serialNumber,
+    Value = value,
+    Timestamp = timestamp
