@@ -41,6 +41,17 @@ The library provides a streamlined interface for handling Kusto operations, maki
     - [Executing streaming queries](#executing-streaming-queries)
       - [Direct streaming](#direct-streaming)
       - [Buffered streaming](#buffered-streaming)
+    - [Ingesting data](#ingesting-data)
+      - [Ingestion quick start](#ingestion-quick-start)
+      - [Checking the result](#checking-the-result)
+      - [Ingestion modes](#ingestion-modes)
+      - [JSON property names and ingestion mappings](#json-property-names-and-ingestion-mappings)
+      - [Ingesting a stream or a blob](#ingesting-a-stream-or-a-blob)
+      - [KustoIngestTarget](#kustoingesttarget)
+      - [Tracking queued ingestion](#tracking-queued-ingestion)
+      - [Retries and duplicates](#retries-and-duplicates)
+      - [Private endpoints: upload containers](#private-endpoints-upload-containers)
+      - [Dependencies](#dependencies)
     - [Health Checks](#health-checks)
       - [Setup Health Check](#setup-health-check)
       - [Health Check Response](#health-check-response)
@@ -70,6 +81,7 @@ The library extends the official .NET SDK, and adds the following add-on functio
 - **Streaming Query Support**: Two approaches for streaming large result sets:
   - **Direct Streaming**: Immediately yield rows as they become available, minimizing memory usage and latency.
   - **Buffered Streaming**: Buffer results with additional metadata like schemas and completion information.
+- **Data Ingestion**: `IKustoIngestor` ingests in-memory rows, streams and blobs with streaming, managed-streaming (default) or queued ingestion, built on the Kusto Ingest V2 SDK.
 - **Health Checks**: Built-in health check integration for Azure Data Explorer clusters with ASP.NET Core's Health Checks API.
 
 ## CLI Tool
@@ -687,6 +699,239 @@ app.MapGet(
 ```
 
 This returns a streamed response to the client, which can be processed as it arrives.
+
+### Ingesting data
+
+`IKustoIngestor` writes data into a Kusto table. It is registered automatically by `ConfigureAzureDataExplorer(...)` — there is no separate opt-in — and supports three sources: in-memory rows, a `Stream`, and a blob.
+
+> **Requirements**
+>
+> - The connection must be configured with **both `HostAddress` and a `Credential`**. A `ConnectionString`-only or credential-less connection can query but not ingest; the first ingest call throws `InvalidOperationException`.
+> - The target table must exist. For JSON payloads it also needs a **JSON ingestion mapping**, referenced by name.
+> - Real streaming needs streaming ingestion enabled on the cluster and a streaming ingestion policy on the table or database (`.alter table MyTable policy streamingingestion enable`).
+
+#### Ingestion quick start
+
+```kusto
+// One-time table setup on the cluster
+.create table DeviceReadings (deviceId: string, serialNumber: string, value: real, timestamp: datetime)
+
+.create table DeviceReadings ingestion json mapping 'DeviceReadings_mapping'
+'[{"column":"deviceId","path":"$.deviceId"},{"column":"serialNumber","path":"$.serialNumber"},{"column":"value","path":"$.value"},{"column":"timestamp","path":"$.timestamp"}]'
+
+.alter table DeviceReadings policy streamingingestion enable
+```
+
+```csharp
+public sealed record DeviceReading(string DeviceId, string SerialNumber, double Value, DateTimeOffset Timestamp);
+
+public sealed class ReadingsWriter(IKustoIngestor ingestor)
+{
+    public async Task WriteAsync(IReadOnlyList<DeviceReading> readings, CancellationToken cancellationToken)
+    {
+        var result = await ingestor.IngestAsync(
+            readings,
+            new KustoIngestTarget
+            {
+                TableName = "DeviceReadings",
+                Format = KustoIngestFormat.MultiJson,
+                MappingReference = "DeviceReadings_mapping",
+            },
+            cancellationToken: cancellationToken);
+
+        result.EnsureSuccess(); // throws KustoIngestionException if the ingestion failed
+    }
+}
+```
+
+#### Checking the result
+
+> **Failures are returned, not thrown.** When the cluster rejects the data, or a network or credential problem occurs, `IngestAsync` completes normally with `Status = Failed` and an `ErrorMessage`. Code that ignores the result will not notice the failure (it is still logged at error level). **Always check `result.IsSuccess`, or call `result.EnsureSuccess()`** — it works like `HttpResponseMessage.EnsureSuccessStatusCode()`.
+
+| `Status`    | Meaning                                                                                  | `IsSuccess` |
+| ----------- | ---------------------------------------------------------------------------------------- | ----------- |
+| `Succeeded` | Streamed: the rows are in the table when the call returns.                               | `true`      |
+| `Queued`    | Accepted and queued; the cluster batches it and it becomes queryable later (typically minutes). | `true` |
+| `Skipped`   | Nothing to send (no rows, or an empty stream); the cluster was not contacted.            | `true`      |
+| `Failed`    | The ingestion failed; see `ErrorMessage`.                                                | `false`     |
+
+Only these throw:
+
+| Exception                     | When                                                                                                    |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `ArgumentException`           | Invalid request: missing table name, JSON format without `MappingReference`, no resolvable database, a non-seekable stream, a relative blob URI, more than 10 MB for `Streaming`. Validated before any data is read. |
+| `InvalidOperationException`   | The connection has no `HostAddress` or `Credential`.                                                    |
+| `OperationCanceledException`  | Your `CancellationToken` was cancelled. The original exception, if any, is the `InnerException`.         |
+
+`KustoIngestionResult` also carries `Mode` (the resolved mode — the target's `Mode` or the connection default; after a managed fallback it is still `ManagedStreaming`, while `Status` says `Queued`), `OperationId` (the service's id for the operation — useful for correlating with cluster logs) and `OperationHandle` (see [Tracking](#tracking-queued-ingestion)).
+
+#### Ingestion modes
+
+| Mode                          | What happens                                                                                       | Status you get        |
+| ----------------------------- | -------------------------------------------------------------------------------------------------- | --------------------- |
+| `ManagedStreaming` (default)  | Tries streaming; falls back to queued when the payload is too large, after repeated transient errors, or when streaming isn't enabled for the table. | `Succeeded` or `Queued` |
+| `Streaming`                   | Sends directly; fails instead of falling back.                                                     | `Succeeded` / `Failed` |
+| `Queued`                      | Uploads and queues for batched ingestion.                                                          | `Queued`              |
+
+Which one to use:
+
+- **`ManagedStreaming`** (default) for application writes: small batches become visible immediately, and it never fails just because of size or table configuration.
+- **`Queued`** for bulk loads (backfills, nightly imports): highest throughput, and no pointless streaming attempt for large payloads.
+- **`Streaming`** when the data *must* be queryable right after the call or the call must fail — e.g. tests or read-your-own-write flows.
+
+Set the mode per call (`KustoIngestTarget.Mode`) or per connection (`AtcKustoOptions.DefaultIngestionMode`):
+
+```csharp
+// Per call: this one ingestion is queued, whatever the connection default is
+await ingestor.IngestAsync(
+    backfillRows,
+    new KustoIngestTarget
+    {
+        TableName = "DeviceReadings",
+        Format = KustoIngestFormat.MultiJson,
+        MappingReference = "DeviceReadings_mapping",
+        Mode = IngestionMode.Queued,
+    },
+    cancellationToken: cancellationToken);
+```
+
+```csharp
+// Per connection: every ingestion on this connection without an explicit Mode is queued
+builder.Services.ConfigureAzureDataExplorer(options =>
+{
+    options.HostAddress = new Uri("https://mycluster.westeurope.kusto.windows.net");
+    options.DatabaseName = "Telemetry";
+    options.Credential = new DefaultAzureCredential();
+    options.DefaultIngestionMode = IngestionMode.Queued;
+});
+```
+
+A `Mode` set on the target always wins over the connection default.
+
+> Streaming limits: the client rejects `Streaming` payloads over **10 MB** up front, but the service's data limit for a streaming request is **4 MB** (including data produced by update policies), so plain `Streaming` can still fail between 4 and 10 MB. `ManagedStreaming` handles this by falling back to queued.
+
+#### JSON property names and ingestion mappings
+
+In-memory rows are serialized to multijson with **camelCase property names**: `SerialNumber` becomes `"serialNumber"`. The table's JSON mapping paths are **case-sensitive** and must match:
+
+```kusto
+'[{"column":"serialNumber","path":"$.serialNumber"}]'   // ✅ matches
+'[{"column":"serialNumber","path":"$.SerialNumber"}]'   // ❌ ingests successfully, but the column is left empty
+```
+
+A mismatch does **not** fail the ingestion — the rows arrive with empty columns. To use other names, annotate properties with `[JsonPropertyName("...")]`, or pass `serializerOptions` to `IngestAsync` (note: supplied options replace the library defaults, including enum-as-string and the Kusto `bool`/`DateOnly` handling).
+
+Rename a single property — everything else stays camelCase:
+
+```csharp
+public sealed record DeviceReading(
+    [property: JsonPropertyName("device_id")] string DeviceId,   // written as "device_id"
+    string SerialNumber,                                         // written as "serialNumber"
+    double Value,
+    DateTimeOffset Timestamp);
+```
+
+Change the naming for the whole call, e.g. for a table whose mapping uses snake_case paths (`$.serial_number`):
+
+```csharp
+var snakeCase = new JsonSerializerOptions
+{
+    PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower, // SerialNumber → "serial_number"
+    Converters = { new JsonStringEnumConverter() },         // re-add what you still need: these options replace the defaults
+};
+
+await ingestor.IngestAsync(readings, target, serializerOptions: snakeCase, cancellationToken: cancellationToken);
+```
+
+#### Ingesting a stream or a blob
+
+```csharp
+// A CSV file (or any seekable stream). The stream is not closed; data from its current position is ingested.
+await using var csv = File.OpenRead("readings.csv");
+var result = await ingestor.IngestAsync(
+    csv,
+    new KustoIngestTarget { TableName = "DeviceReadings", Format = KustoIngestFormat.Csv },
+    cancellationToken);
+
+// A blob the cluster reads itself — it must be readable by the cluster (SAS token or RBAC).
+// Compression is inferred, e.g. from a .gz extension.
+var blobResult = await ingestor.IngestFromBlobAsync(
+    new Uri("https://account.blob.core.windows.net/exports/readings.csv.gz?sv=...&sig=..."),
+    new KustoIngestTarget { TableName = "DeviceReadings", Format = KustoIngestFormat.Csv, Mode = IngestionMode.Queued },
+    cancellationToken);
+```
+
+Streams must be seekable so their size can be validated; copy a forward-only stream (e.g. a network stream) into a `MemoryStream` or temporary file first. CSV and TSV may omit `MappingReference` (columns are matched by position).
+
+#### `KustoIngestTarget`
+
+| Property           | Required | Description                                                                                     |
+| ------------------ | -------- | ----------------------------------------------------------------------------------------------- |
+| `TableName`        | yes      | Destination table.                                                                              |
+| `Format`           | yes      | `MultiJson`, `Json`, `Csv` or `Tsv`. In-memory rows require `MultiJson` or `Json`.              |
+| `MappingReference` | JSON     | Name of the table's ingestion mapping. Required for `Json`/`MultiJson`, optional for CSV/TSV.   |
+| `Mode`             | no       | Overrides `AtcKustoOptions.DefaultIngestionMode` (default `ManagedStreaming`).                  |
+| `ConnectionName`   | no       | Named connection; `null` uses the default connection.                                           |
+| `DatabaseName`     | no       | Overrides the connection's `DatabaseName`.                                                      |
+| `EnableTracking`   | no       | Request an operation handle (queued/managed only; rejected for pure `Streaming`).               |
+
+#### Tracking queued ingestion
+
+With `EnableTracking = true` (queued or managed-streaming only), `result.OperationHandle` contains a serialized operation handle that identifies the queued ingestion. Store it to check the ingestion's outcome later:
+
+```csharp
+var result = await ingestor.IngestAsync(
+    rows,
+    new KustoIngestTarget
+    {
+        TableName = "DeviceReadings",
+        Format = KustoIngestFormat.MultiJson,
+        MappingReference = "DeviceReadings_mapping",
+        Mode = IngestionMode.Queued,
+        EnableTracking = true,
+    },
+    cancellationToken: cancellationToken);
+
+logger.LogInformation("Queued ingestion {OperationId}, handle {OperationHandle}", result.OperationId, result.OperationHandle);
+```
+
+#### Retries and duplicates
+
+Kusto ingestion is **at-least-once**. A `Failed` result means the library did not get a confirmed answer — after a timeout or dropped connection the data **may still have been written**. If you retry failed ingestions, design for duplicates:
+
+- **Deduplicate on read** with a materialized view keyed on an id your rows carry — for example keep the latest version per key:
+
+  ```kusto
+  .create materialized-view with (backfill=true) LatestDeviceReadings on table DeviceReadings
+  {
+      DeviceReadings
+      | summarize arg_max(timestamp, *) by deviceId, serialNumber
+  }
+  ```
+
+- For **infrequent, queued** batch loads only, Kusto's `ingest-by:` extent tags with `ingestIfNotExists` can skip a batch that already landed. They aren't supported for streaming ingestion, and Microsoft warns that a unique tag per call hurts performance, so don't use them for frequent telemetry batches.
+
+The library itself does not retry ingestion on top of the SDK: the Ingest V2 SDK already retries transient failures, and a second retry layer would only add duplicates.
+
+#### Private endpoints: upload containers
+
+Queued and managed-streaming ingestion upload the payload to blob storage first. By default that is Kusto's own internal storage. For clusters behind a private endpoint, supply your own privately reachable containers:
+
+```csharp
+builder.Services.ConfigureAzureDataExplorer(options =>
+{
+    options.HostAddress = new Uri("https://mycluster.westeurope.kusto.windows.net");
+    options.DatabaseName = "Telemetry";
+    options.Credential = new DefaultAzureCredential();
+    options.IngestUploadContainers.Add(new Uri("https://myprivatestorage.blob.core.windows.net/kusto-ingest"));
+});
+```
+
+The connection's `Credential` is used for the containers too, so that identity needs **Storage Blob Data Contributor** on them. The credential is asked for a token the first time a client for that connection and mode is created; a credential failure there is reported as a `Failed` result.
+
+#### Dependencies
+
+Ingestion is built on the **Kusto Ingest V2 SDK** (`Microsoft.Azure.Kusto.Ingest.V2`), which is still a pre-1.0 preview. It is a dependency of the Atc.Kusto package, but no V2 type appears in Atc.Kusto's public API, so SDK changes stay internal to the library.
 
 ### Health Checks
 
