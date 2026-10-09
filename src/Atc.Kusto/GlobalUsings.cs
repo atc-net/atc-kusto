@@ -30,6 +30,7 @@ global using Kusto.Data.Net.Client;
 global using Kusto.Data.Results;
 global using Kusto.Ingest.V2;
 global using Microsoft.Extensions.DependencyInjection;
+global using Microsoft.Extensions.DependencyInjection.Extensions;
 global using Microsoft.Extensions.Diagnostics.HealthChecks;
 global using Microsoft.Extensions.Logging;
 global using Microsoft.Extensions.Logging.Abstractions;

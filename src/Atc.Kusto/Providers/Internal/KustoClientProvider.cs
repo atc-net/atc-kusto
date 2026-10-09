@@ -9,6 +9,8 @@ public sealed class KustoClientProvider : IDisposable, IKustoClientProvider, IKu
     private readonly IOptionsMonitor<AtcKustoOptions> monitor;
     private readonly IKustoIngestClientFactory ingestClientFactory;
 
+    private int disposed;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="KustoClientProvider"/> class.
     /// </summary>
@@ -131,8 +133,21 @@ public sealed class KustoClientProvider : IDisposable, IKustoClientProvider, IKu
                 $"Missing configuration for kusto connection: {clientCacheKey.ConnectionName}"),
         };
 
+    /// <summary>
+    /// Disposes every cached client. Safe to call more than once; only the first call has an effect.
+    /// </summary>
+    /// <remarks>
+    /// Idempotence matters because the instance is registered once and forwarded to both
+    /// <see cref="IKustoClientProvider"/> and <see cref="IKustoIngestClientProvider"/>; the DI container
+    /// tracks the instance per registration and may dispose it more than once on shutdown.
+    /// </remarks>
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref disposed, 1) == 1)
+        {
+            return;
+        }
+
         GC.SuppressFinalize(this);
 
         foreach (var adminClient in adminClients.Values)
