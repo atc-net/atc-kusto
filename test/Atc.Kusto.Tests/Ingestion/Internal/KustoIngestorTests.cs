@@ -356,6 +356,89 @@ public sealed class KustoIngestorTests
         (await act.Should().ThrowAsync<ArgumentException>()).Which.ParamName.Should().Be("blobUri");
     }
 
+    [Fact]
+    public async Task GetIngestionStatusAsync_Asks_The_Queued_Client_Of_The_Given_Connection()
+    {
+        // Arrange
+        var handle = TestOperationHandles.CreateHandle(IngestionMethod.Queued);
+        var expected = new KustoIngestionOperationResult { OperationId = "op-123", Status = KustoIngestionOperationStatus.InProgress };
+        client
+            .GetOperationStatusAsync(
+                operationHandle: null,
+                cancellationToken: CancellationToken.None)
+            .ReturnsForAnyArgs(expected);
+
+        // Act
+        var result = await sut.GetIngestionStatusAsync(handle, "Sales");
+
+        // Assert
+        result.Should().BeSameAs(expected);
+        provider.Received(1).GetIngestClient(IngestionMode.Queued, "Sales");
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("not a handle")]
+    public async Task GetIngestionStatusAsync_Rejects_An_Invalid_Handle_Without_Contacting_The_Cluster(
+        string handle)
+    {
+        // Act
+        var act = () => sut.GetIngestionStatusAsync(handle);
+
+        // Assert
+        await act.Should().ThrowAsync<ArgumentException>();
+        provider.DidNotReceiveWithAnyArgs().GetIngestClient(default);
+    }
+
+    [Fact]
+    public Task GetIngestionStatusAsync_Throws_When_The_Connection_Has_No_Credential()
+    {
+        // Arrange
+        options.Credential = null;
+
+        // Act
+        var act = () => sut.GetIngestionStatusAsync(TestOperationHandles.CreateHandle(IngestionMethod.Queued));
+
+        // Assert
+        return act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*HostAddress and Credential*");
+    }
+
+    [Fact]
+    public async Task GetIngestionStatusAsync_Throws_KustoIngestionException_When_The_Check_Fails()
+    {
+        // Arrange
+        var networkError = new HttpRequestException("cluster unreachable");
+
+        client
+            .GetOperationStatusAsync(
+                operationHandle: null,
+                cancellationToken: CancellationToken.None)
+            .ThrowsAsyncForAnyArgs(networkError);
+
+        // Act
+        var act = () => sut.GetIngestionStatusAsync(TestOperationHandles.CreateHandle(IngestionMethod.Queued));
+
+        // Assert
+        var exception = (await act.Should().ThrowAsync<KustoIngestionException>()).Which;
+        exception.InnerException.Should().BeSameAs(networkError);
+        exception.Message.Should().Contain("cluster unreachable");
+    }
+
+    [Fact]
+    public async Task GetIngestionStatusAsync_Throws_OperationCanceled_When_The_Caller_Cancelled()
+    {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        // Act
+        var act = () => sut.GetIngestionStatusAsync(TestOperationHandles.CreateHandle(IngestionMethod.Queued), cancellationToken: cts.Token);
+
+        // Assert
+        await act.Should().ThrowAsync<OperationCanceledException>();
+        provider.DidNotReceiveWithAnyArgs().GetIngestClient(default);
+    }
+
     private static KustoIngestTarget JsonTarget()
         => new()
         {

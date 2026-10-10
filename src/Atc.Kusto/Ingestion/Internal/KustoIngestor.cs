@@ -146,6 +146,46 @@ internal sealed partial class KustoIngestor : IKustoIngestor
             cancellationToken);
     }
 
+    /// <inheritdoc />
+    public async Task<KustoIngestionOperationResult> GetIngestionStatusAsync(
+        string operationHandle,
+        string? connectionName = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(operationHandle);
+        KustoIngestClient.ValidateOperationHandle(operationHandle);
+
+        var options = optionsMonitor.Get(connectionName);
+        KustoIngestTargetValidator.ValidateConnection(options, connectionName);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        try
+        {
+            // Operation status is served by the data-management service, which the queued client talks to.
+            var client = clientProvider.GetIngestClient(IngestionMode.Queued, connectionName);
+            return await client.GetOperationStatusAsync(operationHandle, cancellationToken);
+        }
+        catch (Exception ex) when (cancellationToken.IsCancellationRequested)
+        {
+            if (ex is OperationCanceledException)
+            {
+                throw;
+            }
+
+            throw new OperationCanceledException(
+                "The ingestion status check was canceled.",
+                ex,
+                cancellationToken);
+        }
+        catch (Exception ex) when (ex is not ArgumentException)
+        {
+            throw new KustoIngestionException(
+                $"The ingestion status could not be retrieved: {ex.GetLastInnerMessage()}",
+                ex);
+        }
+    }
+
     /// <summary>
     /// Resolves the effective mode and database and validates the request, before any payload work.
     /// </summary>

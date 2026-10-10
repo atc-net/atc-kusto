@@ -26,7 +26,7 @@ Without the required variables the sample prints these steps and exits.
 | - | -------- | ---------------- |
 | 1 | In-memory rows, default mode | `ManagedStreaming`: `Succeeded` when streamed, `Queued` if it fell back (e.g. streaming not enabled). |
 | 2 | `Streaming`, then read back | The rows are queryable immediately after the call returns. Fails if streaming isn't enabled on the cluster and table. |
-| 3 | `Queued` with `EnableTracking` | `Queued`, an `OperationId` and an `OperationHandle`. The rows appear after the batching delay (typically minutes). |
+| 3 | `Queued` with `EnableTracking` | `Queued`, an `OperationId` and an `OperationHandle`, then one `GetIngestionStatusAsync` check — normally still `InProgress`. The rows appear after the batching delay (typically minutes). |
 | 4 | CSV from a stream | No mapping needed (columns by position); the caller's stream is left open. |
 | 5 | Empty batch | `Skipped`, `IsSuccess = true`, the cluster isn't contacted. |
 | 6 | Mapping mismatch | PascalCase JSON against camelCase mapping paths: the ingestion **succeeds**, but the read-back shows `(empty)` columns. This is why property names must match the mapping. |

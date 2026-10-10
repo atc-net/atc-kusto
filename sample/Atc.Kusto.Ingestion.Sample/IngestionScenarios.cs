@@ -99,6 +99,21 @@ public sealed class IngestionScenarios
             result.Status,
             result.OperationId,
             result.OperationHandle);
+
+        if (result.OperationHandle is null)
+        {
+            return;
+        }
+
+        // Right after queuing the operation is normally still InProgress; a real caller polls until IsCompleted.
+        var status = await ingestor.GetIngestionStatusAsync(result.OperationHandle, cancellationToken: cancellationToken);
+        logger.LogInformation(
+            "Status check: {Status} (completed: {IsCompleted}), in progress {InProgress}, succeeded {Succeeded}, failed {Failed}",
+            status.Status,
+            status.IsCompleted,
+            status.InProgressCount,
+            status.SucceededCount,
+            status.FailedCount);
     }
 
     /// <summary>

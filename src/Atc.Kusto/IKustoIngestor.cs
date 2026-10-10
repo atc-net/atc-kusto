@@ -30,7 +30,7 @@ public interface IKustoIngestor
     /// <see cref="KustoIngestFormat.MultiJson"/>, so that the declared format matches the bytes produced.
     /// </para>
     /// <para>
-    /// By default property names are written in camelCase (<c>SerialNumber</c> → <c>"serialNumber"</c>).
+    /// By default, property names are written in camelCase (<c>SerialNumber</c> → <c>"serialNumber"</c>).
     /// The table's JSON ingestion mapping paths are case-sensitive and must match (<c>$.serialNumber</c>);
     /// a mismatch does not fail, the column is just left empty. Use <paramref name="serializerOptions"/>
     /// or <c>[JsonPropertyName]</c> to change names.
@@ -117,5 +117,38 @@ public interface IKustoIngestor
     Task<KustoIngestionResult> IngestFromBlobAsync(
         Uri blobUri,
         KustoIngestTarget target,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets the current state of a tracked ingestion.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Use the <see cref="KustoIngestionResult.OperationHandle"/> returned by an ingestion with
+    /// <see cref="KustoIngestTarget.EnableTracking"/> set. Queued data is processed in batches, so poll until
+    /// <see cref="KustoIngestionOperationResult.IsCompleted"/> is <see langword="true"/> — typically minutes,
+    /// depending on the table's batching policy. An ingestion that was streamed reports
+    /// <see cref="KustoIngestionOperationStatus.Succeeded"/> without contacting the cluster.
+    /// </para>
+    /// <para>
+    /// Unlike the ingest methods, a failure to <em>check</em> the status (for example the cluster is
+    /// unreachable) throws <see cref="KustoIngestionException"/>; the check only reads, so it is safe to retry.
+    /// The ingestion's own failure is reported as <see cref="KustoIngestionOperationStatus.Failed"/>.
+    /// </para>
+    /// </remarks>
+    /// <param name="operationHandle">The handle from <see cref="KustoIngestionResult.OperationHandle"/>.</param>
+    /// <param name="connectionName">
+    /// The named connection the ingestion was made on; <see langword="null"/> for the default connection. The
+    /// handle identifies database and table, not the cluster.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The operation's state, counts and any per-source errors.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="operationHandle"/> is empty or not a valid handle.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when the connection has no HostAddress or Credential.</exception>
+    /// <exception cref="KustoIngestionException">Thrown when the status could not be retrieved.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is cancelled.</exception>
+    Task<KustoIngestionOperationResult> GetIngestionStatusAsync(
+        string operationHandle,
+        string? connectionName = null,
         CancellationToken cancellationToken = default);
 }
