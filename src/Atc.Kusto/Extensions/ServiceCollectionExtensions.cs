@@ -161,10 +161,12 @@ public static class ServiceCollectionExtensions
             var logger = serviceProvider.GetRequiredService<ILogger<ResiliencePipeline>>();
             var retryStrategyOptions = new RetryStrategyOptions
             {
-                ShouldHandle = new PredicateBuilder()
-                    .Handle<KustoServicePartialQueryFailureException>()
-                    .Handle<KustoServiceException>()
-                    .Handle<Exception>(ex => !CancellationExceptionUtilities.IsCancellationException(ex)),
+                // Retry only failures that can succeed on a later attempt, and never once the caller
+                // has cancelled: the SDK often reports that as a Kusto exception, not as cancellation.
+                ShouldHandle = args => ValueTask.FromResult(
+                    !args.Context.CancellationToken.IsCancellationRequested &&
+                    args.Outcome.Exception is { } exception &&
+                    KustoTransientErrors.IsTransient(exception)),
                 BackoffType = DelayBackoffType.Exponential,
                 MaxRetryAttempts = MaxRetryAttempts,
                 Delay = TimeSpan.FromSeconds(3),

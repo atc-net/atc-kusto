@@ -5,6 +5,8 @@ global using System.Data.SqlTypes;
 global using System.Diagnostics;
 global using System.Diagnostics.CodeAnalysis;
 global using System.Globalization;
+global using System.Net;
+global using System.Net.Sockets;
 global using System.Reflection;
 global using System.Runtime.CompilerServices;
 global using System.Text.Json;

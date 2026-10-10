@@ -59,6 +59,7 @@ The library provides a streamlined interface for handling Kusto operations, maki
       - [Health Check Statuses](#health-check-statuses)
       - [Using Health Check Programmatically](#using-health-check-programmatically)
   - [Sample](#sample)
+  - [Retries](#retries)
   - [Cancellation](#cancellation)
     - [Configuration](#configuration)
     - [Performance Implications](#performance-implications)
@@ -1079,6 +1080,22 @@ For more details, check the [health check sample](./sample/Atc.Kusto.HealthCheck
 See the [sample api](./sample/Atc.Kusto.Api.Sample/) for an example on how to configure the Atc.Kusto library. Also see the [sample console application](./sample/Atc.Kusto.Sample/) for an example of utilizing the library directly without being wrapped in an API.
 
 Both samples are querying the "ContosoSales" database of the Microsoft ADX sample cluster.
+
+## Retries
+
+Queries (`ExecuteQuery`, and the follow-up pages of `ExecutePagedQuery`) are retried automatically: up to **3 retries**, waiting 3, 6 and 12 seconds. Each retry is logged as a warning.
+
+Only failures that can succeed on a later attempt are retried:
+
+| Retried | Not retried |
+|---|---|
+| Throttling, service timeouts, service unavailable, connection and network failures | Syntax and semantic errors (e.g. a misspelled column), database or table not found, access denied by the cluster |
+| Sign-in failures (getting a token), e.g. a managed identity that is not ready yet right after a deploy | Errors in your own code, such as a result that cannot be mapped to your type |
+| Any other Kusto error the SDK marks as transient (`KustoException.IsPermanent == false`) | Anything after **your** `CancellationToken` was cancelled |
+
+Sign-in failures are always retried because a temporary one cannot be told apart from a misconfigured credential, so a wrong credential still takes ~20 seconds to fail.
+
+So a broken query fails at once instead of after ~20 seconds of retries. Commands, streaming queries and ingestion are not retried by Atc.Kusto (the ingestion SDK retries on its own).
 
 ## Cancellation
 

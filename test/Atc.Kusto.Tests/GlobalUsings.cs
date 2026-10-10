@@ -5,6 +5,7 @@ global using System.Data.Common;
 global using System.Data.SqlTypes;
 global using System.Diagnostics.CodeAnalysis;
 global using System.Globalization;
+global using System.Net;
 global using System.Text;
 global using System.Text.Json;
 global using Atc.Kusto.Extensions;
