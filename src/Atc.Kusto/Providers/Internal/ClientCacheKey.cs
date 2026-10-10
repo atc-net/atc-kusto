@@ -1,5 +1,5 @@
 namespace Atc.Kusto.Providers.Internal;
 
-internal record ClientCacheKey(
+internal readonly record struct ClientCacheKey(
     string? ConnectionName,
     string? DatabaseName);
