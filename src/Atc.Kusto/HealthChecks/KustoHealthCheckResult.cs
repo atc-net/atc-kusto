@@ -9,7 +9,7 @@ public class KustoHealthCheckResult
     /// Gets a value indicating whether the cluster is healthy.
     /// </summary>
     /// <value>
-    /// <c>true</c> if the cluster is healthy; otherwise, <c>false</c>.
+    /// <see langword="true"/> if the cluster is healthy; otherwise, <see langword="false"/>.
     /// </value>
     public bool IsHealthy { get; }
 
@@ -17,7 +17,7 @@ public class KustoHealthCheckResult
     /// Gets the reason why the cluster is not healthy, if applicable.
     /// </summary>
     /// <value>
-    /// A string describing why the cluster is not healthy, or <c>null</c> if the cluster is healthy.
+    /// A string describing why the cluster is not healthy, or <see langword="null"/> if the cluster is healthy.
     /// </value>
     public string? NotHealthyReason { get; }
 
@@ -25,7 +25,7 @@ public class KustoHealthCheckResult
     /// Gets a value indicating whether the cluster requires attention.
     /// </summary>
     /// <value>
-    /// <c>true</c> if the cluster requires attention; otherwise, <c>false</c>.
+    /// <see langword="true"/> if the cluster requires attention; otherwise, <see langword="false"/>.
     /// </value>
     public bool IsAttentionRequired { get; }
 
@@ -33,7 +33,7 @@ public class KustoHealthCheckResult
     /// Gets the reason why the cluster requires attention, if applicable.
     /// </summary>
     /// <value>
-    /// A string describing why the cluster requires attention, or <c>null</c> if the cluster does not require attention.
+    /// A string describing why the cluster requires attention, or <see langword="null"/> if the cluster does not require attention.
     /// </value>
     public string? AttentionRequiredReason { get; }
 
@@ -41,7 +41,7 @@ public class KustoHealthCheckResult
     /// Gets a value indicating whether it is recommended to scale out the cluster.
     /// </summary>
     /// <value>
-    /// <c>true</c> if scaling out is recommended; otherwise, <c>false</c>.
+    /// <see langword="true"/> if scaling out is recommended; otherwise, <see langword="false"/>.
     /// </value>
     public bool IsScaleOutRequired { get; }
 
