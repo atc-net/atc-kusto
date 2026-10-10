@@ -78,6 +78,10 @@ public sealed partial class KustoClusterDiagnosticsHealthCheck : IKustoClusterDi
 
             return result;
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             stopwatch.Stop();
