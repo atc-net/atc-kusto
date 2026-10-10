@@ -110,28 +110,44 @@ public sealed class KustoClientProvider : IDisposable, IKustoClientProvider, IKu
         => KustoClientFactory.CreateCslAdminProvider(
             GetConnectionString(clientCacheKey));
 
+    /// <summary>
+    /// Builds the connection string for a query or admin client.
+    /// </summary>
+    /// <remarks>
+    /// The database is the per-call <see cref="ClientCacheKey.DatabaseName"/> when given, otherwise
+    /// <see cref="AtcKustoOptions.DatabaseName"/>. A <see cref="AtcKustoOptions.HostAddress"/> needs one of
+    /// them; a <see cref="AtcKustoOptions.ConnectionString"/> keeps its own database (or the SDK default)
+    /// when neither is set.
+    /// </remarks>
     private KustoConnectionStringBuilder GetConnectionString(
         ClientCacheKey clientCacheKey)
-        => monitor.Get(clientCacheKey.ConnectionName) switch
+    {
+        var options = monitor.Get(clientCacheKey.ConnectionName);
+        var databaseName = clientCacheKey.DatabaseName ?? options.DatabaseName;
+
+        var builder = options switch
         {
-            { HostAddress: { } host, DatabaseName: { } db, Credential: { } cred } =>
-                new KustoConnectionStringBuilder(host.AbsoluteUri, clientCacheKey.DatabaseName ?? db)
-                    .WithAadAzureTokenCredentialsAuthentication(cred),
-            { HostAddress: { } host, DatabaseName: { } db } =>
-                new KustoConnectionStringBuilder(host.AbsoluteUri, clientCacheKey.DatabaseName ?? db),
-            { ConnectionString: { } cs, DatabaseName: { } db, Credential: { } cred }
-                => new KustoConnectionStringBuilder($"{cs};Database={db}")
-                    .WithAadAzureTokenCredentialsAuthentication(cred),
-            { ConnectionString: { } cs, DatabaseName: { } db }
-                => new KustoConnectionStringBuilder($"{cs};Database={db}"),
-            { ConnectionString: { } cs, Credential: { } cred }
-                => new KustoConnectionStringBuilder(cs)
-                    .WithAadAzureTokenCredentialsAuthentication(cred),
+            { HostAddress: { } host } when databaseName is not null
+                => new KustoConnectionStringBuilder(host.AbsoluteUri, databaseName),
             { ConnectionString: { } cs }
                 => new KustoConnectionStringBuilder(cs),
+            { HostAddress: not null }
+                => throw new InvalidOperationException(
+                    $"No database configured for kusto connection: {clientCacheKey.ConnectionName}. " +
+                    "Set AtcKustoOptions.DatabaseName or pass a database name."),
             _ => throw new InvalidOperationException(
                 $"Missing configuration for kusto connection: {clientCacheKey.ConnectionName}"),
         };
+
+        if (databaseName is not null)
+        {
+            builder.InitialCatalog = databaseName;
+        }
+
+        return options.Credential is { } credential
+            ? builder.WithAadAzureTokenCredentialsAuthentication(credential)
+            : builder;
+    }
 
     /// <summary>
     /// Disposes every cached client. Safe to call more than once; only the first call has an effect.
