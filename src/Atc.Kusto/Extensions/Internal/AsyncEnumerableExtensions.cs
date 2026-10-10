@@ -33,6 +33,11 @@ internal static class AsyncEnumerableExtensions
     /// <summary>
     /// Wraps an async enumerable to normalize cancellation exceptions to standard OperationCanceledException.
     /// </summary>
+    /// <remarks>
+    /// Covers acquiring the enumerator, every <c>MoveNextAsync</c> and disposing the enumerator. A failure
+    /// is translated when it is an <see cref="OperationCanceledException"/>, or any exception once
+    /// <paramref name="cancellationToken"/> is cancelled; other failures pass through unchanged.
+    /// </remarks>
     /// <typeparam name="T">The type of elements in the sequence.</typeparam>
     /// <param name="source">The source async enumerable.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
@@ -49,20 +54,28 @@ internal static class AsyncEnumerableExtensions
         IAsyncEnumerable<T> source,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        IAsyncEnumerator<T>? enumerator = null;
+        IAsyncEnumerator<T> enumerator;
 
         try
         {
             enumerator = source.GetAsyncEnumerator(cancellationToken);
+        }
+        catch (Exception ex) when (CancellationExceptionUtilities.IsCancellation(ex, cancellationToken))
+        {
+            throw CancellationExceptionUtilities.NormalizeCancellationException(ex, cancellationToken);
+        }
 
+        try
+        {
             while (true)
             {
                 bool hasNext;
+
                 try
                 {
                     hasNext = await enumerator.MoveNextAsync().ConfigureAwait(false);
                 }
-                catch (Exception ex) when (CancellationExceptionUtilities.IsCancellationException(ex))
+                catch (Exception ex) when (CancellationExceptionUtilities.IsCancellation(ex, cancellationToken))
                 {
                     throw CancellationExceptionUtilities.NormalizeCancellationException(ex, cancellationToken);
                 }
@@ -77,10 +90,21 @@ internal static class AsyncEnumerableExtensions
         }
         finally
         {
-            if (enumerator is not null)
-            {
-                await enumerator.DisposeAsync().ConfigureAwait(false);
-            }
+            await DisposeEnumerator(enumerator, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private static async ValueTask DisposeEnumerator<T>(
+        IAsyncEnumerator<T> enumerator,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await enumerator.DisposeAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex) when (CancellationExceptionUtilities.IsCancellation(ex, cancellationToken))
+        {
+            throw CancellationExceptionUtilities.NormalizeCancellationException(ex, cancellationToken);
         }
     }
 }

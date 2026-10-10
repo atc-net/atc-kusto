@@ -191,7 +191,7 @@ internal sealed partial class BufferedStreamingQueryHandler<T> : IScriptHandler<
 
             activity?.SetStatus(ActivityStatusCode.Ok);
         }
-        catch (Exception ex) when (CancellationExceptionUtilities.IsCancellationException(ex))
+        catch (Exception ex) when (CancellationExceptionUtilities.IsCancellation(ex, cancellationToken))
         {
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
             throw CancellationExceptionUtilities.NormalizeCancellationException(ex, cancellationToken);

@@ -137,4 +137,49 @@ public sealed class NewPagedStoredQueryHandlerTests
                  """.Replace("\r\n", "\n", StringComparison.Ordinal),
                 Arg.Is<ClientRequestProperties>(p => p.ClientRequestId != null));
     }
+
+    [Fact]
+    public async Task Execute_Does_Not_Create_The_Stored_Result_When_Already_Cancelled()
+    {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        // Act
+        var act = () => sut.Execute(cts.Token);
+
+        // Assert
+        await act.Should().ThrowAsync<OperationCanceledException>();
+
+        await adminProvider
+            .DidNotReceive()
+            .ExecuteControlCommandAsync(
+                Arg.Any<string?>(),
+                Arg.Any<string>(),
+                Arg.Any<ClientRequestProperties>());
+    }
+
+    [Theory]
+    [MemberData(nameof(CancellationTestData.SdkCancellationErrors), MemberType = typeof(CancellationTestData))]
+    public async Task Execute_Throws_OperationCanceledException_When_The_Sdk_Fails_After_The_Caller_Cancelled(
+        Exception sdkError)
+    {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+
+        adminProvider
+            .ExecuteControlCommandAsync(
+                Arg.Any<string?>(),
+                Arg.Any<string>(),
+                Arg.Any<ClientRequestProperties>())
+            .Returns(_ => CancellationTestData.CancelThenThrow<IDataReader>(cts.CancelAsync, sdkError));
+
+        // Act
+        var act = () => sut.Execute(cts.Token);
+
+        // Assert
+        var thrown = await act.Should().ThrowAsync<OperationCanceledException>();
+        thrown.Which.InnerException.Should().BeSameAs(sdkError);
+        thrown.Which.CancellationToken.Should().Be(cts.Token);
+    }
 }

@@ -22,9 +22,25 @@ internal sealed class NewPagedStoredQueryHandler<T> : IScriptHandler<PagedResult
         this.pageSize = pageSize;
     }
 
+    /// <summary>
+    /// Creates the stored query result and returns its first page.
+    /// </summary>
+    /// <remarks>
+    /// The stored result is created with a control command, which the Kusto SDK cannot cancel, so
+    /// <paramref name="cancellationToken"/> is checked before the command is sent, and a command that
+    /// has started always runs to completion.
+    /// </remarks>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>The first page, or <see langword="null"/> when the query returns no result.</returns>
+    /// <exception cref="OperationCanceledException">
+    /// Thrown when <paramref name="cancellationToken"/> is cancelled before the command is sent, or the
+    /// command fails while it is cancelled.
+    /// </exception>
     public async Task<PagedResult<T>?> Execute(
         CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var queryId = queryIdProvider.Create(
             query.GetType(),
             sessionId);
@@ -33,11 +49,7 @@ internal sealed class NewPagedStoredQueryHandler<T> : IScriptHandler<PagedResult
         const string footer = "| serialize row_number = row_number()";
         var queryText = $"{header}\n{query.GetQueryText().Trim(' ', '\n', '\t', ';')}\n{footer}";
 
-        using var reader = await adminProvider
-            .ExecuteControlCommandAsync(
-                databaseName: null,
-                queryText,
-                query.GetClientRequestProperties());
+        using var reader = await ExecuteControlCommand(queryText, cancellationToken);
 
         var items = query.ReadResult(reader);
         if (items is null)
@@ -50,5 +62,23 @@ internal sealed class NewPagedStoredQueryHandler<T> : IScriptHandler<PagedResult
             : $"{queryId};{items.Count}";
 
         return new PagedResult<T>(items, continuationToken);
+    }
+
+    private async Task<IDataReader> ExecuteControlCommand(
+        string queryText,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await adminProvider
+                .ExecuteControlCommandAsync(
+                    databaseName: null,
+                    queryText,
+                    query.GetClientRequestProperties());
+        }
+        catch (Exception ex) when (CancellationExceptionUtilities.IsCancellation(ex, cancellationToken))
+        {
+            throw CancellationExceptionUtilities.NormalizeCancellationException(ex, cancellationToken);
+        }
     }
 }
