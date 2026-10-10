@@ -19,11 +19,12 @@ public sealed class BufferedStreamingQueryHandlerTests
             new AtcStreamingQueryOptions { OptionalFrames = FrameHeaders.All, EnableServerSideCancellation = false });
     }
 
-    [Fact]
-    public async Task Execute_ShouldIssueCancelCommand_WhenTokenCanceled()
+    [Theory, AutoNSubstituteData]
+    public async Task Execute_ShouldIssueCancelCommand_WhenTokenCanceled(
+        ICslAdminProvider adminProvider,
+        IDataReader cancelReader)
     {
         // Arrange
-        var adminProvider = Substitute.For<ICslAdminProvider>();
         var logger = new NullLogger<BufferedStreamingQueryHandler<string>>();
         var options = new AtcStreamingQueryOptions { OptionalFrames = FrameHeaders.All, EnableServerSideCancellation = true };
 
@@ -34,7 +35,6 @@ public sealed class BufferedStreamingQueryHandlerTests
 
         // The cancel command is sent from a background task; signal when it arrives instead of sleeping.
         var cancelCommandSent = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var cancelReader = Substitute.For<IDataReader>();
 
         adminProvider
             .ExecuteControlCommandAsync(
@@ -98,11 +98,11 @@ public sealed class BufferedStreamingQueryHandlerTests
         cancelCommand.Should().Contain(capturedProps.ClientRequestId);
     }
 
-    [Fact]
-    public async Task Execute_ShouldNotIssueCancelCommand_WhenServerSideCancelDisabled()
+    [Theory, AutoNSubstituteData]
+    public async Task Execute_ShouldNotIssueCancelCommand_WhenServerSideCancelDisabled(
+        ICslAdminProvider adminProvider)
     {
         // Arrange
-        var adminProvider = Substitute.For<ICslAdminProvider>();
         var logger = new NullLogger<BufferedStreamingQueryHandler<string>>();
         var options = new AtcStreamingQueryOptions { EnableServerSideCancellation = false };
 

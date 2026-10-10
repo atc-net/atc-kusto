@@ -77,9 +77,7 @@ public sealed class ResiliencePipelineTests
         var services = new ServiceCollection();
         services.AddLogging();
         services.ConfigureAzureDataExplorer(
-            new Uri("https://example.kusto.windows.net"),
-            "Db",
-            Substitute.For<Azure.Core.TokenCredential>());
+            options => options.ConnectionString = "Data Source=https://example.kusto.windows.net");
 
         return services
             .BuildServiceProvider()

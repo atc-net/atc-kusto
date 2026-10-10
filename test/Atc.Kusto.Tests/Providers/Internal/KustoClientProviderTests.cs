@@ -447,22 +447,22 @@ public sealed class KustoClientProviderTests
     }
 
     [Theory]
-    [InlineData(true, true)]
-    [InlineData(true, false)]
-    [InlineData(false, true)]
-    [InlineData(false, false)]
-    public void GetClient_With_ConnectionString_Uses_Database_Passed_Per_Call(
+    [InlineAutoNSubstituteData(true, true)]
+    [InlineAutoNSubstituteData(true, false)]
+    [InlineAutoNSubstituteData(false, true)]
+    [InlineAutoNSubstituteData(false, false)]
+    internal void GetClient_With_ConnectionString_Uses_Database_Passed_Per_Call(
         bool optionsHasDatabase,
-        bool admin)
+        bool admin,
+        [Frozen] IOptionsMonitor<AtcKustoOptions> monitor,
+        KustoClientProvider sut)
     {
         // Arrange
-        var monitor = Substitute.For<IOptionsMonitor<AtcKustoOptions>>();
         monitor.Get(null).Returns(new AtcKustoOptions
         {
             ConnectionString = $"https://{Guid.NewGuid():N}.kusto.windows.net",
             DatabaseName = optionsHasDatabase ? "OptionsDatabase" : null,
         });
-        using var sut = new KustoClientProvider(monitor);
 
         // Act
         var defaultDatabaseName = admin

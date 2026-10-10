@@ -4,12 +4,13 @@ public sealed class ServiceCollectionExtensionsTests
 {
     private static readonly Uri HostAddress = new("https://example.kusto.windows.net");
 
-    [Fact]
-    public void IKustoIngestor_Is_Resolvable_Without_A_Separate_Opt_In()
+    [Theory, AutoNSubstituteData]
+    public void IKustoIngestor_Is_Resolvable_Without_A_Separate_Opt_In(
+        Azure.Core.TokenCredential credential)
     {
         // Arrange
         var services = new ServiceCollection();
-        services.ConfigureAzureDataExplorer(HostAddress, "Db", Substitute.For<Azure.Core.TokenCredential>());
+        services.ConfigureAzureDataExplorer(HostAddress, "Db", credential);
 
         // Act
         using var provider = services.BuildServiceProvider();
@@ -18,12 +19,13 @@ public sealed class ServiceCollectionExtensionsTests
         provider.GetService<IKustoIngestor>().Should().NotBeNull();
     }
 
-    [Fact]
-    public void Query_And_Ingest_Provider_Interfaces_Share_One_Instance()
+    [Theory, AutoNSubstituteData]
+    public void Query_And_Ingest_Provider_Interfaces_Share_One_Instance(
+        Azure.Core.TokenCredential credential)
     {
         // Arrange
         var services = new ServiceCollection();
-        services.ConfigureAzureDataExplorer(HostAddress, "Db", Substitute.For<Azure.Core.TokenCredential>());
+        services.ConfigureAzureDataExplorer(HostAddress, "Db", credential);
 
         // Act
         using var provider = services.BuildServiceProvider();
@@ -34,12 +36,12 @@ public sealed class ServiceCollectionExtensionsTests
         queryProvider.Should().BeSameAs(ingestProvider);
     }
 
-    [Fact]
-    public void Configuring_Several_Connections_Registers_Shared_Services_Once()
+    [Theory, AutoNSubstituteData]
+    public void Configuring_Several_Connections_Registers_Shared_Services_Once(
+        Azure.Core.TokenCredential credential)
     {
         // Arrange
         var services = new ServiceCollection();
-        var credential = Substitute.For<Azure.Core.TokenCredential>();
 
         // Act
         services.ConfigureAzureDataExplorer(HostAddress, "Db", credential);
@@ -55,16 +57,17 @@ public sealed class ServiceCollectionExtensionsTests
         services.Count(d => d.ServiceType == typeof(ResiliencePipeline)).Should().Be(1);
     }
 
-    [Fact]
-    public void A_Service_Registered_By_The_Consumer_Beforehand_Is_Kept()
+    [Theory, AutoNSubstituteData]
+    public void A_Service_Registered_By_The_Consumer_Beforehand_Is_Kept(
+        IKustoIngestor customIngestor,
+        Azure.Core.TokenCredential credential)
     {
         // Arrange
         var services = new ServiceCollection();
-        var customIngestor = Substitute.For<IKustoIngestor>();
         services.AddSingleton(customIngestor);
 
         // Act
-        services.ConfigureAzureDataExplorer(HostAddress, "Db", Substitute.For<Azure.Core.TokenCredential>());
+        services.ConfigureAzureDataExplorer(HostAddress, "Db", credential);
         using var provider = services.BuildServiceProvider();
 
         // Assert
@@ -72,13 +75,13 @@ public sealed class ServiceCollectionExtensionsTests
     }
 
     [Theory]
-    [InlineData(null)]
-    [InlineData("Sales")]
+    [InlineAutoNSubstituteData(null)]
+    [InlineAutoNSubstituteData("Sales")]
     public void Options_Instance_Overload_Copies_Every_Setting(
-        string? configurationName)
+        string? configurationName,
+        Azure.Core.TokenCredential credential)
     {
         // Arrange
-        var credential = Substitute.For<Azure.Core.TokenCredential>();
         var container = new Uri("https://account.blob.core.windows.net/ingest");
         var options = new AtcKustoOptions
         {

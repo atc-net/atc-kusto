@@ -20,11 +20,12 @@ public sealed class SimpleQueryHandlerTests
             new AtcQueryOptions { EnableServerSideCancellation = false });
     }
 
-    [Fact]
-    internal async Task Execute_ShouldIssueCancelCommand_WhenTokenCanceled()
+    [Theory, AutoNSubstituteData]
+    internal async Task Execute_ShouldIssueCancelCommand_WhenTokenCanceled(
+        ICslAdminProvider adminProvider,
+        IDataReader cancelReader)
     {
         // Arrange
-        var adminProvider = Substitute.For<ICslAdminProvider>();
         var logger = new NullLogger<SimpleQueryHandler<string>>();
         var options = new AtcQueryOptions { EnableServerSideCancellation = true };
 
@@ -34,7 +35,6 @@ public sealed class SimpleQueryHandlerTests
 
         // The cancel command is sent from a background task; signal when it arrives instead of sleeping.
         var cancelCommandSent = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var cancelReader = Substitute.For<IDataReader>();
 
         adminProvider
             .ExecuteControlCommandAsync(
@@ -93,11 +93,11 @@ public sealed class SimpleQueryHandlerTests
         cancelCommand.Should().Contain(capturedProps.ClientRequestId);
     }
 
-    [Fact]
-    internal async Task Execute_ShouldNotIssueCancelCommand_WhenServerSideCancelDisabled()
+    [Theory, AutoNSubstituteData]
+    internal async Task Execute_ShouldNotIssueCancelCommand_WhenServerSideCancelDisabled(
+        ICslAdminProvider adminProvider)
     {
         // Arrange
-        var adminProvider = Substitute.For<ICslAdminProvider>();
         var logger = new NullLogger<SimpleQueryHandler<string>>();
         var options = new AtcQueryOptions { EnableServerSideCancellation = false };
 

@@ -161,13 +161,14 @@ public sealed class KustoIngestTargetValidatorTests
         act.Should().Throw<InvalidOperationException>().WithMessage("*(default)*");
     }
 
-    [Fact]
-    public void ValidateConnection_Allows_HostAddress_And_Credential()
+    [Theory, AutoNSubstituteData]
+    public void ValidateConnection_Allows_HostAddress_And_Credential(
+        Azure.Core.TokenCredential credential)
     {
         var options = new AtcKustoOptions
         {
             HostAddress = new Uri("https://example.kusto.windows.net"),
-            Credential = Substitute.For<Azure.Core.TokenCredential>(),
+            Credential = credential,
         };
 
         var act = () => KustoIngestTargetValidator.ValidateConnection(options, connectionName: null);

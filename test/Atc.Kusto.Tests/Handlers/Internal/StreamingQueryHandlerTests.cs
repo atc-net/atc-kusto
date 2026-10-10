@@ -18,11 +18,12 @@ public sealed class StreamingQueryHandlerTests
             new AtcStreamingQueryOptions { OptionalFrames = FrameHeaders.All, EnableServerSideCancellation = false });
     }
 
-    [Fact]
-    public async Task Execute_ShouldIssueCancelCommand_WhenTokenCanceled()
+    [Theory, AutoNSubstituteData]
+    public async Task Execute_ShouldIssueCancelCommand_WhenTokenCanceled(
+        ICslAdminProvider adminProvider,
+        IDataReader cancelReader)
     {
         // Arrange
-        var adminProvider = Substitute.For<ICslAdminProvider>();
         var logger = new NullLogger<StreamingQueryHandler<string>>();
         var options = new AtcStreamingQueryOptions { OptionalFrames = FrameHeaders.All, EnableServerSideCancellation = true };
 
@@ -33,7 +34,6 @@ public sealed class StreamingQueryHandlerTests
 
         // The cancel command is sent from a background task; signal when it arrives instead of sleeping.
         var cancelCommandSent = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var cancelReader = Substitute.For<IDataReader>();
 
         adminProvider
             .ExecuteControlCommandAsync(
