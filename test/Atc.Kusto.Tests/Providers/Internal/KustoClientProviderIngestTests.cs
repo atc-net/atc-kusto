@@ -128,6 +128,7 @@ public sealed class KustoClientProviderIngestTests
     internal void GetIngestClient_Creates_One_Client_When_Called_Concurrently(
         IOptionsMonitor<AtcKustoOptions> monitor,
         IKustoIngestClientFactory factory,
+        IKustoDataClientFactory dataClientFactory,
         AtcKustoOptions options)
     {
         // Arrange
@@ -150,7 +151,7 @@ public sealed class KustoClientProviderIngestTests
                 return Substitute.For<IKustoIngestClient>();
             });
 
-        using var sut = new KustoClientProvider(monitor, factory);
+        using var sut = new KustoClientProvider(monitor, factory, dataClientFactory);
         var provider = (IKustoIngestClientProvider)sut;
 
         var clients = new IKustoIngestClient[8];
@@ -178,12 +179,13 @@ public sealed class KustoClientProviderIngestTests
     internal void GetIngestClient_Does_Not_Cache_A_Failed_Creation(
         IOptionsMonitor<AtcKustoOptions> monitor,
         IKustoIngestClientFactory factory,
+        IKustoDataClientFactory dataClientFactory,
         AtcKustoOptions options,
         Azure.Core.TokenCredential credential)
     {
         // Arrange
         monitor.Get(null).Returns(options);
-        using var sut = new KustoClientProvider(monitor, factory);
+        using var sut = new KustoClientProvider(monitor, factory, dataClientFactory);
         var provider = (IKustoIngestClientProvider)sut;
 
         var failingCall = () => provider.GetIngestClient(IngestionMode.Streaming);
@@ -209,6 +211,7 @@ public sealed class KustoClientProviderIngestTests
     internal void Dispose_Disposes_Created_Ingest_Clients(
         IOptionsMonitor<AtcKustoOptions> monitor,
         IKustoIngestClientFactory factory,
+        IKustoDataClientFactory dataClientFactory,
         AtcKustoOptions options)
     {
         // Arrange
@@ -221,7 +224,7 @@ public sealed class KustoClientProviderIngestTests
                 mode: default)
             .ReturnsForAnyArgs(_ => Substitute.For<IKustoIngestClient>());
 
-        var sut = new KustoClientProvider(monitor, factory);
+        var sut = new KustoClientProvider(monitor, factory, dataClientFactory);
         var provider = (IKustoIngestClientProvider)sut;
         var streaming = provider.GetIngestClient(IngestionMode.Streaming);
         var queued = provider.GetIngestClient(IngestionMode.Queued);
@@ -238,6 +241,7 @@ public sealed class KustoClientProviderIngestTests
     internal void Dispose_Called_Multiple_Times_Disposes_Cached_Clients_Only_Once(
         IOptionsMonitor<AtcKustoOptions> monitor,
         IKustoIngestClientFactory factory,
+        IKustoDataClientFactory dataClientFactory,
         AtcKustoOptions options)
     {
         // Arrange
@@ -250,7 +254,7 @@ public sealed class KustoClientProviderIngestTests
                 mode: default)
             .ReturnsForAnyArgs(_ => Substitute.For<IKustoIngestClient>());
 
-        var sut = new KustoClientProvider(monitor, factory);
+        var sut = new KustoClientProvider(monitor, factory, dataClientFactory);
         var client = ((IKustoIngestClientProvider)sut).GetIngestClient(IngestionMode.Queued);
 
         // Act

@@ -2,12 +2,13 @@ namespace Atc.Kusto.Providers.Internal;
 
 public sealed class KustoClientProvider : IDisposable, IKustoClientProvider, IKustoIngestClientProvider
 {
-    private readonly ConcurrentDictionary<ClientCacheKey, ICslQueryProvider> queryClients = new();
-    private readonly ConcurrentDictionary<ClientCacheKey, ICslAdminProvider> adminClients = new();
+    private readonly ConcurrentDictionary<ClientCacheKey, Lazy<ICslQueryProvider>> queryClients = new();
+    private readonly ConcurrentDictionary<ClientCacheKey, Lazy<ICslAdminProvider>> adminClients = new();
     private readonly ConcurrentDictionary<IngestClientCacheKey, Lazy<IKustoIngestClient>> ingestClients = new();
 
     private readonly IOptionsMonitor<AtcKustoOptions> monitor;
     private readonly IKustoIngestClientFactory ingestClientFactory;
+    private readonly IKustoDataClientFactory dataClientFactory;
 
     private int disposed;
 
@@ -16,33 +17,37 @@ public sealed class KustoClientProvider : IDisposable, IKustoClientProvider, IKu
     /// </summary>
     /// <param name="monitor">The options monitor resolving <see cref="AtcKustoOptions"/> per named connection.</param>
     public KustoClientProvider(IOptionsMonitor<AtcKustoOptions> monitor)
-        : this(monitor, new KustoIngestClientFactory())
+        : this(monitor, new KustoIngestClientFactory(), new KustoDataClientFactory())
     {
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="KustoClientProvider"/> class with a custom
-    /// ingest-client factory.
+    /// Initializes a new instance of the <see cref="KustoClientProvider"/> class with custom
+    /// client factories.
     /// </summary>
     /// <remarks>
-    /// Internal because <see cref="IKustoIngestClientFactory"/> is internal; used by tests to observe
-    /// client creation. Dependency injection uses the public constructor.
+    /// Internal because the factory interfaces are internal; used by tests to observe client creation.
+    /// Dependency injection uses the public constructor.
     /// </remarks>
     /// <param name="monitor">The options monitor resolving <see cref="AtcKustoOptions"/> per named connection.</param>
     /// <param name="ingestClientFactory">The factory that creates ingest clients.</param>
+    /// <param name="dataClientFactory">The factory that creates query and admin clients.</param>
     internal KustoClientProvider(
         IOptionsMonitor<AtcKustoOptions> monitor,
-        IKustoIngestClientFactory ingestClientFactory)
+        IKustoIngestClientFactory ingestClientFactory,
+        IKustoDataClientFactory dataClientFactory)
     {
         this.monitor = monitor;
         this.ingestClientFactory = ingestClientFactory;
+        this.dataClientFactory = dataClientFactory;
     }
 
     /// <inheritdoc />
     public ICslQueryProvider GetQueryClient(
         string? connectionName = null,
         string? databaseName = null)
-        => queryClients.GetOrAdd(
+        => GetOrCreate(
+            queryClients,
             new ClientCacheKey(connectionName, databaseName),
             CreateQueryClient);
 
@@ -50,33 +55,52 @@ public sealed class KustoClientProvider : IDisposable, IKustoClientProvider, IKu
     public ICslAdminProvider GetAdminClient(
         string? connectionName = null,
         string? databaseName = null)
-        => adminClients.GetOrAdd(
+        => GetOrCreate(
+            adminClients,
             new ClientCacheKey(connectionName, databaseName),
             CreateAdminClient);
 
     /// <inheritdoc />
     /// <remarks>
-    /// <para>
     /// Implemented explicitly because <see cref="IKustoIngestClient"/> is internal and this class
     /// is public, so the member cannot be exposed publicly.
-    /// </para>
-    /// <para>
-    /// The cache holds <see cref="Lazy{T}"/> values because <c>GetOrAdd</c> may run its value factory
-    /// more than once under contention; a discarded ingest client would never be disposed. A failed
-    /// creation is evicted rather than cached, so a corrected configuration can be retried.
-    /// </para>
     /// </remarks>
     IKustoIngestClient IKustoIngestClientProvider.GetIngestClient(
         IngestionMode mode,
         string? connectionName)
+        => GetOrCreate(
+            ingestClients,
+            new IngestClientCacheKey(connectionName, mode),
+            CreateIngestClient);
+
+    /// <summary>
+    /// Returns the cached client for <paramref name="key"/>, creating it on first use.
+    /// </summary>
+    /// <remarks>
+    /// The cache holds <see cref="Lazy{T}"/> values because <c>GetOrAdd</c> may run its value factory
+    /// more than once under contention; a client created by a losing call would be dropped without
+    /// being disposed. With <see cref="LazyThreadSafetyMode.ExecutionAndPublication"/>, concurrent first
+    /// calls create exactly one client. A failed creation is evicted rather than cached, so a corrected
+    /// configuration can be retried.
+    /// </remarks>
+    /// <typeparam name="TKey">The cache key type.</typeparam>
+    /// <typeparam name="TClient">The client type.</typeparam>
+    /// <param name="cache">The cache to look in.</param>
+    /// <param name="key">The cache key.</param>
+    /// <param name="create">Creates the client when it is not cached yet.</param>
+    /// <returns>The cached or newly created client.</returns>
+    private static TClient GetOrCreate<TKey, TClient>(
+        ConcurrentDictionary<TKey, Lazy<TClient>> cache,
+        TKey key,
+        Func<TKey, TClient> create)
+        where TKey : notnull
     {
-        var key = new IngestClientCacheKey(connectionName, mode);
-        var lazyClient = ingestClients.GetOrAdd(
+        var lazyClient = cache.GetOrAdd(
             key,
-            static (cacheKey, provider) => new Lazy<IKustoIngestClient>(
-                () => provider.CreateIngestClient(cacheKey),
+            static (cacheKey, createClient) => new Lazy<TClient>(
+                () => createClient(cacheKey),
                 LazyThreadSafetyMode.ExecutionAndPublication),
-            this);
+            create);
 
         try
         {
@@ -84,7 +108,7 @@ public sealed class KustoClientProvider : IDisposable, IKustoClientProvider, IKu
         }
         catch
         {
-            ingestClients.TryRemove(new KeyValuePair<IngestClientCacheKey, Lazy<IKustoIngestClient>>(key, lazyClient));
+            cache.TryRemove(new KeyValuePair<TKey, Lazy<TClient>>(key, lazyClient));
             throw;
         }
     }
@@ -103,11 +127,11 @@ public sealed class KustoClientProvider : IDisposable, IKustoClientProvider, IKu
     }
 
     private ICslQueryProvider CreateQueryClient(ClientCacheKey clientCacheKey)
-        => KustoClientFactory.CreateCslQueryProvider(
+        => dataClientFactory.CreateQueryClient(
             GetConnectionString(clientCacheKey));
 
     private ICslAdminProvider CreateAdminClient(ClientCacheKey clientCacheKey)
-        => KustoClientFactory.CreateCslAdminProvider(
+        => dataClientFactory.CreateAdminClient(
             GetConnectionString(clientCacheKey));
 
     /// <summary>
@@ -166,17 +190,24 @@ public sealed class KustoClientProvider : IDisposable, IKustoClientProvider, IKu
 
         GC.SuppressFinalize(this);
 
-        foreach (var adminClient in adminClients.Values)
-        {
-            adminClient.Dispose();
-        }
+        DisposeCreatedClients(adminClients);
+        DisposeCreatedClients(queryClients);
+        DisposeCreatedClients(ingestClients);
+    }
 
-        foreach (var queryClient in queryClients.Values)
-        {
-            queryClient.Dispose();
-        }
-
-        foreach (var lazyClient in ingestClients.Values.Where(x => x.IsValueCreated))
+    /// <summary>
+    /// Disposes the clients in <paramref name="cache"/> that were created; a creation that failed or
+    /// never ran has nothing to dispose.
+    /// </summary>
+    /// <typeparam name="TKey">The cache key type.</typeparam>
+    /// <typeparam name="TClient">The client type.</typeparam>
+    /// <param name="cache">The cache whose clients are disposed.</param>
+    private static void DisposeCreatedClients<TKey, TClient>(
+        ConcurrentDictionary<TKey, Lazy<TClient>> cache)
+        where TKey : notnull
+        where TClient : IDisposable
+    {
+        foreach (var lazyClient in cache.Values.Where(x => x.IsValueCreated))
         {
             lazyClient.Value.Dispose();
         }
