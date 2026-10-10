@@ -131,7 +131,7 @@ public sealed class StreamingMappingParityTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public void A_Device_Row_Maps_To_The_Same_Device_As_With_MapDataRow(
+    public void A_Device_Row_Maps_To_The_Same_Device_In_Every_Path(
         bool hasParent)
     {
         // Arrange - shaped like the rows of kl-iot-insights-api's ListDevicesQuery
@@ -188,17 +188,21 @@ public sealed class StreamingMappingParityTests
         using var reader = table.CreateDataReader();
         reader.Read();
 
+        using var readerForKustoQuery = table.CreateDataReader();
+
         var query = new DevicesQuery();
 
         // Act
         var fromMapDataRow = table.Rows[0].MapDataRow<Device>();
         var fromFragment = query.MapRecord(CreateTable(DeviceColumns).CreateRecord(fragmentValues));
         var fromReader = query.MapRecord(reader);
+        var fromKustoQuery = new DevicesListQuery().ReadResult(readerForKustoQuery);
 
         // Assert
         fromMapDataRow.Should().BeEquivalentTo(expected);
         fromFragment.Should().BeEquivalentTo(expected);
         fromReader.Should().BeEquivalentTo(expected);
+        fromKustoQuery.Should().ContainSingle().Which.Should().BeEquivalentTo(expected);
     }
 
     private static (string Name, Type Type)[] DeviceColumns =>
@@ -259,4 +263,6 @@ public sealed class StreamingMappingParityTests
         IReadOnlyList<DeviceProperty> DeviceProperties);
 
     private sealed record DevicesQuery : KustoStreamingQuery<Device>;
+
+    private sealed record DevicesListQuery : KustoQuery<Device>;
 }

@@ -247,8 +247,6 @@ internal sealed partial class StreamingQueryHandler<T> : IStreamingScriptHandler
                     yield return mapped;
                 }
             }
-
-            await Task.Yield();
         }
     }
 
