@@ -24,12 +24,16 @@ public sealed class KustoProcessor : IKustoProcessor
     public async Task ExecuteCommand(
         IKustoCommand command,
         CancellationToken cancellationToken = default)
-        => await factory
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        await factory
             .Create(
                 command,
                 ConnectionName,
                 DatabaseName)
             .Execute(cancellationToken);
+    }
 
     /// <inheritdoc />
     public Task<T?> ExecuteQuery<T>(
@@ -45,13 +49,17 @@ public sealed class KustoProcessor : IKustoProcessor
         IKustoQuery<T> query,
         AtcQueryOptions? options = null,
         CancellationToken cancellationToken = default)
-        => await factory
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return await factory
             .Create(
                 query,
                 ConnectionName,
                 DatabaseName,
                 options)
             .Execute(cancellationToken);
+    }
 
     /// <inheritdoc />
     public async Task<PagedResult<T>?> ExecutePagedQuery<T>(
@@ -60,7 +68,10 @@ public sealed class KustoProcessor : IKustoProcessor
         int? pageSize,
         string? continuationToken,
         CancellationToken cancellationToken = default)
-        => pageSize is { } pageSizeValue
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return pageSize is { } pageSizeValue
             ? await factory
                 .Create(
                     query,
@@ -73,6 +84,7 @@ public sealed class KustoProcessor : IKustoProcessor
             : new PagedResult<T>(
                 Items: await ExecuteQuery(query, options: null, cancellationToken) ?? [],
                 ContinuationToken: null);
+    }
 
     /// <inheritdoc />
     public async Task<StreamingQueryResult<T>?> ExecuteBufferedStreamingQuery<T>(
@@ -80,6 +92,8 @@ public sealed class KustoProcessor : IKustoProcessor
         AtcStreamingQueryOptions? options = null,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         options ??= new AtcStreamingQueryOptions();
 
         var localOptions = new AtcStreamingQueryOptions
@@ -120,6 +134,8 @@ public sealed class KustoProcessor : IKustoProcessor
         AtcStreamingQueryOptions? options = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         options ??= new AtcStreamingQueryOptions();
 
         var localOptions = new AtcStreamingQueryOptions
