@@ -226,4 +226,32 @@ public sealed class StreamingQueryHandlerTests
         // Assert
         rows.Should().BeEquivalentTo("D", "E", "F");
     }
+
+    [Theory]
+    [MemberData(nameof(CancellationTestData.SdkCancellationErrors), MemberType = typeof(CancellationTestData))]
+    public async Task Execute_Throws_OperationCanceledException_When_Starting_The_Stream_Fails_After_The_Caller_Cancelled(
+        Exception sdkError)
+    {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+
+        queryProvider
+            .ExecuteQueryV2Async(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<ClientRequestProperties>(),
+                Arg.Any<CancellationToken>())
+            .Returns(_ => CancellationTestData.CancelThenThrow<ProgressiveDataSet>(cts.CancelAsync, sdkError));
+
+        // Act
+        var act = async () =>
+        {
+            await using var enumerator = sut.Execute(cts.Token).GetAsyncEnumerator(cts.Token);
+            await enumerator.MoveNextAsync();
+        };
+
+        // Assert
+        var thrown = await act.Should().ThrowAsync<OperationCanceledException>();
+        thrown.Which.InnerException.Should().BeSameAs(sdkError);
+    }
 }

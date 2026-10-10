@@ -186,4 +186,48 @@ public sealed class ExistingPagedStoredQueryHandlerTests
             .DidNotReceive()
             .ReadResult(Arg.Any<IDataReader>());
     }
+
+    [Theory]
+    [MemberData(nameof(CancellationTestData.SdkCancellationErrors), MemberType = typeof(CancellationTestData))]
+    public async Task Execute_Throws_OperationCanceledException_When_The_Sdk_Fails_After_The_Caller_Cancelled(
+        Exception sdkError)
+    {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+
+        queryProvider
+            .ExecuteQueryAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<ClientRequestProperties>(),
+                Arg.Any<CancellationToken>())
+            .Returns(_ => CancellationTestData.CancelThenThrow<IDataReader>(cts.CancelAsync, sdkError));
+
+        // Act
+        var act = () => sut.Execute(cts.Token);
+
+        // Assert
+        var thrown = await act.Should().ThrowAsync<OperationCanceledException>();
+        thrown.Which.InnerException.Should().BeSameAs(sdkError);
+        thrown.Which.CancellationToken.Should().Be(cts.Token);
+    }
+
+    [Fact]
+    public async Task Execute_Returns_Null_For_A_Kusto_Cancel_Error_When_The_Caller_Did_Not_Cancel()
+    {
+        // Arrange - e.g. someone else ran ".cancel query": a failure, not cancellation by the caller
+        queryProvider
+            .ExecuteQueryAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<ClientRequestProperties>(),
+                Arg.Any<CancellationToken>())
+            .ThrowsAsync(new KustoClientRequestCanceledByUserException());
+
+        // Act
+        var result = await sut.Execute(CancellationToken.None);
+
+        // Assert
+        result.Should().BeNull();
+    }
 }

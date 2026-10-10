@@ -61,6 +61,7 @@ The library provides a streamlined interface for handling Kusto operations, maki
   - [Sample](#sample)
   - [Retries](#retries)
   - [Cancellation](#cancellation)
+    - [What happens when you cancel](#what-happens-when-you-cancel)
     - [Configuration](#configuration)
     - [Performance Implications](#performance-implications)
     - [Examples](#examples)
@@ -1100,6 +1101,22 @@ So a broken query fails at once instead of after ~20 seconds of retries. Command
 ## Cancellation
 
 Atc.Kusto supports cooperative cancellation via CancellationToken for all query types. In addition to local cancellation, the library can also issue a server-side cancel control command so the running Kusto query is aborted in the cluster.
+
+### What happens when you cancel
+
+When **your** `CancellationToken` is cancelled, every `IKustoProcessor` method ends with an `OperationCanceledException`, never with `null` or an error log:
+
+- The Kusto SDK often reports a cancelled request with its own exceptions, such as `KustoClientRequestCanceledByUserException`, or with a service error once the server-side cancel has stopped the query. These are translated into an `OperationCanceledException` that carries your token and keeps the SDK's exception as `InnerException`.
+- An `OperationCanceledException` that was already thrown is rethrown unchanged.
+- Hosts like ASP.NET Core recognise `OperationCanceledException` as cancellation, so a client that disconnects mid-query no longer produces an error log or a 500 response.
+
+This applies to queries, paged queries, streaming and buffered streaming queries, and commands. For a streaming query it also covers the token you pass through `.WithCancellation(token)`, which is how ASP.NET Core passes `RequestAborted` when an endpoint returns the stream.
+
+The SDK's exceptions are only translated when your token was cancelled. A `KustoClientRequestCanceledByUserException` raised for another reason, for example someone running `.cancel query` against your request, is handled like any other failure.
+
+**Commands** (`ExecuteCommand`, and creating the first page of a paged query) cannot be cancelled once they are sent: the Kusto SDK has no cancellation for control commands. If your token is already cancelled, the command is not sent; if it is cancelled while the command runs, the command completes and its outcome is reported as usual. So the result you see always matches what happened on the cluster.
+
+The built-in health check follows the same rule: when its token is cancelled it throws, so the health check service reports a timeout as a timeout and stops quietly on shutdown, instead of reporting the cluster as unhealthy.
 
 ### Configuration
 

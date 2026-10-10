@@ -97,7 +97,7 @@ internal sealed partial class SimpleQueryHandler<T> : IScriptHandler<T>
             activity?.SetStatus(ActivityStatusCode.Ok);
             return result;
         }
-        catch (Exception ex) when (CancellationExceptionUtilities.IsCancellationException(ex))
+        catch (Exception ex) when (CancellationExceptionUtilities.IsCancellation(ex, cancellationToken))
         {
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
             throw CancellationExceptionUtilities.NormalizeCancellationException(ex, cancellationToken);

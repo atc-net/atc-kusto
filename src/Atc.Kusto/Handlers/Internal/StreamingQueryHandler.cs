@@ -91,6 +91,11 @@ internal sealed partial class StreamingQueryHandler<T> : IStreamingScriptHandler
                 clientRequestProperties,
                 cancellationToken);
         }
+        catch (Exception ex) when (CancellationExceptionUtilities.IsCancellation(ex, cancellationToken))
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            throw CancellationExceptionUtilities.NormalizeCancellationException(ex, cancellationToken);
+        }
         catch (Exception ex)
         {
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);

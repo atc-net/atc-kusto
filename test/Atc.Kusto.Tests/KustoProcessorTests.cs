@@ -229,4 +229,41 @@ public sealed class KustoProcessorTests
             .Received(1)
             .Execute(cancellationToken);
     }
+
+    [Theory, AutoNSubstituteData]
+    internal async Task ExecuteStreamingQuery_Translates_Cancellation_When_The_Token_Is_Given_Through_WithCancellation(
+        [Frozen] IScriptHandlerFactory factory,
+        IKustoStreamingQuery<TestRecord> query,
+        IStreamingScriptHandler<TestRecord?> scriptHandler,
+        KustoProcessor sut)
+    {
+        // Arrange - ASP.NET Core passes RequestAborted this way when an endpoint returns the stream
+        using var cts = new CancellationTokenSource();
+        var sdkError = new KustoServiceException();
+
+        factory
+            .Create(
+                query,
+                sut.ConnectionName,
+                sut.DatabaseName,
+                Arg.Any<AtcStreamingQueryOptions?>())
+            .Returns(scriptHandler);
+
+        scriptHandler
+            .Execute(Arg.Any<CancellationToken>())
+            .Returns(new FailingAsyncEnumerable<TestRecord?>(FailingStep.MoveNext, sdkError, cancelBeforeFailing: cts));
+
+        // Act
+        var act = async () =>
+        {
+            await foreach (var row in sut.ExecuteStreamingQuery(query, CancellationToken.None).WithCancellation(cts.Token))
+            {
+                _ = row;
+            }
+        };
+
+        // Assert
+        (await act.Should().ThrowAsync<OperationCanceledException>())
+            .Which.InnerException.Should().BeSameAs(sdkError);
+    }
 }
