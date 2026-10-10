@@ -38,6 +38,7 @@ The library provides a streamlined interface for handling Kusto operations, maki
       - [List](#list)
       - [Complex with multiple result sets](#complex-with-multiple-result-sets)
     - [Executing a Kusto query](#executing-a-kusto-query)
+      - [Choosing the connection and database per call](#choosing-the-connection-and-database-per-call)
     - [Executing streaming queries](#executing-streaming-queries)
       - [Direct streaming](#direct-streaming)
       - [Buffered streaming](#buffered-streaming)
@@ -639,6 +640,31 @@ The `pageSize` specifies how many items to return for each page. Each page is re
 
 The optional `sessionId` can be provided to optimize the use of storage on the ADX. If the same `sessionId` is specified for two calls they will share the underlying storage for pagination results.
 
+#### Choosing the connection and database per call
+
+The injected `IKustoProcessor` uses the default connection and its configured `DatabaseName`. To target another named connection or another database on the same cluster, create a processor with `IKustoProcessorFactory`:
+
+```csharp
+// Another database on the default connection
+var archive = processorFactory.Create(databaseName: "ArchiveDb");
+
+// A named connection, using its configured DatabaseName
+var reporting = processorFactory.Create(connectionName: "Reporting");
+
+// A named connection and a specific database
+var reportingArchive = processorFactory.Create("Reporting", "ArchiveDb");
+
+var customers = await archive.ExecuteQuery(new CustomersQuery(), cancellationToken);
+```
+
+The database is resolved in this order, for both `HostAddress` and `ConnectionString` configurations:
+
+1. the `databaseName` passed to `Create(...)`;
+2. the connection's `AtcKustoOptions.DatabaseName`;
+3. for a `ConnectionString` only: the database in the connection string itself (`Initial Catalog=...`), otherwise the SDK default.
+
+A `HostAddress` connection with neither 1 nor 2 throws `InvalidOperationException` on first use.
+
 ### Executing streaming queries
 
 Streaming queries allow you to process large result sets more efficiently by streaming results as they become available. Atc.Kusto provides two approaches for streaming:
@@ -691,7 +717,7 @@ In a web API scenario, you can return the stream directly to the client:
 app.MapGet(
     "/customers/stream",
     (IKustoProcessorFactory processorFactory, CancellationToken cancellationToken) => 
-        Task.FromResult(processorFactory.Create("DatabaseName")
+        Task.FromResult(processorFactory.Create(databaseName: "DatabaseName")
             .ExecuteStreamingQuery(
                 new CustomersStreamingQuery(),
                 cancellationToken)))
