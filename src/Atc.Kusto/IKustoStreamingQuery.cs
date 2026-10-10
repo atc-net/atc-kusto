@@ -8,9 +8,13 @@ namespace Atc.Kusto;
 public interface IKustoStreamingQuery<out T> : IKustoScript
 {
     /// <summary>
-    /// Transforms a single data row into an instance of type <typeparamref name="T"/>.
+    /// Transforms a single result row into an instance of type <typeparamref name="T"/>.
     /// </summary>
-    /// <param name="row">The data row to be transformed.</param>
-    /// <returns>An object of type <typeparamref name="T"/> that represents the mapped data record.</returns>
-    T? MapDataRow(DataRow row);
+    /// <param name="record">
+    /// The row to be transformed. It is only valid during this call: read the values you need, don't keep the record.
+    /// </param>
+    /// <returns>
+    /// An object of type <typeparamref name="T"/> that represents the row, or <see langword="null"/> to skip the row.
+    /// </returns>
+    T? MapRecord(IDataRecord record);
 }

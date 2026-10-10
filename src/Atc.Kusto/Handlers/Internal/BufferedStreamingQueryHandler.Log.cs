@@ -22,15 +22,6 @@ internal sealed partial class BufferedStreamingQueryHandler<T>
         string query);
 
     [LoggerMessage(
-        EventId = LoggingEventIdConstants.BufferedStreamingQueryHandler.SchemaNullInDataTableDataSetFrame,
-        Level = LogLevel.Warning,
-        Message = "Returned schema in tableData was null for tableId '{TableId}', tableName '{TableName}' with tableKind '{tableKind}'")]
-    private partial void LogSchemaNullInDataTableDataSetFrame(
-        int tableId,
-        string tableName,
-        WellKnownDataSet tableKind);
-
-    [LoggerMessage(
         EventId = LoggingEventIdConstants.BufferedStreamingQueryHandler.ReceivedTableFragmentForUnknownTable,
         Level = LogLevel.Warning,
         Message = "Received table fragment for unknown table with tableId '{TableId}'")]

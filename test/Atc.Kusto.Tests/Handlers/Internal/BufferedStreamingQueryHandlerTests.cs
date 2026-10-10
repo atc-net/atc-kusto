@@ -29,7 +29,7 @@ public sealed class BufferedStreamingQueryHandlerTests
         var options = new AtcStreamingQueryOptions { OptionalFrames = FrameHeaders.All, EnableServerSideCancellation = true };
 
         query.GetQueryText().Returns("print 1");
-        query.MapDataRow(Arg.Any<DataRow>()).Returns((string?)null);
+        query.MapRecord(Arg.Any<IDataRecord>()).Returns((string?)null);
 
         ClientRequestProperties? capturedProps = null;
 
@@ -167,9 +167,9 @@ public sealed class BufferedStreamingQueryHandlerTests
         // Arrange
         query.GetQueryText().Returns(queryText);
 
-        query.MapDataRow(Arg.Any<DataRow>()).Returns(ci =>
+        query.MapRecord(Arg.Any<IDataRecord>()).Returns(ci =>
         {
-            var row = ci.Args()[0] as DataRow;
+            var row = ci.Args()[0] as IDataRecord;
             return row?[0]?.ToString();
         });
 
@@ -208,9 +208,9 @@ public sealed class BufferedStreamingQueryHandlerTests
         // Arrange
         query.GetQueryText().Returns(queryText);
 
-        query.MapDataRow(Arg.Any<DataRow>()).Returns(ci =>
+        query.MapRecord(Arg.Any<IDataRecord>()).Returns(ci =>
         {
-            var row = ci.Args()[0] as DataRow;
+            var row = ci.Args()[0] as IDataRecord;
             return row?[0]?.ToString();
         });
 
@@ -259,6 +259,52 @@ public sealed class BufferedStreamingQueryHandlerTests
     }
 
     [Fact]
+    public async Task Execute_Maps_Fragment_Rows_With_Each_Value_Converted_To_Its_Column_Type()
+    {
+        // Arrange - progressive frames send the values as strings
+        using var result = ReturnFrames(BuildFragmentFrames());
+        query.MapRecord(Arg.Any<IDataRecord>()).Returns(ci => DescribeIdAndAmount(ci.Arg<IDataRecord>()));
+
+        // Act
+        var queryResult = await sut.Execute(CancellationToken.None);
+
+        // Assert
+        var rows = new List<string?>();
+        await foreach (var row in queryResult!.Rows)
+        {
+            rows.Add(row);
+        }
+
+        rows.Should().Equal("74be27de-1e4e-49d9-b579-fe0b331d3642|2.5", "0b5c4a8e-3f0d-4c1e-9a3b-2d6f7e8a9b10|-1");
+    }
+
+    [Fact]
+    public async Task Execute_Reads_Every_Table_To_The_End_And_Closes_It()
+    {
+        // Arrange - the SDK can't move to the next frame before the current table is read and closed
+        var frames = ProgressiveDataSetBuilder.BuildDataTableFrames("A", "B");
+        using var result = ReturnFrames([.. frames, new CompletionFrameStub()]);
+        MapFirstColumn();
+
+        // Act
+        var queryResult = await sut.Execute(CancellationToken.None);
+
+        // Assert
+        var rows = new List<string?>();
+        await foreach (var row in queryResult!.Rows)
+        {
+            rows.Add(row);
+        }
+
+        rows.Should().Equal("A", "B");
+        frames.Should().AllSatisfy(frame =>
+        {
+            frame.Reader.WasReadToEnd.Should().BeTrue();
+            frame.Reader.IsClosed.Should().BeTrue();
+        });
+    }
+
+    [Fact]
     public async Task Execute_Disposes_The_Result_Stream_After_Reading_All_Frames()
     {
         // Arrange
@@ -278,7 +324,7 @@ public sealed class BufferedStreamingQueryHandlerTests
     {
         // Arrange
         using var result = ReturnTrackedResult("A", "B");
-        query.MapDataRow(Arg.Any<DataRow>()).Throws(new InvalidOperationException("mapping failed"));
+        query.MapRecord(Arg.Any<IDataRecord>()).Throws(new InvalidOperationException("mapping failed"));
 
         // Act
         var queryResult = await sut.Execute(CancellationToken.None);
@@ -310,6 +356,42 @@ public sealed class BufferedStreamingQueryHandlerTests
         result.Completion!.HasErrors.Should().BeTrue();
     }
 
+    private static ProgressiveDataSetFrame[] BuildFragmentFrames()
+    {
+        using var schema = new DataTable(nameof(WellKnownDataSet.PrimaryResult));
+        schema.Columns.Add("id", typeof(Guid));
+        schema.Columns.Add("amount", typeof(double));
+
+        return
+        [
+            new SchemaFrameStub(1, schema),
+            new FragmentFrameStub(
+                1,
+                ["74be27de-1e4e-49d9-b579-fe0b331d3642", "2.5"],
+                ["0b5c4a8e-3f0d-4c1e-9a3b-2d6f7e8a9b10", "-1"]),
+            new CompletionFrameStub(),
+        ];
+    }
+
+    private static string DescribeIdAndAmount(IDataRecord record)
+        => string.Create(CultureInfo.InvariantCulture, $"{record.GetGuid(0)}|{record.GetDouble(1)}");
+
+    private TrackedProgressiveDataSet ReturnFrames(
+        IEnumerable<ProgressiveDataSetFrame> frames)
+    {
+        var result = new TrackedProgressiveDataSet(frames);
+
+        queryProvider
+            .ExecuteQueryV2Async(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<ClientRequestProperties>(),
+                Arg.Any<CancellationToken>())
+            .Returns(result.DataSet);
+
+        return result;
+    }
+
     private TrackedProgressiveDataSet ReturnTrackedResult(
         params string[] values)
     {
@@ -328,8 +410,8 @@ public sealed class BufferedStreamingQueryHandlerTests
 
     private void MapFirstColumn()
         => query
-            .MapDataRow(Arg.Any<DataRow>())
-            .Returns(ci => ci.Arg<DataRow>()[0].ToString());
+            .MapRecord(Arg.Any<IDataRecord>())
+            .Returns(ci => ci.Arg<IDataRecord>()[0].ToString());
 }
 
 internal static class ProgressiveDataSetBuilder
@@ -346,12 +428,7 @@ internal static class ProgressiveDataSetBuilder
     internal static IEnumerable<ProgressiveDataSetFrame> BuildPrimaryResultFrames(
         params string[] values)
     {
-        var table = new DataTable(WellKnownDataSet.PrimaryResult.ToString());
-        table.Columns.Add("col", typeof(string));
-        foreach (var v in values)
-        {
-            table.Rows.Add(v);
-        }
+        using var table = BuildTable(WellKnownDataSet.PrimaryResult.ToString(), values);
 
         return
         [
@@ -360,19 +437,73 @@ internal static class ProgressiveDataSetBuilder
             new CompletionFrameStub(),
         ];
     }
+
+    // Frames as Kusto sends them without progressive results: every table in one DataTable frame,
+    // with the primary result between the query properties and the completion information.
+    internal static DataTableFrameStub[] BuildDataTableFrames(
+        params string[] values)
+        =>
+        [
+            BuildDataTableFrame(0, WellKnownDataSet.QueryProperties, "properties"),
+            BuildDataTableFrame(1, WellKnownDataSet.PrimaryResult, values),
+            BuildDataTableFrame(2, WellKnownDataSet.QueryCompletionInformation, "completion"),
+        ];
+
+    internal static DataTable BuildTable(
+        string name,
+        params string[] values)
+    {
+        var table = new DataTable(name);
+        table.Columns.Add("col", typeof(string));
+        foreach (var v in values)
+        {
+            table.Rows.Add(v);
+        }
+
+        return table;
+    }
+
+    private static DataTableFrameStub BuildDataTableFrame(
+        int id,
+        WellKnownDataSet tableKind,
+        params string[] values)
+    {
+        // The frame's reader copies the values, so the table can be disposed.
+        using var table = BuildTable(tableKind.ToString(), values);
+        return new DataTableFrameStub(id, table, tableKind);
+    }
 }
 
 internal sealed class SchemaFrameStub : ProgressiveDataSetDataTableSchemaFrame
 {
+    private static readonly Dictionary<Type, string> KustoTypeNames = new()
+    {
+        [typeof(bool)] = "bool",
+        [typeof(int)] = "int",
+        [typeof(long)] = "long",
+        [typeof(SqlDecimal)] = "decimal",
+        [typeof(double)] = "real",
+        [typeof(Guid)] = "guid",
+        [typeof(object)] = "dynamic",
+        [typeof(DateTime)] = "datetime",
+        [typeof(TimeSpan)] = "timespan",
+        [typeof(string)] = "string",
+    };
+
+    /// <summary>
+    /// Creates a schema frame for a table with the columns of <paramref name="table"/>.
+    /// </summary>
+    /// <param name="id">The table id.</param>
+    /// <param name="table">A table with the wanted column names and types.</param>
     public SchemaFrameStub(
         int id,
-        DataTable schema)
+        DataTable table)
     {
         FrameType = FrameType.TableHeader;
         TableId = id;
         TableKind = WellKnownDataSet.PrimaryResult;
-        TableName = schema.TableName;
-        TableSchema = schema;
+        TableName = table.TableName;
+        TableSchema = BuildSchemaTable(table);
     }
 
     public FrameType FrameType { get; }
@@ -385,20 +516,40 @@ internal sealed class SchemaFrameStub : ProgressiveDataSetDataTableSchemaFrame
 
     public DataTable TableSchema { get; }
 
-    public DataTable ToEmptyDataTable() => TableSchema.Clone();
+    // Like the SDK: one row per column, with the Kusto column type that ToEmptyDataTable() reads.
+    private static DataTable BuildSchemaTable(DataTable table)
+    {
+        var schema = new DataTable("SchemaTable");
+        schema.Columns.Add("ColumnName", typeof(string));
+        schema.Columns.Add("ColumnOrdinal", typeof(int));
+        schema.Columns.Add("DataType", typeof(Type));
+        schema.Columns.Add("ColumnType", typeof(string));
+
+        foreach (DataColumn column in table.Columns)
+        {
+            schema.Rows.Add(
+                column.ColumnName,
+                column.Ordinal,
+                typeof(string),
+                KustoTypeNames[column.DataType]);
+        }
+
+        return schema;
+    }
 }
 
 internal sealed class DataTableFrameStub : ProgressiveDataSetDataTableFrame
 {
     public DataTableFrameStub(
         int id,
-        DataTable sourceTable)
+        DataTable sourceTable,
+        WellKnownDataSet tableKind = WellKnownDataSet.PrimaryResult)
     {
         FrameType = FrameType.DataTable; // Use DataTable frame type to match handler's expectations
         TableId = id;
-        TableKind = WellKnownDataSet.PrimaryResult;
+        TableKind = tableKind;
         TableName = sourceTable.TableName;
-        TableData = new SingleColumnReader(sourceTable);
+        Reader = new SingleColumnReader(sourceTable);
     }
 
     public FrameType FrameType { get; }
@@ -409,7 +560,43 @@ internal sealed class DataTableFrameStub : ProgressiveDataSetDataTableFrame
 
     public WellKnownDataSet TableKind { get; }
 
-    public IDataReader TableData { get; }
+    public IDataReader TableData => Reader;
+
+    public SingleColumnReader Reader { get; }
+}
+
+internal sealed class FragmentFrameStub : ProgressiveDataSetDataTableFragmentFrame
+{
+    private readonly Queue<object?[]> rows;
+
+    public FragmentFrameStub(
+        int id,
+        params object?[][] rows)
+    {
+        FrameType = FrameType.TableFragment;
+        TableId = id;
+        FieldCount = rows[0].Length;
+        this.rows = new Queue<object?[]>(rows);
+    }
+
+    public FrameType FrameType { get; }
+
+    public int TableId { get; }
+
+    public int FieldCount { get; }
+
+    public TableFragmentType FrameSubType => TableFragmentType.DataAppend;
+
+    public bool GetNextRecord(object[] values)
+    {
+        if (!rows.TryDequeue(out var row))
+        {
+            return false;
+        }
+
+        Array.Copy(row, values, row.Length);
+        return true;
+    }
 }
 
 internal sealed class CompletionFrameStub : ProgressiveDataSetCompletionFrame
@@ -443,6 +630,8 @@ internal sealed class SingleColumnReader : DbDataReader
 
     private readonly DataTable schemaTable;
 
+    private bool isClosed;
+
     public SingleColumnReader(DataTable source)
     {
         var list = new List<string?>();
@@ -458,7 +647,18 @@ internal sealed class SingleColumnReader : DbDataReader
     ////───────────────────────────────────────────────────────────────────────────────
     ////  Core iteration
     ////───────────────────────────────────────────────────────────────────────────────
-    public override bool Read() => enumerator.MoveNext();
+    public override bool Read()
+    {
+        if (enumerator.MoveNext())
+        {
+            return true;
+        }
+
+        WasReadToEnd = true;
+        return false;
+    }
+
+    public bool WasReadToEnd { get; private set; }
 
     public override int FieldCount => 1;
 
@@ -466,10 +666,7 @@ internal sealed class SingleColumnReader : DbDataReader
 
     public override bool NextResult() => false;
 
-    public override void Close()
-    {
-        /* nothing to dispose */
-    }
+    public override void Close() => isClosed = true;
 
     ////───────────────────────────────────────────────────────────────────────────────
     ////  Row access
@@ -532,7 +729,7 @@ internal sealed class SingleColumnReader : DbDataReader
 
     public override int Depth => 0;
 
-    public override bool IsClosed => false;
+    public override bool IsClosed => isClosed;
 
     public override int RecordsAffected => -1;
 

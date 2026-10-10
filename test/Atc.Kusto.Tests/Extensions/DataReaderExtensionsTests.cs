@@ -15,6 +15,53 @@ public sealed class DataReaderExtensionsTests
         string Name,
         DateOnly EventDate);
 
+    [Fact]
+    public void ReadObject_Returns_The_Row_The_Reader_Is_On()
+    {
+        // Arrange - a reader with two rows, moved to the second row
+        using var table = new DataTable();
+        table.Columns.Add("Property1", typeof(string));
+        table.Columns.Add("Property2", typeof(string));
+        table.Columns.Add("Property3", typeof(string));
+        table.Rows.Add("first-1", "first-2", "first-3");
+        table.Rows.Add("second-1", "second-2", "second-3");
+
+        using var reader = table.CreateDataReader();
+        reader.Read(); // now on the first row
+        reader.Read(); // now on the second row
+
+        // Act
+        var actual = reader.ReadObject<TestObject>();
+
+        // Assert
+        actual.Should().Be(new TestObject("second-1", "second-2", "second-3"));
+    }
+
+    [Fact]
+    public void ReadObject_Gives_The_Same_Result_As_ReadObjects()
+    {
+        // Arrange - one row where a bool arrives as the number 1, as Kusto's query reader sends it.
+        // Both methods must convert it to true, because they share the same row conversion.
+        using var table = new DataTable();
+        table.Columns.Add("IsActive", typeof(sbyte));
+        table.Columns.Add("IsEnabled", typeof(bool));
+        table.Rows.Add((sbyte)1, false);
+
+        using var readerForReadObjects = table.CreateDataReader();
+        using var readerForReadObject = table.CreateDataReader();
+        readerForReadObject.Read(); // ReadObject maps the row the reader is on, so move to it first
+
+        var expected = new BooleanTestObject(IsActive: true, IsEnabled: false);
+
+        // Act
+        var fromReadObjects = readerForReadObjects.ReadObjects<BooleanTestObject>();
+        var fromReadObject = readerForReadObject.ReadObject<BooleanTestObject>();
+
+        // Assert
+        fromReadObjects.Should().Equal(expected);
+        fromReadObject.Should().Be(expected);
+    }
+
     [Theory, AutoNSubstituteData]
     public void ReadObjects_Will_Return_Objects_Read_From_DataReader(
         List<TestObject> data,

@@ -42,6 +42,7 @@ The library provides a streamlined interface for handling Kusto operations, maki
     - [Executing streaming queries](#executing-streaming-queries)
       - [Direct streaming](#direct-streaming)
       - [Buffered streaming](#buffered-streaming)
+      - [Custom row mapping](#custom-row-mapping)
     - [Ingesting data](#ingesting-data)
       - [Ingestion quick start](#ingestion-quick-start)
       - [Checking the result](#checking-the-result)
@@ -727,6 +728,21 @@ app.MapGet(
 ```
 
 This returns a streamed response to the client, which can be processed as it arrives.
+
+#### Custom row mapping
+
+By default each row is mapped the same way as a `KustoQuery<T>` result (columns matched to properties by name, case-insensitive). To map a row yourself, override `MapRecord`. Read the values you need inside the method: the `IDataRecord` is only valid during the call. Return `null` to skip a row.
+
+```csharp
+public record CustomerNamesStreamingQuery()
+    : KustoStreamingQuery<string>
+{
+    public override string? MapRecord(IDataRecord record)
+        => $"{record.GetString(record.GetOrdinal("FirstName"))} {record.GetString(record.GetOrdinal("LastName"))}";
+}
+```
+
+> Before 4.0 this hook was `MapDataRow(DataRow row)`. Rename the override to `MapRecord(IDataRecord record)`; `row["Name"]` becomes `record["Name"]`, and `row.Field<T>("Name")` becomes `(T)record["Name"]` (or one of the typed getters, such as `record.GetString(...)`). A null value is `DBNull.Value`, so check `record.IsDBNull(...)` first.
 
 ### Ingesting data
 
