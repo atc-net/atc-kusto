@@ -217,11 +217,11 @@ public sealed class KustoIngestorTests
         provider.DidNotReceiveWithAnyArgs().GetIngestClient(default);
     }
 
-    [Fact]
-    public async Task IngestAsync_Stream_Rejects_A_Non_Seekable_Stream()
+    [Theory, AutoNSubstituteData]
+    public async Task IngestAsync_Stream_Rejects_A_Non_Seekable_Stream(
+        Stream data)
     {
         // Arrange
-        var data = Substitute.For<Stream>();
         data.CanSeek.Returns(false);
 
         // Act
@@ -231,11 +231,11 @@ public sealed class KustoIngestorTests
         (await act.Should().ThrowAsync<ArgumentException>()).Which.ParamName.Should().Be("data");
     }
 
-    [Fact]
-    public Task IngestAsync_Stream_Rejects_More_Than_10_MB_For_Streaming()
+    [Theory, AutoNSubstituteData]
+    public Task IngestAsync_Stream_Rejects_More_Than_10_MB_For_Streaming(
+        Stream data)
     {
         // Arrange
-        var data = Substitute.For<Stream>();
         data.CanSeek.Returns(true);
         data.Length.Returns(KustoIngestTargetValidator.StreamingIngestionMaxBytes + 1);
 
