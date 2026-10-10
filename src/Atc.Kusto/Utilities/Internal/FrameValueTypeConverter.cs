@@ -22,6 +22,7 @@ internal static class FrameValueTypeConverter
     /// This method handles several known type mismatches:
     /// <list type="bullet">
     ///   <item><description>String → SqlDecimal: Kusto sends decimal values as strings in progressive frames.</description></item>
+    ///   <item><description>String → double: the SDK writes real values with the current culture (e.g. "2,5" on da-DK).</description></item>
     ///   <item><description>Other mismatches: Uses <see cref="Convert.ChangeType(object, Type, IFormatProvider)"/> with invariant culture.</description></item>
     /// </list>
     /// </remarks>
@@ -46,6 +47,15 @@ internal static class FrameValueTypeConverter
             decimal.TryParse(stringValue, NumberStyles.Any, CultureInfo.InvariantCulture, out var decimalValue))
         {
             return new SqlDecimal(decimalValue);
+        }
+
+        // Handle string → double: the SDK writes real values with the current culture ("2,5" on da-DK),
+        // so read them back with the same culture. The invariant culture would read "2,5" as 25.
+        if (value is string realText &&
+            targetType == typeof(double) &&
+            double.TryParse(realText, NumberStyles.Float, CultureInfo.CurrentCulture, out var realValue))
+        {
+            return realValue;
         }
 
         // For other type mismatches, try Convert.ChangeType
