@@ -1,11 +1,11 @@
 namespace Atc.Kusto.Utilities.Internal;
 
 /// <summary>
-/// Provides utility methods for converting Kusto progressive frame values to match DataTable column types.
+/// Provides utility methods for converting Kusto progressive frame values to match the column types of the table schema.
 /// </summary>
 /// <remarks>
-/// Kusto progressive frames may send values in wire format (e.g., decimals as strings)
-/// that need conversion to match the DataTable column types defined by the schema.
+/// Kusto progressive frames send values in wire format (as strings, apart from <c>dynamic</c> values)
+/// that need conversion to match the column types defined by the schema.
 /// </remarks>
 internal static class FrameValueTypeConverter
 {
@@ -13,7 +13,7 @@ internal static class FrameValueTypeConverter
     /// Converts a value from a Kusto progressive frame to match the target column type.
     /// </summary>
     /// <param name="value">The value from the progressive frame.</param>
-    /// <param name="targetType">The expected column type from the DataTable schema.</param>
+    /// <param name="targetType">The expected column type from the table schema.</param>
     /// <returns>
     /// The value converted to the target type, or <see cref="DBNull.Value"/> if the value is null.
     /// If conversion fails, returns the original value.
@@ -23,6 +23,7 @@ internal static class FrameValueTypeConverter
     /// <list type="bullet">
     ///   <item><description>String → SqlDecimal: Kusto sends decimal values as strings in progressive frames.</description></item>
     ///   <item><description>String → double: the SDK writes real values with the current culture (e.g. "2,5" on da-DK).</description></item>
+    ///   <item><description>String → Guid, TimeSpan and DateTime (as UTC), which <see cref="Convert.ChangeType(object, Type, IFormatProvider)"/> can't do or would turn into local time.</description></item>
     ///   <item><description>Other mismatches: Uses <see cref="Convert.ChangeType(object, Type, IFormatProvider)"/> with invariant culture.</description></item>
     /// </list>
     /// </remarks>
@@ -58,6 +59,28 @@ internal static class FrameValueTypeConverter
             return realValue;
         }
 
+        if (value is string guidText &&
+            targetType == typeof(Guid) &&
+            Guid.TryParse(guidText, out var guidValue))
+        {
+            return guidValue;
+        }
+
+        if (value is string timeSpanText &&
+            targetType == typeof(TimeSpan) &&
+            TimeSpan.TryParse(timeSpanText, CultureInfo.InvariantCulture, out var timeSpanValue))
+        {
+            return timeSpanValue;
+        }
+
+        // Kusto datetimes are UTC ("2024-01-02T03:04:05.678Z"); keep them UTC instead of converting to local time.
+        if (value is string dateTimeText &&
+            targetType == typeof(DateTime) &&
+            DateTime.TryParse(dateTimeText, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var dateTimeValue))
+        {
+            return dateTimeValue;
+        }
+
         // For other type mismatches, try Convert.ChangeType
         try
         {
@@ -65,7 +88,7 @@ internal static class FrameValueTypeConverter
         }
         catch
         {
-            // If conversion fails, return original value and let DataTable handle it
+            // If conversion fails, return the original value
             return value;
         }
     }

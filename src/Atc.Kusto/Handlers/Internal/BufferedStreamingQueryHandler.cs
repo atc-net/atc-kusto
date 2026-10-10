@@ -18,7 +18,7 @@ namespace Atc.Kusto.Handlers.Internal;
 /// </summary>
 /// <typeparam name="T">
 /// The CLR type returned for each row produced by
-/// <see cref="IKustoStreamingQuery{T}.MapDataRow" />.
+/// <see cref="IKustoStreamingQuery{T}.MapRecord" />.
 /// </typeparam>
 internal sealed partial class BufferedStreamingQueryHandler<T> : IScriptHandler<StreamingQueryResult<T>?>
 {
@@ -61,7 +61,7 @@ internal sealed partial class BufferedStreamingQueryHandler<T> : IScriptHandler<
 
     /// <summary>
     /// Executes the query via <c>ExecuteQueryV2Async</c>, collects all progressive frames,
-    /// maps the <c>PrimaryResult</c> rows with <see cref="IKustoStreamingQuery{T}.MapDataRow" />,
+    /// maps the <c>PrimaryResult</c> rows with <see cref="IKustoStreamingQuery{T}.MapRecord" />,
     /// and returns a <see cref="StreamingQueryResult{T}" /> whose <see cref="StreamingQueryResult{T}.Rows" />
     /// can be enumerated by the caller.
     /// </summary>
@@ -119,8 +119,8 @@ internal sealed partial class BufferedStreamingQueryHandler<T> : IScriptHandler<
         System.Diagnostics.Activity? activity,
         CancellationToken cancellationToken)
     {
-        var tablesById = new Dictionary<int, DataTable>();
-        var tableKindsById = new Dictionary<int, WellKnownDataSet>();
+        var tablesById = new Dictionary<int, FrameTable>();
+        var primaryResultRecords = new List<FrameRecord>();
 
         try
         {
@@ -150,10 +150,10 @@ internal sealed partial class BufferedStreamingQueryHandler<T> : IScriptHandler<
                         HandleDataSetHeader(frame, result);
                         break;
                     case FrameType.TableHeader:
-                        await HandleTableHeader(result, frame, tablesById, tableKindsById, cancellationToken);
+                        HandleTableHeader(result, frame, tablesById);
                         break;
                     case FrameType.TableFragment:
-                        HandleTableFragment(frame, tablesById);
+                        HandleTableFragment(frame, tablesById, primaryResultRecords);
                         break;
                     case FrameType.TableCompletion:
                         HandleTableCompletion(frame, result, tablesById);
@@ -162,7 +162,7 @@ internal sealed partial class BufferedStreamingQueryHandler<T> : IScriptHandler<
                         HandleTableProgress(frame);
                         break;
                     case FrameType.DataTable:
-                        HandleDataTable(frame, tablesById, tableKindsById);
+                        HandleDataTable(frame, tablesById, primaryResultRecords);
                         break;
                     case FrameType.DataSetCompletion:
                         HandleDataSetCompletion(frame, result);
@@ -173,23 +173,14 @@ internal sealed partial class BufferedStreamingQueryHandler<T> : IScriptHandler<
                 }
             }
 
-            // Once all frames are processed, yield rows from the PrimaryResult tables.
-            if (tableKindsById.ContainsValue(WellKnownDataSet.PrimaryResult))
+            // Once all frames are processed, map the PrimaryResult rows and hand them to the consumer.
+            foreach (var record in primaryResultRecords)
             {
-                foreach (var kvp in tablesById)
-                {
-                    if (tableKindsById.TryGetValue(kvp.Key, out var kind) && kind == WellKnownDataSet.PrimaryResult)
-                    {
-                        foreach (DataRow row in kvp.Value.Rows)
-                        {
-                            var mapDataRow = query.MapDataRow(row);
+                var mapped = query.MapRecord(record);
 
-                            if (mapDataRow is not null)
-                            {
-                                await channel.Writer.WriteAsync(mapDataRow, cancellationToken);
-                            }
-                        }
-                    }
+                if (mapped is not null)
+                {
+                    await channel.Writer.WriteAsync(mapped, cancellationToken);
                 }
             }
 
@@ -248,63 +239,56 @@ internal sealed partial class BufferedStreamingQueryHandler<T> : IScriptHandler<
     }
 
     /// <summary>
-    /// Caches table schema / kind and optionally adds a <see cref="KustoTableSchema" /> to <paramref name="result" />.
+    /// Keeps the table by TableId and optionally adds a <see cref="KustoTableSchema" /> to <paramref name="result" />.
     /// </summary>
-    private async Task HandleTableHeader(
+    private void HandleTableHeader(
         StreamingQueryResult<T> result,
         ProgressiveDataSetFrame frame,
-        Dictionary<int, DataTable> tablesById,
-        Dictionary<int, WellKnownDataSet> tableKindsById,
-        CancellationToken cancellationToken)
+        Dictionary<int, FrameTable> tablesById)
     {
         var tableHeaderFrame = (ProgressiveDataSetDataTableSchemaFrame)frame;
-        var dataTable = tableHeaderFrame.ToEmptyDataTable();
-        dataTable.TableName = tableHeaderFrame.TableName;
-        tablesById.TryAdd(tableHeaderFrame.TableId, dataTable);
-        tableKindsById.TryAdd(tableHeaderFrame.TableId, tableHeaderFrame.TableKind);
+        var table = FrameTable.FromSchemaFrame(tableHeaderFrame);
+        tablesById.TryAdd(tableHeaderFrame.TableId, table);
 
         if (!streamingQueryOptions.OptionalFrames.HasFlag(FrameHeaders.TableHeader))
         {
             return;
         }
 
-        var kustoColumns = await dataTable.Columns
-            .Cast<DataColumn>()
-            .Select(col => new KustoColumn(col.ColumnName, col.DataType.Name))
-            .ToListAsync(cancellationToken);
+        var kustoColumns = new List<KustoColumn>();
+        for (var i = 0; i < table.ColumnNames.Count; i++)
+        {
+            kustoColumns.Add(new KustoColumn(table.ColumnNames[i], table.ColumnTypes[i].Name));
+        }
 
         result.TableSchemas!.Add(
             new KustoTableSchema(
-                dataTable.TableName,
+                table.Name,
                 kustoColumns));
     }
 
     /// <summary>
-    /// Appends incoming records to the <see cref="DataTable" /> matching the fragment’s TableId.
+    /// Keeps the <c>PrimaryResult</c> records of the fragment, with each value converted to its column type.
     /// </summary>
     private void HandleTableFragment(
         ProgressiveDataSetFrame frame,
-        Dictionary<int, DataTable> tablesById)
+        Dictionary<int, FrameTable> tablesById,
+        List<FrameRecord> primaryResultRecords)
     {
         var tableFragmentFrame = (ProgressiveDataSetDataTableFragmentFrame)frame;
-        if (!tablesById.TryGetValue(tableFragmentFrame.TableId, out var dt))
+        if (!tablesById.TryGetValue(tableFragmentFrame.TableId, out var table))
         {
             LogReceivedTableFragmentForUnknownTable(tableFragmentFrame.TableId);
             return;
         }
 
-        var record = new object[tableFragmentFrame.FieldCount];
-        while (tableFragmentFrame.GetNextRecord(record))
+        var values = new object[tableFragmentFrame.FieldCount];
+        while (tableFragmentFrame.GetNextRecord(values))
         {
-            var newRow = dt.NewRow();
-
-            // Convert frame values to match column types (Kusto sends decimals as strings in progressive frames)
-            for (var i = 0; i < record.Length; i++)
+            if (table.Kind == WellKnownDataSet.PrimaryResult)
             {
-                newRow[i] = FrameValueTypeConverter.ConvertToColumnType(record[i], dt.Columns[i].DataType);
+                primaryResultRecords.Add(table.CreateRecord(values));
             }
-
-            dt.Rows.Add(newRow);
         }
     }
 
@@ -314,7 +298,7 @@ internal sealed partial class BufferedStreamingQueryHandler<T> : IScriptHandler<
     private void HandleTableCompletion(
         ProgressiveDataSetFrame frame,
         StreamingQueryResult<T> result,
-        Dictionary<int, DataTable> tablesById)
+        Dictionary<int, FrameTable> tablesById)
     {
         if (!streamingQueryOptions.OptionalFrames.HasFlag(FrameHeaders.CompletionSummary))
         {
@@ -331,7 +315,7 @@ internal sealed partial class BufferedStreamingQueryHandler<T> : IScriptHandler<
 
         result.Completion.TableCompletions!.Add(new KustoTableCompletionInfo
         {
-            TableName = tablesById[tableCompletionFrame.TableId].TableName,
+            TableName = tablesById[tableCompletionFrame.TableId].Name,
             RowCount = tableCompletionFrame.RowCount,
             Exception = tableCompletionFrame.Exception?.ToString(),
         });
@@ -353,40 +337,35 @@ internal sealed partial class BufferedStreamingQueryHandler<T> : IScriptHandler<
     }
 
     /// <summary>
-    /// Materialises a <c>DataTable</c> frame and stores it by TableId.
+    /// Reads a <c>DataTable</c> frame, keeps the table by TableId and keeps its <c>PrimaryResult</c> records.
     /// This frame represents one data table (in all, when progressive results are not used or there's no need for multiple-frames-per-table).
     /// There are usually multiple such tables in the response, differentiated by purpose (TableKind).
     /// </summary>
-    private void HandleDataTable(
+    private static void HandleDataTable(
         ProgressiveDataSetFrame frame,
-        Dictionary<int, DataTable> tablesById,
-        Dictionary<int, WellKnownDataSet> tableKindsById)
+        Dictionary<int, FrameTable> tablesById,
+        List<FrameRecord> primaryResultRecords)
     {
         var dataTableFrame = (ProgressiveDataSetDataTableFrame)frame;
-        var schema = dataTableFrame.TableData.GetSchemaTable();
-
-        if (schema is null)
-        {
-            LogSchemaNullInDataTableDataSetFrame(
-                dataTableFrame.TableId,
-                dataTableFrame.TableName,
-                dataTableFrame.TableKind);
-
-            return;
-        }
-
-        var table = new DataTable(dataTableFrame.TableName);
-        foreach (DataRow row in schema.Rows)
-        {
-            var columnType = row.Field<string?>("ColumnType");
-            var columnName = row.Field<string?>("ColumnName");
-            var clrType = CslType.FromCslType(columnType).GetCorrespondingClrType();
-            table.Columns.Add(columnName, clrType);
-        }
-
-        table.Load(dataTableFrame.TableData);
+        var table = FrameTable.FromDataTableFrame(dataTableFrame);
         tablesById[dataTableFrame.TableId] = table; // Always update the table with the new data
-        tableKindsById[dataTableFrame.TableId] = dataTableFrame.TableKind;
+
+        // Every table, also the ones we don't keep, is read to the end and then closed: the SDK can't move
+        // to the next frame before that, and closing a table without reading it silently ends the result.
+        var reader = dataTableFrame.TableData;
+        while (reader.Read())
+        {
+            if (table.Kind != WellKnownDataSet.PrimaryResult)
+            {
+                continue;
+            }
+
+            var values = new object[reader.FieldCount];
+            reader.GetValues(values);
+            primaryResultRecords.Add(new FrameRecord(table, values));
+        }
+
+        reader.Close();
     }
 
     /// <summary>

@@ -28,7 +28,7 @@ public sealed class StreamingQueryHandlerTests
         var options = new AtcStreamingQueryOptions { OptionalFrames = FrameHeaders.All, EnableServerSideCancellation = true };
 
         query.GetQueryText().Returns("print 1");
-        query.MapDataRow(Arg.Any<DataRow>()).Returns((string?)null);
+        query.MapRecord(Arg.Any<IDataRecord>()).Returns((string?)null);
 
         ClientRequestProperties? capturedProps = null;
 
@@ -106,9 +106,9 @@ public sealed class StreamingQueryHandlerTests
         // Arrange
         query.GetQueryText().Returns(queryText);
 
-        query.MapDataRow(Arg.Any<DataRow>()).Returns(ci =>
+        query.MapRecord(Arg.Any<IDataRecord>()).Returns(ci =>
         {
-            var row = ci.Args()[0] as DataRow;
+            var row = ci.Args()[0] as IDataRecord;
             return row?[0].ToString();
         });
 
@@ -141,9 +141,9 @@ public sealed class StreamingQueryHandlerTests
         // Arrange
         query.GetQueryText().Returns(queryText);
 
-        query.MapDataRow(Arg.Any<DataRow>()).Returns(ci =>
+        query.MapRecord(Arg.Any<IDataRecord>()).Returns(ci =>
         {
-            var row = ci.Args()[0] as DataRow;
+            var row = ci.Args()[0] as IDataRecord;
             return row?[0].ToString();
         });
 
@@ -185,14 +185,14 @@ public sealed class StreamingQueryHandlerTests
         // Arrange
         query.GetQueryText().Returns(queryText);
 
-        query.MapDataRow(Arg.Any<DataRow>()).Returns(ci =>
+        query.MapRecord(Arg.Any<IDataRecord>()).Returns(ci =>
         {
-            var row = ci.Args()[0] as DataRow;
+            var row = ci.Args()[0] as IDataRecord;
             return row?[0].ToString();
         });
 
         // Create test frames with DataTable frames instead of TableFragment frames
-        var table = new DataTable(nameof(WellKnownDataSet.PrimaryResult));
+        using var table = new DataTable(nameof(WellKnownDataSet.PrimaryResult));
         table.Columns.Add("col", typeof(string));
         table.Rows.Add("D");
         table.Rows.Add("E");
@@ -225,6 +225,63 @@ public sealed class StreamingQueryHandlerTests
 
         // Assert
         rows.Should().BeEquivalentTo("D", "E", "F");
+    }
+
+    [Fact]
+    public async Task Execute_Maps_Fragment_Rows_With_Each_Value_Converted_To_Its_Column_Type()
+    {
+        // Arrange - progressive frames send the values as strings
+        using var schema = new DataTable(nameof(WellKnownDataSet.PrimaryResult));
+        schema.Columns.Add("id", typeof(Guid));
+        schema.Columns.Add("amount", typeof(double));
+
+        using var result = ReturnFrames(
+        [
+            new SchemaFrameStub(1, schema),
+            new FragmentFrameStub(
+                1,
+                ["74be27de-1e4e-49d9-b579-fe0b331d3642", "2.5"],
+                ["0b5c4a8e-3f0d-4c1e-9a3b-2d6f7e8a9b10", "-1"]),
+            new CompletionFrameStub(),
+        ]);
+
+        query
+            .MapRecord(Arg.Any<IDataRecord>())
+            .Returns(ci => string.Create(CultureInfo.InvariantCulture, $"{ci.Arg<IDataRecord>().GetGuid(0)}|{ci.Arg<IDataRecord>().GetDouble(1)}"));
+
+        // Act
+        var rows = new List<string?>();
+        await foreach (var row in sut.Execute(CancellationToken.None))
+        {
+            rows.Add(row);
+        }
+
+        // Assert
+        rows.Should().Equal("74be27de-1e4e-49d9-b579-fe0b331d3642|2.5", "0b5c4a8e-3f0d-4c1e-9a3b-2d6f7e8a9b10|-1");
+    }
+
+    [Fact]
+    public async Task Execute_Reads_Every_Table_To_The_End_And_Closes_It()
+    {
+        // Arrange - the SDK can't move to the next frame before the current table is read and closed
+        var frames = ProgressiveDataSetBuilder.BuildDataTableFrames("A", "B");
+        using var result = ReturnFrames([.. frames, new CompletionFrameStub()]);
+        MapFirstColumn();
+
+        // Act
+        var rows = new List<string?>();
+        await foreach (var row in sut.Execute(CancellationToken.None))
+        {
+            rows.Add(row);
+        }
+
+        // Assert
+        rows.Should().Equal("A", "B");
+        frames.Should().AllSatisfy(frame =>
+        {
+            frame.Reader.WasReadToEnd.Should().BeTrue();
+            frame.Reader.IsClosed.Should().BeTrue();
+        });
     }
 
     [Fact]
@@ -269,7 +326,7 @@ public sealed class StreamingQueryHandlerTests
     {
         // Arrange
         using var result = ReturnTrackedResult("A", "B");
-        query.MapDataRow(Arg.Any<DataRow>()).Throws(new InvalidOperationException("mapping failed"));
+        query.MapRecord(Arg.Any<IDataRecord>()).Throws(new InvalidOperationException("mapping failed"));
 
         // Act
         var act = async () =>
@@ -314,6 +371,22 @@ public sealed class StreamingQueryHandlerTests
         thrown.Which.InnerException.Should().BeSameAs(sdkError);
     }
 
+    private TrackedProgressiveDataSet ReturnFrames(
+        IEnumerable<ProgressiveDataSetFrame> frames)
+    {
+        var result = new TrackedProgressiveDataSet(frames);
+
+        queryProvider
+            .ExecuteQueryV2Async(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<ClientRequestProperties>(),
+                Arg.Any<CancellationToken>())
+            .Returns(result.DataSet);
+
+        return result;
+    }
+
     private TrackedProgressiveDataSet ReturnTrackedResult(
         params string[] values)
     {
@@ -332,6 +405,6 @@ public sealed class StreamingQueryHandlerTests
 
     private void MapFirstColumn()
         => query
-            .MapDataRow(Arg.Any<DataRow>())
-            .Returns(ci => ci.Arg<DataRow>()[0].ToString());
+            .MapRecord(Arg.Any<IDataRecord>())
+            .Returns(ci => ci.Arg<IDataRecord>()[0].ToString());
 }

@@ -176,6 +176,47 @@ public sealed class FrameValueTypeConverterTests
     }
 
     [Fact]
+    public void ConvertToColumnType_Converts_A_String_To_A_Guid()
+    {
+        // Act
+        var result = FrameValueTypeConverter.ConvertToColumnType("74be27de-1e4e-49d9-b579-fe0b331d3642", typeof(Guid));
+
+        // Assert
+        Assert.Equal(Guid.Parse("74be27de-1e4e-49d9-b579-fe0b331d3642"), result);
+    }
+
+    [Theory]
+    [InlineData("01:00:00", 0, 1, 0, 0, 0)]
+    [InlineData("1.02:03:04.5000000", 1, 2, 3, 4, 500)]
+    [InlineData("-00:00:01", 0, 0, 0, -1, 0)]
+    public void ConvertToColumnType_Converts_A_String_To_A_TimeSpan(
+        string value,
+        int days,
+        int hours,
+        int minutes,
+        int seconds,
+        int milliseconds)
+    {
+        // Act
+        var result = FrameValueTypeConverter.ConvertToColumnType(value, typeof(TimeSpan));
+
+        // Assert
+        Assert.Equal(new TimeSpan(days, hours, minutes, seconds, milliseconds), result);
+    }
+
+    [Fact]
+    public void ConvertToColumnType_Keeps_A_Kusto_DateTime_In_Utc()
+    {
+        // Act
+        var result = FrameValueTypeConverter.ConvertToColumnType("2024-01-02T03:04:05.678Z", typeof(DateTime));
+
+        // Assert
+        var dateTime = Assert.IsType<DateTime>(result);
+        Assert.Equal(DateTimeKind.Utc, dateTime.Kind);
+        Assert.Equal(new DateTime(2024, 1, 2, 3, 4, 5, 678, DateTimeKind.Utc), dateTime);
+    }
+
+    [Fact]
     public void ConvertToColumnType_Should_Handle_String_To_DateTime()
     {
         // Arrange

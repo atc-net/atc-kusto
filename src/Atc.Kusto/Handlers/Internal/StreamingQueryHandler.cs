@@ -92,8 +92,7 @@ internal sealed partial class StreamingQueryHandler<T> : IStreamingScriptHandler
 
         using var frames = progressiveDataSet.GetFrames();
 
-        var tablesById = new Dictionary<int, DataTable>();
-        var tableKindsById = new Dictionary<int, WellKnownDataSet>();
+        var tablesById = new Dictionary<int, FrameTable>();
 
         await foreach (var frame in frames.ToAsyncEnumerable(cancellationToken))
         {
@@ -102,17 +101,17 @@ internal sealed partial class StreamingQueryHandler<T> : IStreamingScriptHandler
             switch (frame.FrameType)
             {
                 case FrameType.TableHeader:
-                    HandleTableHeader(frame, tablesById, tableKindsById);
+                    HandleTableHeader(frame, tablesById);
                     break;
                 case FrameType.TableFragment:
-                    await foreach (var row in HandleTableFragment(frame, tablesById, tableKindsById, cancellationToken))
+                    await foreach (var row in HandleTableFragment(frame, tablesById, cancellationToken))
                     {
                         yield return row;
                     }
 
                     break;
                 case FrameType.DataTable:
-                    await foreach (var row in HandleDataTable(frame, tablesById, tableKindsById, cancellationToken))
+                    await foreach (var row in HandleDataTable(frame, cancellationToken))
                     {
                         yield return row;
                     }
@@ -170,63 +169,47 @@ internal sealed partial class StreamingQueryHandler<T> : IStreamingScriptHandler
 
     /// <summary>
     /// Contains the ID, name, kind and schema for a table being returned from ADX.
-    /// The schema and kind should be cached by ID so that they can be associated with the table rows later
+    /// The table is kept by ID so that the rows in later fragments can be read.
     /// </summary>
     /// <param name="frame">The frame.</param>
     /// <param name="tablesById">The tables by identifier.</param>
-    /// <param name="tableKindsById">The table kinds by identifier.</param>
     private static void HandleTableHeader(
         ProgressiveDataSetFrame frame,
-        Dictionary<int, DataTable> tablesById,
-        Dictionary<int, WellKnownDataSet> tableKindsById)
+        Dictionary<int, FrameTable> tablesById)
     {
         var tableHeaderFrame = (ProgressiveDataSetDataTableSchemaFrame)frame;
-        var dataTable = tableHeaderFrame.ToEmptyDataTable();
-        dataTable.TableName = tableHeaderFrame.TableName;
-        tablesById.Add(tableHeaderFrame.TableId, dataTable);
-        tableKindsById.Add(tableHeaderFrame.TableId, tableHeaderFrame.TableKind);
+        tablesById.Add(tableHeaderFrame.TableId, FrameTable.FromSchemaFrame(tableHeaderFrame));
     }
 
     /// <summary>
     /// Contains the table ID, field count, frame subtype, and a subset of data for the associated data table.
-    /// The records for the table can be accessed via the ProgressiveDataSetDataTableFragmentFrame.GetNextRecord method
+    /// The records for the table can be accessed via the ProgressiveDataSetDataTableFragmentFrame.GetNextRecord method.
+    /// Each <c>PrimaryResult</c> record is mapped with <see cref="IKustoStreamingQuery{T}.MapRecord"/>.
     /// </summary>
     /// <param name="frame">The frame.</param>
     /// <param name="tablesById">The tables by identifier.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     private async IAsyncEnumerable<T> HandleTableFragment(
         ProgressiveDataSetFrame frame,
-        Dictionary<int, DataTable> tablesById,
-        Dictionary<int, WellKnownDataSet> tableKindsById,
+        Dictionary<int, FrameTable> tablesById,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var tableFragmentFrame = (ProgressiveDataSetDataTableFragmentFrame)frame;
-        if (!tablesById.TryGetValue(tableFragmentFrame.TableId, out var dt))
+        if (!tablesById.TryGetValue(tableFragmentFrame.TableId, out var table))
         {
             LogReceivedTableFragmentForUnknownTable(tableFragmentFrame.TableId);
             yield break;
         }
 
-        var tableKind = tableKindsById[tableFragmentFrame.TableId];
-        var record = new object[tableFragmentFrame.FieldCount];
+        var values = new object[tableFragmentFrame.FieldCount];
 
-        while (tableFragmentFrame.GetNextRecord(record))
+        while (tableFragmentFrame.GetNextRecord(values))
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            // Create a new row from the known schema.
-            var newRow = dt.NewRow();
-
-            // Convert frame values to match column types (Kusto sends decimals as strings in progressive frames)
-            for (var i = 0; i < record.Length; i++)
+            if (table.Kind == WellKnownDataSet.PrimaryResult)
             {
-                newRow[i] = FrameValueTypeConverter.ConvertToColumnType(record[i], dt.Columns[i].DataType);
-            }
-
-            dt.Rows.Add(newRow);
-
-            if (tableKind == WellKnownDataSet.PrimaryResult)
-            {
-                var mapped = query.MapDataRow(newRow);
+                var mapped = query.MapRecord(table.CreateRecord(values));
                 if (mapped is not null)
                 {
                     yield return mapped;
@@ -240,56 +223,35 @@ internal sealed partial class StreamingQueryHandler<T> : IStreamingScriptHandler
     /// <summary>
     /// This frame represents one data table (in all, when progressive results are not used or there's no need for multiple-frames-per-table).
     /// There are usually multiple such tables in the response, differentiated by purpose (TableKind).
+    /// The <c>PrimaryResult</c> rows are mapped straight from the frame's reader with <see cref="IKustoStreamingQuery{T}.MapRecord"/>.
     /// </summary>
     /// <param name="frame">The frame.</param>
-    /// <param name="tablesById">The tables by identifier.</param>
-    /// <param name="tableKindsById">The table kinds by identifier.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     private async IAsyncEnumerable<T> HandleDataTable(
         ProgressiveDataSetFrame frame,
-        Dictionary<int, DataTable> tablesById,
-        Dictionary<int, WellKnownDataSet> tableKindsById,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var dataTableFrame = (ProgressiveDataSetDataTableFrame)frame;
-        var schema = dataTableFrame.TableData.GetSchemaTable();
+        var reader = dataTableFrame.TableData;
 
-        if (schema is null)
-        {
-            LogSchemaNullInDataTableDataSetFrame(
-                dataTableFrame.TableId,
-                dataTableFrame.TableName,
-                dataTableFrame.TableKind);
-
-            yield break;
-        }
-
-        var dt = new DataTable(dataTableFrame.TableName);
-        foreach (DataRow row in schema.Rows)
-        {
-            var columnType = row.Field<string?>("ColumnType");
-            var columnName = row.Field<string?>("ColumnName");
-            var clrType = CslType.FromCslType(columnType).GetCorrespondingClrType();
-            dt.Columns.Add(columnName, clrType);
-        }
-
-        dt.Load(dataTableFrame.TableData);
-        tablesById[dataTableFrame.TableId] = dt; // Always update the table with the new data
-        tableKindsById[dataTableFrame.TableId] = dataTableFrame.TableKind;
-
-        if (dataTableFrame.TableKind != WellKnownDataSet.PrimaryResult)
-        {
-            yield break;
-        }
-
-        foreach (DataRow row in dt.Rows)
+        // Every table, also the ones we don't map, is read to the end and then closed: the SDK can't move
+        // to the next frame before that, and closing a table without reading it silently ends the result.
+        while (reader.Read())
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var mapped = query.MapDataRow(row);
+            if (dataTableFrame.TableKind != WellKnownDataSet.PrimaryResult)
+            {
+                continue;
+            }
+
+            var mapped = query.MapRecord(reader);
             if (mapped is not null)
             {
                 yield return mapped;
             }
         }
+
+        reader.Close();
     }
 }

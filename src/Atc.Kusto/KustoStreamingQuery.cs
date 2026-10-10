@@ -7,12 +7,15 @@ namespace Atc.Kusto;
 public abstract record KustoStreamingQuery<T> : KustoScript, IKustoStreamingQuery<T>
 {
     /// <summary>
-    /// Maps the current data row to an object of type <typeparamref name="T"/>.
-    /// By default, this uses the JSON-based conversion.
+    /// Maps the current result row to an object of type <typeparamref name="T"/>.
+    /// By default, this uses the same JSON-based conversion as <see cref="KustoQuery{T}"/>
+    /// (<see cref="DataReaderExtensions.ReadObject{T}"/>).
     /// Override this method if you need custom mapping.
     /// </summary>
-    /// <param name="row">The data row.</param>
-    /// <returns>An instance of <typeparamref name="T"/>.</returns>
-    public virtual T? MapDataRow(DataRow row)
-        => row.MapDataRow<T>();
+    /// <param name="record">
+    /// The row. It is only valid during this call: read the values you need, don't keep the record.
+    /// </param>
+    /// <returns>An instance of <typeparamref name="T"/>, or <see langword="null"/> to skip the row.</returns>
+    public virtual T? MapRecord(IDataRecord record)
+        => record.ReadObject<T>();
 }

@@ -1,17 +1,22 @@
 namespace Atc.Kusto.Tests.Handlers.Internal;
 
 /// <summary>
-/// A <see cref="ProgressiveDataSet"/> with a primary result of string rows that records whether the
-/// data set and its frame enumerator were disposed.
+/// A <see cref="ProgressiveDataSet"/> that records whether the data set and its frame enumerator were disposed.
 /// </summary>
 internal sealed class TrackedProgressiveDataSet : IDisposable
 {
     private readonly TrackingFrameEnumerator frames;
 
     public TrackedProgressiveDataSet(params string[] values)
+        : this(ProgressiveDataSetBuilder.BuildPrimaryResultFrames(values))
     {
-        frames = new TrackingFrameEnumerator(ProgressiveDataSetBuilder.BuildPrimaryResultFrames(values));
-        DataSet = new ProgressiveDataSet(frames);
+    }
+
+    public TrackedProgressiveDataSet(
+        IEnumerable<ProgressiveDataSetFrame> frames)
+    {
+        this.frames = new TrackingFrameEnumerator(frames);
+        DataSet = new ProgressiveDataSet(this.frames);
         DataSet.Disposed += () => IsDataSetDisposed = true;
     }
 
