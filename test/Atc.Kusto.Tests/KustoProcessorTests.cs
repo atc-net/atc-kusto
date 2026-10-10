@@ -266,4 +266,132 @@ public sealed class KustoProcessorTests
         (await act.Should().ThrowAsync<OperationCanceledException>())
             .Which.InnerException.Should().BeSameAs(sdkError);
     }
+
+    [Theory, AutoNSubstituteData]
+    internal async Task ExecuteCommand_Throws_OperationCanceled_Before_Creating_A_Handler_When_Cancelled(
+        [Frozen] IScriptHandlerFactory factory,
+        IKustoCommand command,
+        KustoProcessor sut)
+    {
+        // Arrange
+        using var cts = CreateCancelledTokenSource();
+
+        // Act
+        var act = () => sut.ExecuteCommand(command, cts.Token);
+
+        // Assert
+        await act.Should().ThrowAsync<OperationCanceledException>();
+        factory.ReceivedCalls().Should().BeEmpty();
+    }
+
+    [Theory, AutoNSubstituteData]
+    internal async Task ExecuteQuery_Throws_OperationCanceled_Before_Creating_A_Handler_When_Cancelled(
+        [Frozen] IScriptHandlerFactory factory,
+        IKustoQuery<TestRecord> query,
+        KustoProcessor sut)
+    {
+        // Arrange
+        using var cts = CreateCancelledTokenSource();
+
+        // Act
+        var act = () => sut.ExecuteQuery(query, cts.Token);
+
+        // Assert
+        await act.Should().ThrowAsync<OperationCanceledException>();
+        factory.ReceivedCalls().Should().BeEmpty();
+    }
+
+    [Theory, AutoNSubstituteData]
+    internal async Task ExecutePagedQuery_Throws_OperationCanceled_Before_Creating_A_Handler_When_Cancelled(
+        [Frozen] IScriptHandlerFactory factory,
+        IKustoQuery<IReadOnlyList<TestRecord>> query,
+        KustoProcessor sut,
+        string sessionId,
+        int pageSize,
+        string continuationToken)
+    {
+        // Arrange
+        using var cts = CreateCancelledTokenSource();
+
+        // Act
+        var act = () => sut.ExecutePagedQuery(query, sessionId, pageSize, continuationToken, cts.Token);
+
+        // Assert
+        await act.Should().ThrowAsync<OperationCanceledException>();
+        factory.ReceivedCalls().Should().BeEmpty();
+    }
+
+    [Theory, AutoNSubstituteData]
+    internal async Task ExecuteBufferedStreamingQuery_Throws_OperationCanceled_Before_Creating_A_Handler_When_Cancelled(
+        [Frozen] IScriptHandlerFactory factory,
+        IKustoStreamingQuery<TestRecord> query,
+        KustoProcessor sut)
+    {
+        // Arrange
+        using var cts = CreateCancelledTokenSource();
+
+        // Act
+        var act = () => sut.ExecuteBufferedStreamingQuery(query, cts.Token);
+
+        // Assert
+        await act.Should().ThrowAsync<OperationCanceledException>();
+        factory.ReceivedCalls().Should().BeEmpty();
+    }
+
+    [Theory, AutoNSubstituteData]
+    internal async Task ExecuteStreamingQuery_Throws_OperationCanceled_Before_Creating_A_Handler_When_Cancelled(
+        [Frozen] IScriptHandlerFactory factory,
+        IKustoStreamingQuery<TestRecord> query,
+        KustoProcessor sut)
+    {
+        // Arrange
+        using var cts = CreateCancelledTokenSource();
+
+        // Act
+        var act = () => ReadAll(sut.ExecuteStreamingQuery(query, cts.Token));
+
+        // Assert
+        await act.Should().ThrowAsync<OperationCanceledException>();
+        factory.ReceivedCalls().Should().BeEmpty();
+    }
+
+    [Theory, AutoNSubstituteData]
+    internal async Task ExecuteStreamingQuery_Passes_A_Setup_Error_Through_When_Not_Cancelled(
+        [Frozen] IScriptHandlerFactory factory,
+        IKustoStreamingQuery<TestRecord> query,
+        KustoProcessor sut)
+    {
+        // Arrange - e.g. no database configured for the connection
+        var setupError = new InvalidOperationException("No database configured");
+
+        factory
+            .Create(
+                query,
+                sut.ConnectionName,
+                sut.DatabaseName,
+                Arg.Any<AtcStreamingQueryOptions?>())
+            .Returns(_ => throw setupError);
+
+        // Act
+        var act = () => ReadAll(sut.ExecuteStreamingQuery(query, CancellationToken.None));
+
+        // Assert
+        (await act.Should().ThrowAsync<InvalidOperationException>())
+            .Which.Should().BeSameAs(setupError);
+    }
+
+    private static CancellationTokenSource CreateCancelledTokenSource()
+    {
+        var cts = new CancellationTokenSource();
+        cts.Cancel();
+        return cts;
+    }
+
+    private static async Task ReadAll<T>(IAsyncEnumerable<T> rows)
+    {
+        await foreach (var row in rows)
+        {
+            _ = row;
+        }
+    }
 }
