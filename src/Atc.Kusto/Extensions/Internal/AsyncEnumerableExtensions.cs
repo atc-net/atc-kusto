@@ -5,6 +5,9 @@ internal static class AsyncEnumerableExtensions
     /// <summary>
     /// Converts a synchronous <see cref="IEnumerator{T}"/> to an asynchronous <see cref="IAsyncEnumerable{T}"/>.
     /// </summary>
+    /// <remarks>
+    /// Does not dispose <paramref name="enumerator"/>; the caller owns it.
+    /// </remarks>
     /// <typeparam name="T">The type of elements in the enumerator.</typeparam>
     /// <param name="enumerator">The synchronous enumerator to convert.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
