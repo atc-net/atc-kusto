@@ -19,7 +19,7 @@ public sealed class BufferedStreamingQueryHandlerTests
             new AtcStreamingQueryOptions { OptionalFrames = FrameHeaders.All, EnableServerSideCancellation = false });
     }
 
-    [Fact(Skip = "Flaky in CI - fire-and-forget Task.Run timing issue. Verified manually.")]
+    [Fact]
     public async Task Execute_ShouldIssueCancelCommand_WhenTokenCanceled()
     {
         // Arrange
@@ -31,6 +31,21 @@ public sealed class BufferedStreamingQueryHandlerTests
         query.MapDataRow(Arg.Any<DataRow>()).Returns((string?)null);
 
         ClientRequestProperties? capturedProps = null;
+
+        // The cancel command is sent from a background task; signal when it arrives instead of sleeping.
+        var cancelCommandSent = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var cancelReader = Substitute.For<IDataReader>();
+
+        adminProvider
+            .ExecuteControlCommandAsync(
+                Arg.Any<string?>(),
+                Arg.Any<string>(),
+                Arg.Any<ClientRequestProperties>())
+            .Returns(ci =>
+            {
+                cancelCommandSent.TrySetResult(ci.ArgAt<string>(1));
+                return cancelReader;
+            });
 
         using var pds = ProgressiveDataSetBuilder.BuildPrimaryResult("A");
 
@@ -63,35 +78,24 @@ public sealed class BufferedStreamingQueryHandlerTests
 
         using var cts = new CancellationTokenSource();
 
-        // Act - start execution then cancel after a small delay to ensure the handler has started
+        // Act - Execute runs synchronously up to the pending query, so the cancellation callback
+        // is already registered when it returns; no delay is needed before cancelling.
         var executeTask = handler.Execute(cts.Token);
-
-        await Task.Delay(10);
         await cts.CancelAsync();
 
-        try
-        {
-            await executeTask;
-        }
-        catch (OperationCanceledException)
-        {
-            // Expected
-        }
+        var act = async () => await executeTask;
+        await act.Should().ThrowAsync<OperationCanceledException>();
 
-        // Give the background cancellation task a brief moment to execute
-        await Task.Delay(50);
+        // Not cts.Token: it is already cancelled, and this waits for the effect of cancelling it.
+        var cancelCommand = await cancelCommandSent.Task.WaitAsync(
+            TimeSpan.FromSeconds(10),
+            CancellationToken.None);
 
-        // Assert - Verify a cancel control command was issued with the original ClientRequestId
-        var hasClientRequestId = capturedProps is not null && !string.IsNullOrEmpty(capturedProps.ClientRequestId);
-
-        await adminProvider
-            .Received()
-            .ExecuteControlCommandAsync(
-                databaseName: Arg.Any<string?>(),
-                Arg.Is<string>(cmd => cmd.Contains("cancel", StringComparison.OrdinalIgnoreCase)
-                    && hasClientRequestId
-                    && cmd.Contains(capturedProps!.ClientRequestId!, StringComparison.Ordinal)),
-                Arg.Any<ClientRequestProperties>());
+        // Assert - a cancel control command was issued with the original ClientRequestId
+        capturedProps.Should().NotBeNull();
+        capturedProps!.ClientRequestId.Should().NotBeNullOrEmpty();
+        cancelCommand.Should().ContainEquivalentOf("cancel");
+        cancelCommand.Should().Contain(capturedProps.ClientRequestId);
     }
 
     [Fact]
@@ -145,9 +149,8 @@ public sealed class BufferedStreamingQueryHandlerTests
             // Expected
         }
 
-        await Task.Delay(50);
-
-        // Assert - verify NO cancel command was issued
+        // Assert - no cancel command was sent. No wait is needed: with server-side cancellation
+        // disabled no cancellation callback is registered, so no background task can send one later.
         await adminProvider
             .DidNotReceive()
             .ExecuteControlCommandAsync(

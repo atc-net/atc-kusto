@@ -31,6 +31,21 @@ public sealed class StreamingQueryHandlerTests
 
         ClientRequestProperties? capturedProps = null;
 
+        // The cancel command is sent from a background task; signal when it arrives instead of sleeping.
+        var cancelCommandSent = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var cancelReader = Substitute.For<IDataReader>();
+
+        adminProvider
+            .ExecuteControlCommandAsync(
+                Arg.Any<string?>(),
+                Arg.Any<string>(),
+                Arg.Any<ClientRequestProperties>())
+            .Returns(ci =>
+            {
+                cancelCommandSent.TrySetResult(ci.ArgAt<string>(1));
+                return cancelReader;
+            });
+
         using var pds = ProgressiveDataSetBuilder.BuildPrimaryResult("A");
 
         queryProvider
@@ -55,7 +70,7 @@ public sealed class StreamingQueryHandlerTests
         using var cts = new CancellationTokenSource();
 
         // Act - cancel right after starting enumeration
-        var iterator = handler.Execute(cts.Token).GetAsyncEnumerator();
+        var iterator = handler.Execute(cts.Token).GetAsyncEnumerator(cts.Token);
         await cts.CancelAsync();
 
         try
@@ -71,18 +86,16 @@ public sealed class StreamingQueryHandlerTests
             await iterator.DisposeAsync();
         }
 
-        await Task.Delay(50);
+        // Not cts.Token: it is already cancelled, and this waits for the effect of cancelling it.
+        var cancelCommand = await cancelCommandSent.Task.WaitAsync(
+            TimeSpan.FromSeconds(10),
+            CancellationToken.None);
 
-        var hasClientRequestId = capturedProps is not null && !string.IsNullOrEmpty(capturedProps.ClientRequestId);
-
-        await adminProvider
-            .Received()
-            .ExecuteControlCommandAsync(
-                databaseName: Arg.Any<string?>(),
-                Arg.Is<string>(cmd => cmd.Contains("cancel", StringComparison.OrdinalIgnoreCase)
-                    && hasClientRequestId
-                    && cmd.Contains(capturedProps!.ClientRequestId!, StringComparison.Ordinal)),
-                Arg.Any<ClientRequestProperties>());
+        // Assert - a cancel control command was issued with the original ClientRequestId
+        capturedProps.Should().NotBeNull();
+        capturedProps!.ClientRequestId.Should().NotBeNullOrEmpty();
+        cancelCommand.Should().ContainEquivalentOf("cancel");
+        cancelCommand.Should().Contain(capturedProps.ClientRequestId);
     }
 
     [Theory, AutoNSubstituteData]
