@@ -22,6 +22,11 @@ internal sealed class FrameRecord : IDataRecord
         this.values = values;
     }
 
+    /// <summary>
+    /// Gets the table the row belongs to.
+    /// </summary>
+    public FrameTable Table => table;
+
     /// <inheritdoc />
     public int FieldCount => values.Length;
 

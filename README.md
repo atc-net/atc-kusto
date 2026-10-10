@@ -43,6 +43,7 @@ The library provides a streamlined interface for handling Kusto operations, maki
       - [Direct streaming](#direct-streaming)
       - [Buffered streaming](#buffered-streaming)
       - [Custom row mapping](#custom-row-mapping)
+      - [Progressive mode](#progressive-mode)
     - [Ingesting data](#ingesting-data)
       - [Ingestion quick start](#ingestion-quick-start)
       - [Checking the result](#checking-the-result)
@@ -743,6 +744,35 @@ public record CustomerNamesStreamingQuery()
 ```
 
 > Before 4.0 this hook was `MapDataRow(DataRow row)`. Rename the override to `MapRecord(IDataRecord record)`; `row["Name"]` becomes `record["Name"]`, and `row.Field<T>("Name")` becomes `(T)record["Name"]` (or one of the typed getters, such as `record.GetString(...)`). A null value is `DBNull.Value`, so check `record.IsDBNull(...)` first.
+
+#### Progressive mode
+
+`AtcStreamingQueryOptions.ProgressiveEnabled` controls how Kusto packages the result. It is **off by default**.
+
+- **Off**: Kusto sends each result table as one package, and Atc.Kusto reads it row by row as it arrives. The rows are always final.
+- **On**: Kusto sends the table in chunks and may send a *preview* while the query is still running. A later chunk can **replace** the rows sent so far, for example when a `summarize` sends an early count and then the final one.
+
+What happens when Kusto replaces rows:
+
+| | Progressive off | Progressive on |
+|---|---|---|
+| **Direct streaming** (`ExecuteStreamingQuery`) | Final rows only | Rows are handed out immediately and can't be taken back: a replace after rows were returned ends the stream with an `InvalidOperationException` |
+| **Buffered streaming** (`ExecuteBufferedStreamingQuery`) | Final rows only | The replace is applied before any row is handed out, so you get the final rows |
+
+When to turn it on:
+
+- Only for **long-running queries** where seeing a preview early is worth it, preferably with buffered streaming.
+- Be careful with **aggregations** (`summarize`, `count`, `dcount`, `top` over large data) in direct streaming: they are the queries Kusto replaces.
+- Plain `take`/`where`/`project` queries gain nothing: their rows arrive just as fast (often faster) with progressive mode off.
+
+```csharp
+var result = await kustoProcessor.ExecuteBufferedStreamingQuery(
+    new SalesSummaryQuery(),
+    new AtcStreamingQueryOptions { ProgressiveEnabled = true },
+    cancellationToken);
+```
+
+> Before 4.0 progressive mode was on by default, and replaced rows were added to the earlier ones (duplicate and partial rows for aggregations).
 
 ### Ingesting data
 

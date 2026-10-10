@@ -35,8 +35,22 @@ public sealed class AtcStreamingQueryOptions : AtcQueryOptionsBase
     public FrameHeaders OptionalFrames { get; set; } = FrameHeaders.None;
 
     /// <summary>
-    /// Gets or sets a value indicating whether progressive mode is enabled.
-    /// When enabled, results are streamed progressively as frames are received.
+    /// Gets or sets a value indicating whether Kusto sends the result in progressive mode.
+    /// Default is <see langword="false"/>.
     /// </summary>
-    public bool ProgressiveEnabled { get; set; } = true;
+    /// <remarks>
+    /// <para>
+    /// Rows are streamed one by one in both modes. In progressive mode the server may also send a preview of the
+    /// result while it is still computing, and later replace it (e.g. for <c>summarize</c>, where an early count is
+    /// replaced by the final one).
+    /// </para>
+    /// <para>
+    /// Only enable it for long-running queries where an early preview is worth it, preferably with
+    /// <see cref="IKustoProcessor.ExecuteBufferedStreamingQuery{T}(IKustoStreamingQuery{T}, AtcStreamingQueryOptions?, CancellationToken)"/>,
+    /// which applies a replace before handing out rows. Direct streaming hands rows out immediately and can't take
+    /// them back, so a replace after rows were returned ends the stream with an <see cref="InvalidOperationException"/>.
+    /// Plain <c>take</c>/<c>where</c>/<c>project</c> queries don't get their rows any sooner.
+    /// </para>
+    /// </remarks>
+    public bool ProgressiveEnabled { get; set; }
 }

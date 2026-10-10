@@ -261,6 +261,72 @@ public sealed class StreamingQueryHandlerTests
     }
 
     [Fact]
+    public async Task Execute_Uses_A_DataReplace_That_Comes_Before_Any_Row_Was_Returned()
+    {
+        // Arrange - nothing was handed out yet, so the replacing rows simply are the result
+        using var result = ReturnFrames(ProgressiveDataSetBuilder.BuildProgressiveFrames(
+            new FragmentFrameStub(1, TableFragmentType.DataReplace, ["A"], ["B"])));
+
+        MapFirstColumn();
+
+        // Act
+        var rows = new List<string?>();
+        await foreach (var row in sut.Execute(CancellationToken.None))
+        {
+            rows.Add(row);
+        }
+
+        // Assert
+        rows.Should().Equal("A", "B");
+    }
+
+    [Fact]
+    public async Task Execute_Throws_When_A_DataReplace_Replaces_Rows_That_Were_Already_Returned()
+    {
+        // Arrange - a preview row is handed out, then the final result replaces it
+        using var result = ReturnFrames(ProgressiveDataSetBuilder.BuildProgressiveFrames(
+            new FragmentFrameStub(1, TableFragmentType.DataAppend, ["preview"]),
+            new FragmentFrameStub(1, TableFragmentType.DataReplace, ["final"])));
+        MapFirstColumn();
+
+        var rows = new List<string?>();
+
+        // Act
+        var act = async () =>
+        {
+            await foreach (var row in sut.Execute(CancellationToken.None))
+            {
+                rows.Add(row);
+            }
+        };
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*ProgressiveEnabled*");
+        rows.Should().Equal("preview");
+    }
+
+    [Fact]
+    public async Task Execute_Throws_NotSupported_For_A_DataRemove_Fragment()
+    {
+        // Arrange
+        using var result = ReturnFrames(ProgressiveDataSetBuilder.BuildProgressiveFrames(
+            new FragmentFrameStub(1, TableFragmentType.DataRemove, ["A"])));
+        MapFirstColumn();
+
+        // Act
+        var act = async () =>
+        {
+            await foreach (var row in sut.Execute(CancellationToken.None))
+            {
+                _ = row;
+            }
+        };
+
+        // Assert
+        await act.Should().ThrowAsync<NotSupportedException>().WithMessage("*DataRemove*");
+    }
+
+    [Fact]
     public async Task Execute_Reads_Every_Table_To_The_End_And_Closes_It()
     {
         // Arrange - the SDK can't move to the next frame before the current table is read and closed
