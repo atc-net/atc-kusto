@@ -82,30 +82,20 @@ internal sealed partial class StreamingQueryHandler<T> : IStreamingScriptHandler
                 cancellationToken)
             : null;
 
-        ProgressiveDataSet progressiveDataSet;
-        try
-        {
-            progressiveDataSet = await queryProvider.ExecuteQueryV2Async(
-                databaseName: null,
-                queryText,
-                clientRequestProperties,
-                cancellationToken);
-        }
-        catch (Exception ex) when (CancellationExceptionUtilities.IsCancellation(ex, cancellationToken))
-        {
-            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-            throw CancellationExceptionUtilities.NormalizeCancellationException(ex, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-            throw;
-        }
+        // Both are disposed, also when the caller stops early or an error occurs: once GetFrames() has
+        // been called the data set no longer disposes the frames, and they hold the HTTP response open.
+        using var progressiveDataSet = await StartQuery(
+            queryText,
+            clientRequestProperties,
+            activity,
+            cancellationToken);
+
+        using var frames = progressiveDataSet.GetFrames();
 
         var tablesById = new Dictionary<int, DataTable>();
         var tableKindsById = new Dictionary<int, WellKnownDataSet>();
 
-        await foreach (var frame in progressiveDataSet.GetFrames().ToAsyncEnumerable(cancellationToken))
+        await foreach (var frame in frames.ToAsyncEnumerable(cancellationToken))
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -139,6 +129,43 @@ internal sealed partial class StreamingQueryHandler<T> : IStreamingScriptHandler
         }
 
         activity?.SetStatus(ActivityStatusCode.Ok);
+    }
+
+    /// <summary>
+    /// Sends the query and returns the progressive data set to read the frames from.
+    /// </summary>
+    /// <param name="queryText">The query text.</param>
+    /// <param name="clientRequestProperties">The client request properties.</param>
+    /// <param name="activity">The activity to mark as failed when sending fails.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>The progressive data set; the caller disposes it.</returns>
+    /// <exception cref="OperationCanceledException">
+    /// Thrown when sending fails after <paramref name="cancellationToken"/> was cancelled.
+    /// </exception>
+    private async Task<ProgressiveDataSet> StartQuery(
+        string queryText,
+        ClientRequestProperties clientRequestProperties,
+        System.Diagnostics.Activity? activity,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await queryProvider.ExecuteQueryV2Async(
+                databaseName: null,
+                queryText,
+                clientRequestProperties,
+                cancellationToken);
+        }
+        catch (Exception ex) when (CancellationExceptionUtilities.IsCancellation(ex, cancellationToken))
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            throw CancellationExceptionUtilities.NormalizeCancellationException(ex, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            throw;
+        }
     }
 
     /// <summary>

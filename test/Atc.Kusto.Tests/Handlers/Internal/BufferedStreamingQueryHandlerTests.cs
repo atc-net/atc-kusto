@@ -259,6 +259,37 @@ public sealed class BufferedStreamingQueryHandlerTests
     }
 
     [Fact]
+    public async Task Execute_Disposes_The_Result_Stream_After_Reading_All_Frames()
+    {
+        // Arrange
+        using var result = ReturnTrackedResult("A", "B");
+        MapFirstColumn();
+
+        // Act
+        await sut.Execute(CancellationToken.None);
+
+        // Assert
+        result.AreFramesDisposed.Should().BeTrue();
+        result.IsDataSetDisposed.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Execute_Disposes_The_Result_Stream_When_Processing_Fails()
+    {
+        // Arrange
+        using var result = ReturnTrackedResult("A", "B");
+        query.MapDataRow(Arg.Any<DataRow>()).Throws(new InvalidOperationException("mapping failed"));
+
+        // Act
+        var queryResult = await sut.Execute(CancellationToken.None);
+
+        // Assert
+        queryResult!.Completion!.HasErrors.Should().BeTrue();
+        result.AreFramesDisposed.Should().BeTrue();
+        result.IsDataSetDisposed.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Execute_Reports_A_Kusto_Cancel_Error_As_A_Failure_When_The_Caller_Did_Not_Cancel()
     {
         // Arrange - e.g. someone else ran ".cancel query": a failure, not cancellation by the caller
@@ -278,11 +309,41 @@ public sealed class BufferedStreamingQueryHandlerTests
         result!.Completion.Should().NotBeNull();
         result.Completion!.HasErrors.Should().BeTrue();
     }
+
+    private TrackedProgressiveDataSet ReturnTrackedResult(
+        params string[] values)
+    {
+        var result = new TrackedProgressiveDataSet(values);
+
+        queryProvider
+            .ExecuteQueryV2Async(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<ClientRequestProperties>(),
+                Arg.Any<CancellationToken>())
+            .Returns(result.DataSet);
+
+        return result;
+    }
+
+    private void MapFirstColumn()
+        => query
+            .MapDataRow(Arg.Any<DataRow>())
+            .Returns(ci => ci.Arg<DataRow>()[0].ToString());
 }
 
 internal static class ProgressiveDataSetBuilder
 {
     internal static ProgressiveDataSet BuildPrimaryResult(
+        params string[] values)
+    {
+        var enumerator = BuildPrimaryResultFrames(values).GetEnumerator();
+        var pds = new ProgressiveDataSet(enumerator);
+
+        return pds;
+    }
+
+    internal static IEnumerable<ProgressiveDataSetFrame> BuildPrimaryResultFrames(
         params string[] values)
     {
         var table = new DataTable(WellKnownDataSet.PrimaryResult.ToString());
@@ -292,17 +353,12 @@ internal static class ProgressiveDataSetBuilder
             table.Rows.Add(v);
         }
 
-        ProgressiveDataSetFrame[] frames =
-        {
+        return
+        [
             new SchemaFrameStub(1, table),
             new DataTableFrameStub(1, table),
             new CompletionFrameStub(),
-        };
-
-        var enumerator = ((IEnumerable<ProgressiveDataSetFrame>)frames).GetEnumerator();
-        var pds = new ProgressiveDataSet(enumerator);
-
-        return pds;
+        ];
     }
 }
 

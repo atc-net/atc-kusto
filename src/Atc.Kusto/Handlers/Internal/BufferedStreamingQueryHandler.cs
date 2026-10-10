@@ -124,7 +124,9 @@ internal sealed partial class BufferedStreamingQueryHandler<T> : IScriptHandler<
 
         try
         {
-            var progressiveDataSet = await queryProvider.ExecuteQueryV2Async(
+            // Both are disposed, also when an error occurs: once GetFrames() has been called the data
+            // set no longer disposes the frames, and they hold the HTTP response open.
+            using var progressiveDataSet = await queryProvider.ExecuteQueryV2Async(
                 databaseName: null,
                 queryText,
                 clientRequestProperties,
@@ -136,7 +138,9 @@ internal sealed partial class BufferedStreamingQueryHandler<T> : IScriptHandler<
                 return;
             }
 
-            await foreach (var frame in progressiveDataSet.GetFrames().ToAsyncEnumerable(cancellationToken))
+            using var frames = progressiveDataSet.GetFrames();
+
+            await foreach (var frame in frames.ToAsyncEnumerable(cancellationToken))
             {
                 cancellationToken.ThrowIfCancellationRequested();
 

@@ -227,6 +227,65 @@ public sealed class StreamingQueryHandlerTests
         rows.Should().BeEquivalentTo("D", "E", "F");
     }
 
+    [Fact]
+    public async Task Execute_Disposes_The_Result_Stream_After_Reading_All_Rows()
+    {
+        // Arrange
+        using var result = ReturnTrackedResult("A", "B");
+        MapFirstColumn();
+
+        // Act
+        await foreach (var row in sut.Execute(CancellationToken.None))
+        {
+            _ = row;
+        }
+
+        // Assert
+        result.AreFramesDisposed.Should().BeTrue();
+        result.IsDataSetDisposed.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Execute_Disposes_The_Result_Stream_When_The_Caller_Stops_Early()
+    {
+        // Arrange
+        using var result = ReturnTrackedResult("A", "B");
+        MapFirstColumn();
+
+        // Act - read the first row, then stop
+        await using (var rows = sut.Execute(CancellationToken.None).GetAsyncEnumerator())
+        {
+            (await rows.MoveNextAsync()).Should().BeTrue();
+            rows.Current.Should().Be("A");
+        }
+
+        // Assert
+        result.AreFramesDisposed.Should().BeTrue();
+        result.IsDataSetDisposed.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Execute_Disposes_The_Result_Stream_When_Mapping_Fails()
+    {
+        // Arrange
+        using var result = ReturnTrackedResult("A", "B");
+        query.MapDataRow(Arg.Any<DataRow>()).Throws(new InvalidOperationException("mapping failed"));
+
+        // Act
+        var act = async () =>
+        {
+            await foreach (var row in sut.Execute(CancellationToken.None))
+            {
+                _ = row;
+            }
+        };
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        result.AreFramesDisposed.Should().BeTrue();
+        result.IsDataSetDisposed.Should().BeTrue();
+    }
+
     [Theory]
     [MemberData(nameof(CancellationTestData.SdkCancellationErrors), MemberType = typeof(CancellationTestData))]
     public async Task Execute_Throws_OperationCanceledException_When_Starting_The_Stream_Fails_After_The_Caller_Cancelled(
@@ -254,4 +313,25 @@ public sealed class StreamingQueryHandlerTests
         var thrown = await act.Should().ThrowAsync<OperationCanceledException>();
         thrown.Which.InnerException.Should().BeSameAs(sdkError);
     }
+
+    private TrackedProgressiveDataSet ReturnTrackedResult(
+        params string[] values)
+    {
+        var result = new TrackedProgressiveDataSet(values);
+
+        queryProvider
+            .ExecuteQueryV2Async(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<ClientRequestProperties>(),
+                Arg.Any<CancellationToken>())
+            .Returns(result.DataSet);
+
+        return result;
+    }
+
+    private void MapFirstColumn()
+        => query
+            .MapDataRow(Arg.Any<DataRow>())
+            .Returns(ci => ci.Arg<DataRow>()[0].ToString());
 }
