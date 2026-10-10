@@ -26,7 +26,10 @@ internal static class CslAdminProviderExtensions
     /// <param name="databaseName">Optional database name; pass null to use the provider's default.</param>
     /// <param name="clientRequestProperties">The original request properties used for the running query.</param>
     /// <param name="cancellationToken">Token to observe for cancellation.</param>
-    /// <returns>An <see cref="IDisposable"/> that should be disposed to unregister the callback.</returns>
+    /// <returns>
+    /// An <see cref="IDisposable"/> that should be disposed to unregister the callback. Once
+    /// <paramref name="cancellationToken"/> is cancelled, disposing it no longer stops the cancel command.
+    /// </returns>
     public static IDisposable RegisterKustoServerSideCancellation(
         this ICslAdminProvider adminProvider,
         ILogger logger,
@@ -46,7 +49,7 @@ internal static class CslAdminProviderExtensions
 
         var state = (adminProvider, databaseName, originalClientRequestId: clientRequestProperties.ClientRequestId, logger);
 
-        return cancellationToken.Register(
+        var registration = cancellationToken.Register(
             static s =>
             {
                 var (admin, db, originalClientRequestId, logger) = ((ICslAdminProvider, string?, string, ILogger))s!;
@@ -81,6 +84,39 @@ internal static class CslAdminProviderExtensions
                 }
             },
             state);
+
+        return new ServerSideCancellationRegistration(registration, cancellationToken);
+    }
+
+    /// <summary>
+    /// Unregisters the cancel callback, unless the token has already been cancelled.
+    /// </summary>
+    /// <remarks>
+    /// A token runs its callbacks newest first, and the SDK registers its own callback after ours. So when the
+    /// token is cancelled, the SDK can end the query first, and the handler then disposes this registration
+    /// before our callback has run. Unregistering at that point would drop the cancel command, and the query
+    /// would keep running on the server.
+    /// </remarks>
+    private sealed class ServerSideCancellationRegistration : IDisposable
+    {
+        private readonly CancellationTokenRegistration registration;
+        private readonly CancellationToken cancellationToken;
+
+        public ServerSideCancellationRegistration(
+            CancellationTokenRegistration registration,
+            CancellationToken cancellationToken)
+        {
+            this.registration = registration;
+            this.cancellationToken = cancellationToken;
+        }
+
+        public void Dispose()
+        {
+            if (!cancellationToken.IsCancellationRequested)
+            {
+                registration.Dispose();
+            }
+        }
     }
 
     private sealed class NullDisposable : IDisposable
