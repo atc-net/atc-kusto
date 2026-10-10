@@ -47,7 +47,7 @@ public sealed class KustoProcessor : IKustoProcessor
     /// <inheritdoc />
     public async Task<T?> ExecuteQuery<T>(
         IKustoQuery<T> query,
-        AtcQueryOptions? options = null,
+        AtcQueryOptions? options,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -89,7 +89,7 @@ public sealed class KustoProcessor : IKustoProcessor
     /// <inheritdoc />
     public async Task<StreamingQueryResult<T>?> ExecuteBufferedStreamingQuery<T>(
         IKustoStreamingQuery<T> query,
-        AtcStreamingQueryOptions? options = null,
+        AtcStreamingQueryOptions? options,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -131,7 +131,7 @@ public sealed class KustoProcessor : IKustoProcessor
     /// <inheritdoc />
     public async IAsyncEnumerable<T> ExecuteStreamingQuery<T>(
         IKustoStreamingQuery<T> query,
-        AtcStreamingQueryOptions? options = null,
+        AtcStreamingQueryOptions? options,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();

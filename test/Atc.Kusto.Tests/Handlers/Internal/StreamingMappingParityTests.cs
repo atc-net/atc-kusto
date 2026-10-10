@@ -7,7 +7,7 @@ namespace Atc.Kusto.Tests.Handlers.Internal;
 public sealed class StreamingMappingParityTests
 {
     /// <summary>
-    /// Captured from help.kusto.windows.net (2026-10-10) with the previous DataTable-based progressive path, for
+    /// Captured from help.kusto.windows.net (2026-10-10) for
     /// <c>print b=true, bn=bool(null), i=int(7), n=int(null), l=long(5), d=decimal(1.25), r=real(2.5),
     /// rb=real(1234.5), g=guid(74be27de-1e4e-49d9-b579-fe0b331d3642), dy=dynamic({"a":1,"e":"X"}), dn=dynamic(null),
     /// da=dynamic([1,2]), dt=datetime(2024-01-02 03:04:05.678), ts=1h, s="x", sn=""</c>.
@@ -94,8 +94,7 @@ public sealed class StreamingMappingParityTests
     [Fact]
     public void A_DataTable_Frame_Row_Maps_To_The_Captured_Json()
     {
-        // Arrange - the values as the SDK's reader returns them without progressive results.
-        // (The previous DataTable.Load path dropped the UTC marker here: "…05.678" instead of "…05.678Z".)
+        // Arrange - the values as the SDK's reader returns them without progressive results
         using var table = CreateDataTable(CapturedColumns);
         var row = table.NewRow();
         row.ItemArray =

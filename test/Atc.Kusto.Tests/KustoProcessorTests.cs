@@ -140,6 +140,90 @@ public sealed class KustoProcessorTests
     }
 
     [Theory, AutoNSubstituteData]
+    internal async Task ExecuteQuery_Can_Be_Called_With_Only_The_Query(
+        [Frozen] IScriptHandlerFactory factory,
+        IKustoQuery<TestRecord> query,
+        IScriptHandler<TestRecord> scriptHandler,
+        KustoProcessor sut,
+        TestRecord expectedResult)
+    {
+        // Arrange
+        factory
+            .Create(query, sut.ConnectionName, sut.DatabaseName)
+            .Returns(scriptHandler);
+
+        scriptHandler
+            .Execute(Arg.Any<CancellationToken>())
+            .Returns(expectedResult);
+
+        // Act
+        var actualResult = await sut.ExecuteQuery(query);
+
+        // Assert
+        actualResult.Should().Be(expectedResult);
+    }
+
+    [Theory, AutoNSubstituteData]
+    internal async Task ExecuteBufferedStreamingQuery_Can_Be_Called_With_Only_The_Query(
+        [Frozen] IScriptHandlerFactory factory,
+        IKustoStreamingQuery<TestRecord> query,
+        IScriptHandler<StreamingQueryResult<TestRecord>?> scriptHandler,
+        KustoProcessor sut,
+        StreamingQueryResult<TestRecord> expectedResult)
+    {
+        // Arrange
+        factory
+            .CreateBuffered(
+                Arg.Is(query),
+                Arg.Is(sut.ConnectionName),
+                Arg.Is(sut.DatabaseName),
+                Arg.Any<AtcStreamingQueryOptions?>())
+            .Returns(scriptHandler);
+
+        scriptHandler
+            .Execute(Arg.Any<CancellationToken>())
+            .Returns(expectedResult);
+
+        // Act
+        var actualResult = await sut.ExecuteBufferedStreamingQuery(query);
+
+        // Assert
+        actualResult.Should().Be(expectedResult);
+    }
+
+    [Theory, AutoNSubstituteData]
+    internal async Task ExecuteStreamingQuery_Can_Be_Called_With_Only_The_Query(
+        [Frozen] IScriptHandlerFactory factory,
+        IKustoStreamingQuery<TestRecord> query,
+        IStreamingScriptHandler<TestRecord?> scriptHandler,
+        KustoProcessor sut,
+        TestRecord expectedRecord)
+    {
+        // Arrange
+        factory
+            .Create(
+                query,
+                sut.ConnectionName,
+                sut.DatabaseName,
+                Arg.Any<AtcStreamingQueryOptions?>())
+            .Returns(scriptHandler);
+
+        scriptHandler
+            .Execute(Arg.Any<CancellationToken>())
+            .Returns(new List<TestRecord?> { expectedRecord }.ToAsyncEnumerable());
+
+        // Act
+        var results = new List<TestRecord>();
+        await foreach (var item in sut.ExecuteStreamingQuery(query))
+        {
+            results.Add(item);
+        }
+
+        // Assert
+        results.Should().Equal(expectedRecord);
+    }
+
+    [Theory, AutoNSubstituteData]
     internal async Task ExecuteStreamingQuery_ShouldCallStreamingScriptHandlerExecute(
         [Frozen] IScriptHandlerFactory factory,
         IKustoStreamingQuery<TestRecord> query,

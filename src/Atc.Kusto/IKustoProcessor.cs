@@ -49,14 +49,14 @@ public interface IKustoProcessor
     /// </summary>
     /// <typeparam name="T">The type of the result returned by the query.</typeparam>
     /// <param name="query">The Kusto query to be executed.</param>
-    /// <param name="options">Optional streaming options. If null, default options are used.</param>
+    /// <param name="options">The query options, or <see langword="null"/> to use the defaults.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation.
     /// The task result contains the query result of type <typeparamref name="T"/> or null if no result is available.</returns>
     /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is cancelled.</exception>
     Task<T?> ExecuteQuery<T>(
         IKustoQuery<T> query,
-        AtcQueryOptions? options = null,
+        AtcQueryOptions? options,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -83,7 +83,7 @@ public interface IKustoProcessor
     /// </summary>
     /// <typeparam name="T">The type to which each row is mapped.</typeparam>
     /// <param name="query">The Kusto streaming query to execute.</param>
-    /// <param name="options">Optional streaming options. If null, default options are used.</param>
+    /// <param name="options">The streaming options, or <see langword="null"/> to use the defaults.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>
     /// A task representing the asynchronous operation. The task result contains a <see cref="StreamingQueryResult{T}"/>
@@ -92,7 +92,7 @@ public interface IKustoProcessor
     /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is cancelled.</exception>
     Task<StreamingQueryResult<T>?> ExecuteBufferedStreamingQuery<T>(
         IKustoStreamingQuery<T> query,
-        AtcStreamingQueryOptions? options = null,
+        AtcStreamingQueryOptions? options,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -117,7 +117,7 @@ public interface IKustoProcessor
     /// </summary>
     /// <typeparam name="T">The type to which each row is mapped.</typeparam>
     /// <param name="query">The Kusto streaming query to execute.</param>
-    /// <param name="options">Optional streaming options. If null, default options are used.</param>
+    /// <param name="options">The streaming options, or <see langword="null"/> to use the defaults.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>
     /// An asynchronous stream of rows mapped to type <typeparamref name="T"/>.
@@ -125,7 +125,7 @@ public interface IKustoProcessor
     /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is cancelled.</exception>
     IAsyncEnumerable<T> ExecuteStreamingQuery<T>(
         IKustoStreamingQuery<T> query,
-        AtcStreamingQueryOptions? options = null,
+        AtcStreamingQueryOptions? options,
         CancellationToken cancellationToken = default);
 
     /// <summary>
