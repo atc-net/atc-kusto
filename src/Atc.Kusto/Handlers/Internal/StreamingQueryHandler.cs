@@ -93,6 +93,7 @@ internal sealed partial class StreamingQueryHandler<T> : IStreamingScriptHandler
         using var frames = progressiveDataSet.GetFrames();
 
         var tablesById = new Dictionary<int, FrameTable>();
+        var tablesWithReturnedRows = new HashSet<int>();
 
         await foreach (var frame in frames.ToAsyncEnumerable(cancellationToken))
         {
@@ -104,7 +105,7 @@ internal sealed partial class StreamingQueryHandler<T> : IStreamingScriptHandler
                     HandleTableHeader(frame, tablesById);
                     break;
                 case FrameType.TableFragment:
-                    await foreach (var row in HandleTableFragment(frame, tablesById, cancellationToken))
+                    await foreach (var row in HandleTableFragment(frame, tablesById, tablesWithReturnedRows, cancellationToken))
                     {
                         yield return row;
                     }
@@ -188,10 +189,16 @@ internal sealed partial class StreamingQueryHandler<T> : IStreamingScriptHandler
     /// </summary>
     /// <param name="frame">The frame.</param>
     /// <param name="tablesById">The tables by identifier.</param>
+    /// <param name="tablesWithReturnedRows">The ids of the tables that already returned rows to the caller.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when a <c>DataReplace</c> fragment would replace rows that were already returned.
+    /// </exception>
+    /// <exception cref="NotSupportedException">Thrown for a <c>DataRemove</c> fragment.</exception>
     private async IAsyncEnumerable<T> HandleTableFragment(
         ProgressiveDataSetFrame frame,
         Dictionary<int, FrameTable> tablesById,
+        HashSet<int> tablesWithReturnedRows,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var tableFragmentFrame = (ProgressiveDataSetDataTableFragmentFrame)frame;
@@ -199,6 +206,30 @@ internal sealed partial class StreamingQueryHandler<T> : IStreamingScriptHandler
         {
             LogReceivedTableFragmentForUnknownTable(tableFragmentFrame.TableId);
             yield break;
+        }
+
+        if (table.Kind == WellKnownDataSet.PrimaryResult)
+        {
+            switch (tableFragmentFrame.FrameSubType)
+            {
+                case TableFragmentType.DataAppend:
+                    break;
+                case TableFragmentType.DataReplace when tablesWithReturnedRows.Contains(tableFragmentFrame.TableId):
+                    // The rows to replace were already handed to the caller, and a stream can't take them back.
+                    throw new InvalidOperationException(
+                        $"Kusto replaced the rows of table '{table.Name}' that were already returned (a progressive " +
+                        "'DataReplace' update, e.g. a final summarize result replacing a preview). Turn off " +
+                        $"{nameof(AtcStreamingQueryOptions.ProgressiveEnabled)} for this query, or use " +
+                        $"{nameof(IKustoProcessor.ExecuteBufferedStreamingQuery)}.");
+                case TableFragmentType.DataReplace:
+                    // Nothing was handed out yet, so these rows simply are the result so far.
+                    break;
+                default:
+                    // DataRemove is not documented by Microsoft and has never been seen: refuse clearly instead of guessing.
+                    throw new NotSupportedException(
+                        $"Kusto sent a progressive '{tableFragmentFrame.FrameSubType}' update for table '{table.Name}', " +
+                        $"which Atc.Kusto doesn't support. Turn off {nameof(AtcStreamingQueryOptions.ProgressiveEnabled)} for this query.");
+            }
         }
 
         var values = new object[tableFragmentFrame.FieldCount];
@@ -212,6 +243,7 @@ internal sealed partial class StreamingQueryHandler<T> : IStreamingScriptHandler
                 var mapped = query.MapRecord(table.CreateRecord(values));
                 if (mapped is not null)
                 {
+                    tablesWithReturnedRows.Add(tableFragmentFrame.TableId);
                     yield return mapped;
                 }
             }

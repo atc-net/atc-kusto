@@ -279,6 +279,47 @@ public sealed class BufferedStreamingQueryHandlerTests
     }
 
     [Fact]
+    public async Task Execute_Applies_A_DataReplace_Before_Handing_Out_Rows()
+    {
+        // Arrange - a preview of two rows, then the final result replacing it
+        using var result = ReturnFrames(ProgressiveDataSetBuilder.BuildProgressiveFrames(
+            new FragmentFrameStub(1, TableFragmentType.DataAppend, ["preview-1"], ["preview-2"]),
+            new FragmentFrameStub(1, TableFragmentType.DataReplace, ["final"])));
+
+        MapFirstColumn();
+
+        // Act
+        var queryResult = await sut.Execute(CancellationToken.None);
+
+        // Assert
+        var rows = new List<string?>();
+        await foreach (var row in queryResult!.Rows)
+        {
+            rows.Add(row);
+        }
+
+        rows.Should().Equal("final");
+        queryResult.Completion!.HasErrors.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Execute_Reports_A_DataRemove_Fragment_As_An_Error()
+    {
+        // Arrange
+        using var result = ReturnFrames(ProgressiveDataSetBuilder.BuildProgressiveFrames(
+            new FragmentFrameStub(1, TableFragmentType.DataAppend, ["A"]),
+            new FragmentFrameStub(1, TableFragmentType.DataRemove, ["A"])));
+        MapFirstColumn();
+
+        // Act
+        var queryResult = await sut.Execute(CancellationToken.None);
+
+        // Assert
+        queryResult!.Completion!.HasErrors.Should().BeTrue();
+        queryResult.Completion.ErrorMessage.Should().Contain("DataRemove").And.Contain("ProgressiveEnabled");
+    }
+
+    [Fact]
     public async Task Execute_Reads_Every_Table_To_The_End_And_Closes_It()
     {
         // Arrange - the SDK can't move to the next frame before the current table is read and closed
@@ -449,6 +490,15 @@ internal static class ProgressiveDataSetBuilder
             BuildDataTableFrame(2, WellKnownDataSet.QueryCompletionInformation, "completion"),
         ];
 
+    // A primary result in progressive mode: the table header, then the given fragments.
+    internal static ProgressiveDataSetFrame[] BuildProgressiveFrames(
+        params FragmentFrameStub[] fragments)
+    {
+        using var table = BuildTable(nameof(WellKnownDataSet.PrimaryResult));
+
+        return [new SchemaFrameStub(1, table), .. fragments, new CompletionFrameStub()];
+    }
+
     internal static DataTable BuildTable(
         string name,
         params string[] values)
@@ -572,9 +622,18 @@ internal sealed class FragmentFrameStub : ProgressiveDataSetDataTableFragmentFra
     public FragmentFrameStub(
         int id,
         params object?[][] rows)
+        : this(id, TableFragmentType.DataAppend, rows)
+    {
+    }
+
+    public FragmentFrameStub(
+        int id,
+        TableFragmentType frameSubType,
+        params object?[][] rows)
     {
         FrameType = FrameType.TableFragment;
         TableId = id;
+        FrameSubType = frameSubType;
         FieldCount = rows[0].Length;
         this.rows = new Queue<object?[]>(rows);
     }
@@ -585,7 +644,7 @@ internal sealed class FragmentFrameStub : ProgressiveDataSetDataTableFragmentFra
 
     public int FieldCount { get; }
 
-    public TableFragmentType FrameSubType => TableFragmentType.DataAppend;
+    public TableFragmentType FrameSubType { get; }
 
     public bool GetNextRecord(object[] values)
     {

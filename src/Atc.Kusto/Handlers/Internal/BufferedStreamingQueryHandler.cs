@@ -269,7 +269,9 @@ internal sealed partial class BufferedStreamingQueryHandler<T> : IScriptHandler<
 
     /// <summary>
     /// Keeps the <c>PrimaryResult</c> records of the fragment, with each value converted to its column type.
+    /// A <c>DataReplace</c> fragment first drops the records the table sent so far.
     /// </summary>
+    /// <exception cref="NotSupportedException">Thrown for a <c>DataRemove</c> fragment.</exception>
     private void HandleTableFragment(
         ProgressiveDataSetFrame frame,
         Dictionary<int, FrameTable> tablesById,
@@ -280,6 +282,25 @@ internal sealed partial class BufferedStreamingQueryHandler<T> : IScriptHandler<
         {
             LogReceivedTableFragmentForUnknownTable(tableFragmentFrame.TableId);
             return;
+        }
+
+        if (table.Kind == WellKnownDataSet.PrimaryResult)
+        {
+            switch (tableFragmentFrame.FrameSubType)
+            {
+                case TableFragmentType.DataAppend:
+                    break;
+                case TableFragmentType.DataReplace:
+                    // Rows are only handed out after the last frame, so the replace can be applied:
+                    // drop what this table sent so far and keep the new rows instead.
+                    primaryResultRecords.RemoveAll(record => record.Table == table);
+                    break;
+                default:
+                    // DataRemove is not documented by Microsoft and has never been seen: refuse clearly instead of guessing.
+                    throw new NotSupportedException(
+                        $"Kusto sent a progressive '{tableFragmentFrame.FrameSubType}' update for table '{table.Name}', " +
+                        $"which Atc.Kusto doesn't support. Turn off {nameof(AtcStreamingQueryOptions.ProgressiveEnabled)} for this query.");
+            }
         }
 
         var values = new object[tableFragmentFrame.FieldCount];

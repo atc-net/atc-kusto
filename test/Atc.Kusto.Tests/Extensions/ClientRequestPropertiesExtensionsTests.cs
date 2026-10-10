@@ -18,6 +18,21 @@ public sealed class ClientRequestPropertiesExtensionsTests
     }
 
     [Fact]
+    public void SetQueryOptions_WithDefaultStreamingOptions_LeavesProgressiveModeOff()
+    {
+        // Arrange
+        var props = new ClientRequestProperties();
+        var options = new AtcStreamingQueryOptions();
+
+        // Act
+        props.SetQueryOptions(options);
+
+        // Assert
+        Assert.False(options.ProgressiveEnabled);
+        Assert.False(props.TryGetOptionValue(ClientRequestProperties.OptionResultsProgressiveEnabled, out bool _));
+    }
+
+    [Fact]
     public void SetQueryOptions_WithBaseOptions_MapsExpectedValues()
     {
         // Arrange
