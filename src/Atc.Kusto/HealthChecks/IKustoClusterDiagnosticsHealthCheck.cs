@@ -18,6 +18,12 @@ public interface IKustoClusterDiagnosticsHealthCheck
     /// </param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation with a <see cref="KustoHealthCheckResult"/> containing health status information.</returns>
+    /// <remarks>
+    /// Failures are reported as an unhealthy result, not thrown. The exception is cancellation: once
+    /// <paramref name="cancellationToken"/> is cancelled, the check throws instead of reporting the
+    /// cluster as unhealthy, since the cluster was never actually checked.
+    /// </remarks>
+    /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is cancelled.</exception>
     Task<KustoHealthCheckResult> CheckHealthAsync(
         string? connectionName = null,
         string? databaseName = null,

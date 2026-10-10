@@ -158,6 +158,7 @@ public sealed class KustoClusterDiagnosticsHealthCheckTests
         result.AttentionRequiredReason.Should().Be("No diagnostic data returned from cluster");
     }
 
+    [Theory, AutoNSubstituteData]
     internal async Task CheckHealthAsync_ScaleOutRequired_ReturnsScaleOutTrue(
         [Frozen] IKustoProcessorFactory factory,
         [Frozen] IKustoProcessor processor,
@@ -242,5 +243,64 @@ public sealed class KustoClusterDiagnosticsHealthCheckTests
         result.IsAttentionRequired.Should().BeTrue();
         result.AttentionRequiredReason.Should().Be(attentionReason);
         result.IsScaleOutRequired.Should().BeFalse();
+    }
+
+    [Theory, AutoNSubstituteData]
+    internal async Task CheckHealthAsync_Throws_When_The_Caller_Cancelled(
+        [Frozen] IKustoProcessorFactory factory,
+        [Frozen] IKustoProcessor processor)
+    {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+
+        factory
+            .Create(Arg.Any<string?>(), Arg.Any<string?>())
+            .Returns(processor);
+
+        processor
+            .ExecuteQuery(
+                Arg.Any<KustoHealthCheckQuery>(),
+                Arg.Any<CancellationToken>())
+            .Returns(_ => CancellationTestData.CancelThenThrow<KustoClusterDiagnostics[]?>(
+                cts.CancelAsync,
+                new OperationCanceledException(cts.Token)));
+
+        var sut = new KustoClusterDiagnosticsHealthCheck(
+            NullLogger<KustoClusterDiagnosticsHealthCheck>.Instance,
+            factory);
+
+        // Act
+        var act = () => sut.CheckHealthAsync(cancellationToken: cts.Token);
+
+        // Assert
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Theory, AutoNSubstituteData]
+    internal async Task CheckHealthAsync_Reports_Unhealthy_For_A_Cancellation_The_Caller_Did_Not_Request(
+        [Frozen] IKustoProcessorFactory factory,
+        [Frozen] IKustoProcessor processor)
+    {
+        // Arrange - e.g. an HttpClient timeout, which surfaces as TaskCanceledException
+        factory
+            .Create(Arg.Any<string?>(), Arg.Any<string?>())
+            .Returns(processor);
+
+        processor
+            .ExecuteQuery(
+                Arg.Any<KustoHealthCheckQuery>(),
+                Arg.Any<CancellationToken>())
+            .ThrowsAsync(new TaskCanceledException("timeout"));
+
+        var sut = new KustoClusterDiagnosticsHealthCheck(
+            NullLogger<KustoClusterDiagnosticsHealthCheck>.Instance,
+            factory);
+
+        // Act
+        var result = await sut.CheckHealthAsync(cancellationToken: CancellationToken.None);
+
+        // Assert
+        result.IsHealthy.Should().BeFalse();
+        result.NotHealthyReason.Should().Contain("timeout");
     }
 }

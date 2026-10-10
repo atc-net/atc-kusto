@@ -75,6 +75,11 @@ internal class KustoHealthCheckPublisher : IHealthCheck
                 description: "Kusto cluster is healthy",
                 data: data);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Let the health check service handle it: it reports a timeout as such and stops quietly on shutdown.
+            throw;
+        }
         catch (Exception ex)
         {
             return new HealthCheckResult(
