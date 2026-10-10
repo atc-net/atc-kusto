@@ -144,6 +144,37 @@ public sealed class FrameValueTypeConverterTests
         Assert.Equal(1234.56m, result);
     }
 
+    [Theory]
+    [InlineData("da-DK", 2.5)]
+    [InlineData("da-DK", 1234.5)]
+    [InlineData("da-DK", -0.75)]
+    [InlineData("de-DE", 1234.5)]
+    [InlineData("sv-SE", -0.75)]
+    [InlineData("en-US", 1234.5)]
+    public void ConvertToColumnType_Reads_A_Real_Written_With_The_Current_Culture(
+        string culture,
+        double expected)
+    {
+        // Arrange - the SDK writes real values in progressive frames with the current culture ("2,5" on da-DK)
+        var original = CultureInfo.CurrentCulture;
+        CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(culture);
+
+        try
+        {
+            var value = expected.ToString(CultureInfo.CurrentCulture);
+
+            // Act
+            var result = FrameValueTypeConverter.ConvertToColumnType(value, typeof(double));
+
+            // Assert
+            Assert.Equal(expected, result);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = original;
+        }
+    }
+
     [Fact]
     public void ConvertToColumnType_Should_Handle_String_To_DateTime()
     {
