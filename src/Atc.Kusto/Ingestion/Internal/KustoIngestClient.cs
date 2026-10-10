@@ -15,6 +15,34 @@ namespace Atc.Kusto.Ingestion.Internal;
 /// provider, so that cost is paid once per connection and mode, and a credential failure surfaces
 /// from construction.
 /// </para>
+/// <para>
+/// <b>V2 SDK (0.0.9) behaviours worked around here</b>, each verified at runtime against the SDK,
+/// not just its signatures — re-check them when upgrading the package:
+/// </para>
+/// <list type="number">
+///   <item><description>
+///   <c>IngestionOperation.ToJsonString()</c> writes <c>startTime</c> with the current culture's time
+///   separator (<c>20.33.00</c> under da-DK/en-DK) and <c>FromJsonString</c> cannot read it back, making the
+///   handle unreadable everywhere. Handles are (de)serialized under <see cref="CultureInfo.InvariantCulture"/>
+///   (<see cref="SerializeOperation"/>, <see cref="ParseOperationHandle"/>).
+///   </description></item>
+///   <item><description>
+///   <c>ManagedStreamingPolicy.ContinueWhenStreamingIngestionUnavailable</c> defaults to <see langword="false"/>,
+///   so managed streaming would fail instead of falling back when streaming is disabled; it is set to
+///   <see langword="true"/>.
+///   </description></item>
+///   <item><description>
+///   The managed streaming client never disposes its uploader, and the queued client only does with
+///   <c>shouldDisposeUploader: true</c>; this class owns and disposes the uploader for both.
+///   </description></item>
+///   <item><description>
+///   <c>UserContainersUploaderBuilder.Build()</c> fetches a token synchronously (see above).
+///   </description></item>
+///   <item><description>
+///   <c>IngestionOperation</c> carries no status; how the request was handled is read from
+///   <c>IngestionMethod</c> (<see cref="ToIngestionStatus"/>).
+///   </description></item>
+/// </list>
 /// </remarks>
 internal sealed class KustoIngestClient : IKustoIngestClient
 {
@@ -128,6 +156,114 @@ internal sealed class KustoIngestClient : IKustoIngestClient
             cancellationToken);
     }
 
+    /// <inheritdoc />
+    /// <remarks>
+    /// A streamed operation was complete when the ingest call returned, so it is reported as succeeded
+    /// without contacting the cluster. Otherwise, one call to the service returns both the summary and the
+    /// per-source results.
+    /// </remarks>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="operationHandle"/> is not a valid handle.</exception>
+    public async Task<KustoIngestionOperationResult> GetOperationStatusAsync(
+        string operationHandle,
+        CancellationToken cancellationToken)
+    {
+        var operation = ParseOperationHandle(operationHandle);
+
+        if (operation.IngestionMethod == IngestionMethod.Streaming)
+        {
+            return new KustoIngestionOperationResult
+            {
+                OperationId = operation.Id,
+                Status = KustoIngestionOperationStatus.Succeeded,
+                SucceededCount = 1,
+                StartTime = operation.StartTime,
+                LastUpdateTime = operation.StartTime,
+            };
+        }
+
+        var details = await client.GetOperationDetailsAsync(operation, cancellationToken);
+
+        return new KustoIngestionOperationResult
+        {
+            OperationId = details.OperationId,
+            Status = ToOperationStatus(details.Status),
+            InProgressCount = details.InProgressCount,
+            SucceededCount = details.SucceededCount,
+            FailedCount = details.FailedCount,
+            CancelledCount = details.CancelledCount,
+            StartTime = details.StartTime,
+            LastUpdateTime = details.LastUpdateTime,
+            Errors = ToOperationErrors(details.IngestResults),
+        };
+    }
+
+    /// <summary>
+    /// Throws when <paramref name="operationHandle"/> is not a handle this client can read.
+    /// </summary>
+    /// <remarks>
+    /// Lets callers validate a handle before resolving a client, without referencing V2 types.
+    /// </remarks>
+    /// <param name="operationHandle">The handle to validate.</param>
+    /// <exception cref="ArgumentException">Thrown when the handle is not valid.</exception>
+    internal static void ValidateOperationHandle(string operationHandle)
+        => ParseOperationHandle(operationHandle);
+
+    /// <summary>
+    /// Serializes an operation to a handle, independent of the current culture.
+    /// </summary>
+    /// <remarks>
+    /// <c>IngestionOperation.ToJsonString()</c> (V2 0.0.9) formats its start time with the current culture's
+    /// time separator, and <c>FromJsonString</c> cannot read that back: a handle written under e.g.
+    /// <c>da-DK</c> (<c>20.33.00</c>) is unreadable on every machine. Both directions therefore run under the
+    /// invariant culture.
+    /// </remarks>
+    /// <param name="operation">The operation.</param>
+    /// <returns>The handle.</returns>
+    internal static string SerializeOperation(IngestionOperation operation)
+        => WithInvariantCulture(operation.ToJsonString);
+
+    /// <summary>
+    /// Parses a handle produced by <see cref="SerializeOperation"/>.
+    /// </summary>
+    /// <param name="operationHandle">The handle.</param>
+    /// <returns>The operation.</returns>
+    /// <exception cref="ArgumentException">Thrown when the handle is not valid.</exception>
+    internal static IngestionOperation ParseOperationHandle(
+        string operationHandle)
+    {
+        try
+        {
+            return WithInvariantCulture(() => IngestionOperation.FromJsonString(operationHandle))
+                ?? throw new ArgumentException("The operation handle is empty.", nameof(operationHandle));
+        }
+        catch (Exception ex) when (ex is JsonException or FormatException or NotSupportedException)
+        {
+            throw new ArgumentException(
+                "The operation handle is not valid. Use KustoIngestionResult.OperationHandle from an ingestion with EnableTracking.",
+                nameof(operationHandle),
+                ex);
+        }
+    }
+
+    /// <summary>
+    /// Maps the service's operation state onto the Atc status.
+    /// </summary>
+    /// <param name="status">The V2 status.</param>
+    /// <returns>The Atc status.</returns>
+    internal static KustoIngestionOperationStatus ToOperationStatus(
+        IngestStatus status)
+        => status switch
+        {
+            IngestStatus.InProgress => KustoIngestionOperationStatus.InProgress,
+            IngestStatus.Succeeded => KustoIngestionOperationStatus.Succeeded,
+            IngestStatus.PartialSuccess => KustoIngestionOperationStatus.PartialSuccess,
+            IngestStatus.Failed => KustoIngestionOperationStatus.Failed,
+            IngestStatus.Cancelled => KustoIngestionOperationStatus.Cancelled,
+
+            // A state a newer SDK might add: treat as not finished, so callers keep polling.
+            _ => KustoIngestionOperationStatus.InProgress,
+        };
+
     /// <summary>
     /// Disposes the V2 client and, when present, the upload-containers uploader.
     /// </summary>
@@ -190,9 +326,39 @@ internal sealed class KustoIngestClient : IKustoIngestClient
             Mode = mode,
             OperationId = operation.Id,
             OperationHandle = enableTracking
-                ? operation.ToJsonString()
+                ? SerializeOperation(operation)
                 : null,
         };
+    }
+
+    private static List<KustoIngestionOperationError> ToOperationErrors(
+        IReadOnlyList<IngestResult>? results)
+        => results is null
+            ? []
+            : results
+                .Where(r => r.Status is IngestStatus.Failed or IngestStatus.Cancelled or IngestStatus.PartialSuccess ||
+                            r.ErrorCode is not null)
+                .Select(r => new KustoIngestionOperationError
+                {
+                    ErrorCode = r.ErrorCode?.ToString() ?? "Unknown",
+                    IsTransient = r.FailureStatus == global::Kusto.Ingest.Common.FailureStatus.Transient,
+                    Details = r.Details ?? r.Exception?.Message,
+                })
+                .ToList();
+
+    private static T WithInvariantCulture<T>(Func<T> action)
+    {
+        var original = CultureInfo.CurrentCulture;
+        CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
+
+        try
+        {
+            return action();
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = original;
+        }
     }
 
     private static IUploader? CreateUploader(

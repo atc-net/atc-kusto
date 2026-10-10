@@ -895,6 +895,37 @@ var result = await ingestor.IngestAsync(
 logger.LogInformation("Queued ingestion {OperationId}, handle {OperationHandle}", result.OperationId, result.OperationHandle);
 ```
 
+Later — in the same process or another one, e.g. a background job that stored the handle — ask for its state with `GetIngestionStatusAsync`. Pass the same connection name the ingestion used (the handle identifies database and table, not the cluster):
+
+```csharp
+var status = await ingestor.GetIngestionStatusAsync(result.OperationHandle!, cancellationToken: cancellationToken);
+
+while (!status.IsCompleted)
+{
+    await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
+    status = await ingestor.GetIngestionStatusAsync(result.OperationHandle!, cancellationToken: cancellationToken);
+}
+
+if (status.Status != KustoIngestionOperationStatus.Succeeded)
+{
+    foreach (var error in status.Errors)
+    {
+        logger.LogError("Ingestion {OperationId} failed: {ErrorCode} (transient: {IsTransient}) {Details}",
+            status.OperationId, error.ErrorCode, error.IsTransient, error.Details);
+    }
+}
+```
+
+| `Status`         | Meaning                                                          | `IsCompleted` |
+| ---------------- | ---------------------------------------------------------------- | ------------- |
+| `InProgress`     | Still being batched/ingested — check again later.                | `false`       |
+| `Succeeded`      | All data ingested and queryable.                                 | `true`        |
+| `PartialSuccess` | Some sources ingested, some failed — see `Errors`.               | `true`        |
+| `Failed`         | Ingestion failed — see `Errors` (`ErrorCode`, `IsTransient`, `Details`). | `true` |
+| `Cancelled`      | The service cancelled the ingestion.                             | `true`        |
+
+Unlike the ingest methods, a failure to **check** the status (cluster unreachable, credential failure) throws `KustoIngestionException` — the check only reads, so it is safe to retry. An ingestion that was streamed (managed streaming without fallback) reports `Succeeded` immediately without contacting the cluster.
+
 #### Retries and duplicates
 
 Kusto ingestion is **at-least-once**. A `Failed` result means the library did not get a confirmed answer — after a timeout or dropped connection the data **may still have been written**. If you retry failed ingestions, design for duplicates:
@@ -932,6 +963,22 @@ The connection's `Credential` is used for the containers too, so that identity n
 #### Dependencies
 
 Ingestion is built on the **Kusto Ingest V2 SDK** (`Microsoft.Azure.Kusto.Ingest.V2`), which is still a pre-1.0 preview. It is a dependency of the Atc.Kusto package, but no V2 type appears in Atc.Kusto's public API, so SDK changes stay internal to the library.
+
+Atc.Kusto works around these V2 SDK (0.0.9) behaviours for you — worth knowing if you also use the SDK directly:
+
+- **Operation handles and culture:** `IngestionOperation.ToJsonString()` writes the operation's start time with the machine's time separator (`20.33.00` on Danish regional settings) and `FromJsonString` can't read it back, so such a handle is unreadable everywhere. Atc.Kusto writes and reads handles with the invariant culture. The same operation serialized by the SDK on two machines:
+
+  ```text
+  en-US / invariant culture:
+  {"id":"op-123","database":"Db","table":"T","startTime":"2026-10-09T20:33:18.8657719Z","storedResults":[], ...}
+                                                                       ^  ^  ':' time separators -> readable
+
+  da-DK / en-DK regional settings - FromJsonString throws FormatException:
+  {"id":"op-123","database":"Db","table":"T","startTime":"2026-10-09T20.33.18.8129343Z","storedResults":[], ...}
+                                                                       ^  ^  '.' time separators -> unreadable
+  ```
+- **Managed streaming fallback:** the SDK's `ManagedStreamingPolicy` does not fall back to queued ingestion when streaming is disabled for a table (`ContinueWhenStreamingIngestionUnavailable = false`). Atc.Kusto enables the fallback, so `ManagedStreaming` behaves as described above.
+- **Uploader lifetime:** the managed streaming client never disposes a custom uploader. Atc.Kusto owns and disposes it.
 
 ### Health Checks
 

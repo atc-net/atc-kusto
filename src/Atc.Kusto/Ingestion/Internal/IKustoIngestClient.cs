@@ -32,6 +32,15 @@ internal interface IKustoIngestClient : IDisposable
         CancellationToken cancellationToken);
 
     /// <summary>
+    /// Gets the state of a tracked operation.
+    /// </summary>
+    /// <param name="operationHandle">A handle produced by this client's ingest methods with tracking enabled.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    Task<KustoIngestionOperationResult> GetOperationStatusAsync(
+        string operationHandle,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     /// Ingests from a blob URI.
     /// </summary>
     /// <param name="blobUri">The blob URI, which must be cluster-readable.</param>

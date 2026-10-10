@@ -53,6 +53,75 @@ public sealed class KustoIngestClientTests
         act.Should().NotThrow();
     }
 
+    [Theory]
+    [InlineData(IngestStatus.InProgress, KustoIngestionOperationStatus.InProgress)]
+    [InlineData(IngestStatus.Succeeded, KustoIngestionOperationStatus.Succeeded)]
+    [InlineData(IngestStatus.PartialSuccess, KustoIngestionOperationStatus.PartialSuccess)]
+    [InlineData(IngestStatus.Failed, KustoIngestionOperationStatus.Failed)]
+    [InlineData(IngestStatus.Cancelled, KustoIngestionOperationStatus.Cancelled)]
+    public void ToOperationStatus_Maps_Each_Value(
+        IngestStatus status,
+        KustoIngestionOperationStatus expected)
+        => KustoIngestClient.ToOperationStatus(status).Should().Be(expected);
+
+    [Theory]
+    [InlineData("da-DK")]
+    [InlineData("en-DK")]
+    [InlineData("en-US")]
+    public void OperationHandle_Round_Trips_Under_Any_Culture(string culture)
+    {
+        // Arrange: a handle contains the operation's startTime. V2's ToJsonString writes it with the
+        // current culture's time separator ("20.33.00" under da-DK/en-DK), which FromJsonString can't read.
+        var original = CultureInfo.CurrentCulture;
+        CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(culture);
+
+        try
+        {
+            // Act
+            var handle = TestOperationHandles.CreateHandle(IngestionMethod.Queued, "op-42");
+            var operation = KustoIngestClient.ParseOperationHandle(handle);
+
+            // Assert
+            handle.Should().MatchRegex("\"startTime\":\"[^\"]*T\\d{2}:\\d{2}:\\d{2}");
+            operation.Id.Should().Be("op-42");
+            operation.IngestionMethod.Should().Be(IngestionMethod.Queued);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = original;
+        }
+    }
+
+    [Theory]
+    [InlineData("not a handle")]
+    [InlineData("{\"startTime\":\"yesterday\"}")]
+    public void ParseOperationHandle_Rejects_An_Invalid_Handle(string handle)
+    {
+        // Act
+        var act = () => KustoIngestClient.ParseOperationHandle(handle);
+
+        // Assert
+        act.Should().Throw<ArgumentException>().Which.ParamName.Should().Be("operationHandle");
+    }
+
+    [Fact]
+    public async Task GetOperationStatusAsync_Reports_A_Streamed_Operation_As_Succeeded_Without_Contacting_The_Cluster()
+    {
+        // Arrange: the cluster URI doesn't exist, so any network call would fail.
+        using var sut = new KustoIngestClient(ClusterUri, new StaticTokenCredential(), [], IngestionMode.ManagedStreaming);
+        var handle = TestOperationHandles.CreateHandle(IngestionMethod.Streaming, "op-streamed");
+
+        // Act
+        var result = await sut.GetOperationStatusAsync(handle, CancellationToken.None);
+
+        // Assert
+        result.OperationId.Should().Be("op-streamed");
+        result.Status.Should().Be(KustoIngestionOperationStatus.Succeeded);
+        result.IsCompleted.Should().BeTrue();
+        result.SucceededCount.Should().Be(1);
+        result.Errors.Should().BeEmpty();
+    }
+
     [Fact]
     public void Ctor_Throws_For_Unsupported_Mode()
     {
