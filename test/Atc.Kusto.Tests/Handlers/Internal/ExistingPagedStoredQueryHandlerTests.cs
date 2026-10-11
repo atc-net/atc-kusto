@@ -263,7 +263,7 @@ public sealed class ExistingPagedStoredQueryHandlerTests
     }
 
     [Fact]
-    public async Task Execute_Returns_Null_When_The_Stored_Result_Is_Still_Missing_After_Running_The_Query_Again()
+    public async Task Execute_Throws_When_The_Stored_Result_Is_Still_Missing_After_Running_The_Query_Again()
     {
         // Arrange
         queryProvider
@@ -277,10 +277,10 @@ public sealed class ExistingPagedStoredQueryHandlerTests
         var handler = CreateHandlerWithAdminProvider();
 
         // Act
-        var result = await handler.Execute(CancellationToken.None);
+        var act = () => handler.Execute(CancellationToken.None);
 
         // Assert - the query ran again once, not in a loop
-        result.Should().BeNull();
+        await act.Should().ThrowAsync<SemanticException>();
 
         await adminProvider
             .Received(1)
@@ -355,7 +355,7 @@ public sealed class ExistingPagedStoredQueryHandlerTests
     }
 
     [Theory, AutoNSubstituteData]
-    internal async Task Execute_Returns_Null_When_The_Stored_Result_Has_Expired_And_There_Is_No_Admin_Provider(
+    internal async Task Execute_Throws_When_The_Stored_Result_Has_Expired_And_There_Is_No_Admin_Provider(
         CancellationToken cancellationToken)
     {
         // Arrange
@@ -368,10 +368,10 @@ public sealed class ExistingPagedStoredQueryHandlerTests
             .ThrowsAsyncForAnyArgs(new SemanticException());
 
         // Act
-        var result = await sut.Execute(cancellationToken);
+        var act = () => sut.Execute(cancellationToken);
 
         // Assert
-        result.Should().BeNull();
+        await act.Should().ThrowAsync<SemanticException>();
 
         _ = queryProvider
             .Received(1)
@@ -413,7 +413,7 @@ public sealed class ExistingPagedStoredQueryHandlerTests
     }
 
     [Fact]
-    public async Task Execute_Returns_Null_For_A_Kusto_Cancel_Error_When_The_Caller_Did_Not_Cancel()
+    public Task Execute_Throws_A_Kusto_Cancel_Error_When_The_Caller_Did_Not_Cancel()
     {
         // Arrange - e.g. someone else ran ".cancel query": a failure, not cancellation by the caller
         queryProvider
@@ -425,10 +425,10 @@ public sealed class ExistingPagedStoredQueryHandlerTests
             .ThrowsAsync(new KustoClientRequestCanceledByUserException());
 
         // Act
-        var result = await sut.Execute(CancellationToken.None);
+        var act = () => sut.Execute(CancellationToken.None);
 
         // Assert
-        result.Should().BeNull();
+        return act.Should().ThrowAsync<KustoClientRequestCanceledByUserException>();
     }
 
     private ExistingPagedStoredQueryHandler<string> CreateHandler(

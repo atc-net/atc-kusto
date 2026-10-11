@@ -68,11 +68,15 @@ internal sealed partial class ExistingPagedStoredQueryHandler<T> : IScriptHandle
     /// When the stored query result no longer exists (it has expired), the query runs again into the
     /// same queryId and the requested page is read from the new result. The data may have changed in between,
     /// so rows can shift between pages; a query without <c>order by</c> can even return its rows in another order.
+    /// <para>
+    /// Temporary errors are retried by the resilience pipeline. Any other error, or an error that remains after
+    /// the retries, is thrown to the caller.
+    /// </para>
     /// </remarks>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>
     /// A task that represents the asynchronous operation. The task result contains a <see cref="PagedResult{T}"/>
-    /// if the query succeeds, or null if the continuation token is invalid or the query fails.
+    /// if the query succeeds, or null if the continuation token is invalid.
     /// </returns>
     public async Task<PagedResult<T>?> Execute(
         CancellationToken cancellationToken)
@@ -131,38 +135,6 @@ internal sealed partial class ExistingPagedStoredQueryHandler<T> : IScriptHandle
         catch (Exception ex) when (CancellationExceptionUtilities.IsCancellation(ex, cancellationToken))
         {
             throw CancellationExceptionUtilities.NormalizeCancellationException(ex, cancellationToken);
-        }
-        catch (KustoServicePartialQueryFailureException ex)
-        {
-            LogKustoServicePartialQueryFailureException(
-                ex,
-                ex.ClientRequestId,
-                ex.Query);
-
-            return null;
-        }
-        catch (KustoServiceException ex)
-        {
-            LogKustoServiceException(
-                ex,
-                ex.ClientRequestId);
-
-            return null;
-        }
-        catch (SemanticException ex)
-        {
-            LogSemanticException(
-                ex,
-                ex.ClientRequestId,
-                ex.Text,
-                ex.SemanticErrors);
-
-            return null;
-        }
-        catch (Exception ex)
-        {
-            LogUnhandledException(ex);
-            return null;
         }
     }
 

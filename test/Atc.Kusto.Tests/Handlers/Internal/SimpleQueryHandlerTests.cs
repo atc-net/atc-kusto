@@ -261,7 +261,29 @@ public sealed class SimpleQueryHandlerTests
     }
 
     [Fact]
-    public async Task Execute_Returns_Null_For_A_Kusto_Cancel_Error_When_The_Caller_Did_Not_Cancel()
+    public async Task Execute_Throws_The_Error_When_The_Query_Fails()
+    {
+        // Arrange - e.g. a misspelled column
+        var error = new SemanticException();
+
+        queryProvider
+            .ExecuteQueryAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<ClientRequestProperties>(),
+                Arg.Any<CancellationToken>())
+            .ThrowsAsync(error);
+
+        // Act
+        var act = () => sut.Execute(CancellationToken.None);
+
+        // Assert
+        var thrown = await act.Should().ThrowAsync<SemanticException>();
+        thrown.Which.Should().BeSameAs(error);
+    }
+
+    [Fact]
+    public Task Execute_Throws_A_Kusto_Cancel_Error_When_The_Caller_Did_Not_Cancel()
     {
         // Arrange - e.g. someone else ran ".cancel query": a failure, not cancellation by the caller
         queryProvider
@@ -273,10 +295,10 @@ public sealed class SimpleQueryHandlerTests
             .ThrowsAsync(new KustoClientRequestCanceledByUserException());
 
         // Act
-        var result = await sut.Execute(CancellationToken.None);
+        var act = () => sut.Execute(CancellationToken.None);
 
         // Assert
-        result.Should().BeNull();
+        return act.Should().ThrowAsync<KustoClientRequestCanceledByUserException>();
     }
 
     [Theory, AutoNSubstituteData]

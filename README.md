@@ -39,6 +39,7 @@ The library provides a streamlined interface for handling Kusto operations, maki
       - [List](#list)
       - [Complex with multiple result sets](#complex-with-multiple-result-sets)
     - [Executing a Kusto query](#executing-a-kusto-query)
+      - [When a query fails](#when-a-query-fails)
       - [Paged queries](#paged-queries)
       - [Choosing the connection and database per call](#choosing-the-connection-and-database-per-call)
     - [Executing streaming queries](#executing-streaming-queries)
@@ -652,6 +653,31 @@ app.MapGet(
     .WithOpenApi();
 ```
 
+#### When a query fails
+
+Temporary errors, such as throttling or a dropped connection, are retried first (see [Retries](#retries)). When the query still fails, or fails with an error that retrying can't fix, such as a misspelled column, `ExecuteQuery` throws the exception from the Kusto SDK as it is: for example a `SemanticException`, or a `KustoServiceException` when the cluster can't be reached. So a failing query can never be mistaken for "no data".
+
+`ExecuteQuery` returns `null` only when your own `ReadResult` returns `null`, for example a `FirstOrDefault()` that finds no rows. A `KustoQuery<T>` returns an array, which is empty when there are no rows.
+
+In an ASP.NET Core endpoint, an exception you don't catch becomes a 500 response. Catch it where a failure needs other handling, for example in a background job that should keep its last known state and try again later:
+
+```csharp
+try
+{
+    var alarms = await processor.ExecuteQuery(
+        new ActiveAlarmsQuery(),
+        cancellationToken);
+
+    // ...
+}
+catch (KustoException ex)
+{
+    logger.LogWarning(ex, "Could not read the active alarms, keeping the current state");
+}
+```
+
+> Before 4.0 `ExecuteQuery` logged the error and returned `null`, so a failing query looked like a query without rows.
+
 #### Paged queries
 
 `ExecutePagedQuery` returns one page at a time. The first call runs the query once and saves the whole result in the cluster as a *stored query result*, then returns the first page and a `ContinuationToken`. Pass the token back to get the next page: it is read from the saved result, without running the query again. When `ContinuationToken` is `null`, there are no more pages.
@@ -684,8 +710,8 @@ A token looks like `v2;{nonce};{itemsReturned}`, followed by `;{totalCount}` whe
 
 The token doesn't contain the name of the stored result. The name is calculated on the server, on every page, from the query type, the query text, the parameter values, the session id and the nonce. So:
 
-- a token only continues the exact query it was created for. The same query with other parameter values (for example another customer) finds no stored result and returns `null`, never the rows of the first query;
-- a token that was edited can't point at another stored result.
+- a token only reads the stored result of the exact query it was created for. Used with other parameter values (for example another customer), it finds no stored result, so it is handled like an [expired one](#when-the-stored-result-has-expired): the query runs again with the new values, and you get the rows at the token's position in that new result. Never the rows of the first query;
+- a token that was edited can't point at another stored result. At most it makes the query run again.
 
 > Before 4.0 the token contained the name of the stored result. Tokens from earlier versions are not accepted: `ExecutePagedQuery` returns `null` for them, so a client that is paging during the upgrade starts again from page 1.
 
@@ -735,7 +761,11 @@ The total count is opt-in: without it, `TotalCount` is `null` and nothing else c
 
 ##### Errors
 
-Temporary errors are retried on every page (see [Retries](#retries)). After that, an error on page 1 is thrown, while an error on a later page is logged and `ExecutePagedQuery` returns `null`.
+Temporary errors are retried on every page (see [Retries](#retries)). An error that remains is thrown, on every page, just like [`ExecuteQuery`](#when-a-query-fails). A client can then ask for the same page again with the same continuation token.
+
+`ExecutePagedQuery` returns `null` only for a continuation token it can't read: one that isn't in the format above, such as a token from before 4.0.
+
+> Before 4.0 an error on page 2 or later was logged, and `ExecutePagedQuery` returned `null`.
 
 #### Choosing the connection and database per call
 
@@ -1245,9 +1275,11 @@ Only failures that can succeed on a later attempt are retried:
 | Sign-in failures (getting a token), e.g. a managed identity that is not ready yet right after a deploy | Errors in your own code, such as a result that cannot be mapped to your type |
 | Any other Kusto error the SDK marks as transient (`KustoException.IsPermanent == false`) | Anything after **your** `CancellationToken` was cancelled |
 
+So a broken query fails at once instead of after ~20 seconds of retries.
+
 Sign-in failures are always retried because a temporary one cannot be told apart from a misconfigured credential, so a wrong credential still takes ~20 seconds to fail.
 
-So a broken query fails at once instead of after ~20 seconds of retries. Commands, streaming queries and ingestion are not retried by Atc.Kusto (the ingestion SDK retries on its own).
+When the retries don't help, the last error is thrown (see [When a query fails](#when-a-query-fails)). Commands, streaming queries and ingestion are not retried by Atc.Kusto (the ingestion SDK retries on its own).
 
 ## Cancellation
 
