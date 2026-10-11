@@ -6,6 +6,9 @@ builder.Services.ConfigureAzureDataExplorer(
         o.HostAddress = new Uri("https://help.kusto.windows.net/");
         o.DatabaseName = "ContosoSales";
         o.Credential = new DefaultAzureCredential();
+
+        // How long the cluster keeps the stored result behind a paged query (default 1 hour).
+        o.PagedResultExpiration = TimeSpan.FromMinutes(30);
     },
     "ContosoSales");
 
@@ -34,12 +37,16 @@ if (isIngestionConfigured)
         "Ingestion");
 }
 
-builder.Services.AddAuthorization();
+// A failing query throws, for example a KustoServiceException when the cluster can't be reached.
+// The exception handler turns that into a 500 problem details response.
+builder.Services.AddProblemDetails();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+app.UseExceptionHandler();
 
 app.ConfigureSwagger();
 
@@ -48,33 +55,45 @@ app.UseHttpsRedirection();
 app.MapGet(
         "/customers",
         async static Task<Results<Ok<PagedResult<Customer>>, ProblemHttpResult>> (
-                [FromHeader(Name = "x-client-session-id")] string? sessionId,
-                [FromHeader(Name = "x-pageSize")] int? pageSize,
-                [FromHeader(Name = "x-continuation-token")] string? continuationToken,
-                IKustoProcessorFactory processorFactory,
-                CancellationToken cancellationToken)
-            => await processorFactory
-                    .Create("ContosoSales")
-                    .ExecutePagedQuery(
-                        new CustomersQuery(),
-                        sessionId,
-                        pageSize ?? 100,
-                        continuationToken,
-                        cancellationToken)
-                switch
-                {
-                    { } page => TypedResults.Ok(page),
+            [FromHeader(Name = "x-pageSize")] int? pageSize,
+            [FromHeader(Name = "x-continuation-token")] string? continuationToken,
+            bool? includeTotalCount,
+            IKustoProcessorFactory processorFactory,
+            CancellationToken cancellationToken) =>
+        {
+            if (pageSize < 1)
+            {
+                return TypedResults.Problem(
+                    "x-pageSize must be at least 1.",
+                    statusCode: StatusCodes.Status400BadRequest);
+            }
 
-                    // null today means an invalid/expired continuation token, or a failed query (logged).
-                    _ when continuationToken is not null => TypedResults.Problem(
-                        "The continuation token is invalid or has expired. Start again without a token.",
-                        statusCode: StatusCodes.Status400BadRequest),
-                    _ => QueryFailed(),
-                })
+            // The session id groups the stored results of one user. Take it from the signed-in user
+            // (e.g. their object id), never from a header that the client can set. This sample has no
+            // sign-in, so it passes null: every first page then gets a stored result of its own.
+            var page = await processorFactory
+                .Create("ContosoSales")
+                .ExecutePagedQuery(
+                    new CustomersQuery(),
+                    sessionId: null,
+                    pageSize ?? 100,
+                    continuationToken,
+                    new AtcPagedQueryOptions
+                    {
+                        IncludeTotalCount = includeTotalCount == true,
+                    },
+                    cancellationToken);
+
+            // null means that the continuation token can't be read, e.g. a token from before Atc.Kusto 4.0.
+            return page is not null
+                ? TypedResults.Ok(page)
+                : TypedResults.Problem(
+                    "The continuation token is not valid. Start again without a token.",
+                    statusCode: StatusCodes.Status400BadRequest);
+        })
     .WithName("GetCustomers")
     .ProducesProblem(StatusCodes.Status400BadRequest)
-    .ProducesProblem(StatusCodes.Status502BadGateway)
-    .WithDescription("Get all customers")
+    .WithDescription("Get all customers, one page at a time. Optional ?includeTotalCount=true")
     .WithOpenApi();
 
 app.MapGet(
@@ -98,10 +117,11 @@ app.MapGet(
 
 app.MapGet(
         "/customers/sales",
-        async static Task<Results<Ok<CustomerSales[]>, ProblemHttpResult>> (
+        async static Task<Ok<CustomerSales[]>> (
             IKustoProcessorFactory processorFactory,
             CancellationToken cancellationToken)
-            => await processorFactory.Create("ContosoSales")
+            => TypedResults.Ok(
+                await processorFactory.Create("ContosoSales")
                     .ExecuteQuery(
                         new CustomerSalesQuery(),
                         new AtcQueryOptions
@@ -110,27 +130,21 @@ app.MapGet(
                             TruncationMaxRecords = 20,
                         },
                         cancellationToken: cancellationToken)
-                is { } sales
-                    ? TypedResults.Ok(sales)
-                    : QueryFailed())
+                ?? []))
     .WithName("GetCustomerSales")
-    .ProducesProblem(StatusCodes.Status502BadGateway)
-    .WithDescription("Get summarized sales amounts per customer")
+    .WithDescription("Get summarized sales amounts per customer (at most 10)")
     .WithOpenApi();
 
 app.MapGet(
         "/customers/stream-with-streaming-query-result",
         async static Task<Results<Ok<StreamingQueryResult<Customer>>, ProblemHttpResult>> (
-            [FromHeader(Name = "x-client-session-id")] string? sessionId,
             IKustoProcessorFactory processorFactory,
             CancellationToken cancellationToken)
-            => await processorFactory.Create("ContosoSales")
+            => BufferedResult(
+                await processorFactory.Create("ContosoSales")
                     .ExecuteBufferedStreamingQuery(
                         new CustomersStreamingQuery(),
-                        cancellationToken)
-                is { } streamingQueryResult
-                    ? TypedResults.Ok(streamingQueryResult)
-                    : QueryFailed())
+                        cancellationToken)))
     .WithName("GetCustomersStreamWithStreamingQueryResult")
     .ProducesProblem(StatusCodes.Status502BadGateway)
     .WithDescription("Streaming customers with streaming query result")
@@ -139,7 +153,6 @@ app.MapGet(
 app.MapGet(
         "/customers/stream",
         static (
-            [FromHeader(Name = "x-client-session-id")] string? sessionId,
             IKustoProcessorFactory processorFactory,
             CancellationToken cancellationToken)
             => TypedResults.Ok(processorFactory.Create("ContosoSales")
@@ -152,79 +165,49 @@ app.MapGet(
 
 app.MapGet(
         "/customers/stream-cancel-demo",
-        async Task<Results<Ok, StatusCodeHttpResult>> (
+        async static Task<Ok<string>> (
             IKustoProcessorFactory processorFactory,
-            CancellationToken cancellationToken) =>
-        {
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(TimeSpan.FromMilliseconds(50));
-
-            try
-            {
-                await foreach (var x in processorFactory.Create("ContosoSales")
-                                   .ExecuteStreamingQuery(new CustomersStreamingQuery(), cts.Token))
-                {
-                    // no-op
-                }
-
-                return TypedResults.Ok();
-            }
-            catch (OperationCanceledException)
-            {
-                return TypedResults.StatusCode(StatusCodes.Status499ClientClosedRequest);
-            }
-        })
+            CancellationToken cancellationToken)
+            => TypedResults.Ok(
+                await StreamUntilCancelled(
+                    processorFactory.Create("ContosoSales"),
+                    new AtcStreamingQueryOptions(),
+                    cancellationToken)))
     .WithName("GetCustomersStreamCancelDemo")
-    .Produces(StatusCodes.Status499ClientClosedRequest)
-    .WithDescription("Demonstrates cancellation of streaming with server-side cancel enabled")
+    .WithDescription("Cancels a streaming query after 50 ms, like a client that disconnects; the query is also cancelled on the cluster")
     .WithOpenApi();
 
 app.MapGet(
         "/customers/stream-cancel-demo-no-server",
-        async Task<Results<Ok, StatusCodeHttpResult>> (
+        async static Task<Ok<string>> (
             IKustoProcessorFactory processorFactory,
-            CancellationToken cancellationToken) =>
-        {
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(TimeSpan.FromMilliseconds(50));
-
-            try
-            {
-                await foreach (var x in processorFactory.Create("ContosoSales")
-                                   .ExecuteStreamingQuery(new CustomersStreamingQuery(), new AtcStreamingQueryOptions { EnableServerSideCancellation = false }, cts.Token))
-                {
-                    // no-op
-                }
-
-                return TypedResults.Ok();
-            }
-            catch (OperationCanceledException)
-            {
-                return TypedResults.StatusCode(StatusCodes.Status499ClientClosedRequest);
-            }
-        })
+            CancellationToken cancellationToken)
+            => TypedResults.Ok(
+                await StreamUntilCancelled(
+                    processorFactory.Create("ContosoSales"),
+                    new AtcStreamingQueryOptions
+                    {
+                        EnableServerSideCancellation = false,
+                    },
+                    cancellationToken)))
     .WithName("GetCustomersStreamCancelDemoNoServer")
-    .Produces(StatusCodes.Status499ClientClosedRequest)
-    .WithDescription("Demonstrates cancellation of streaming with server-side cancel disabled")
+    .WithDescription("Cancels a streaming query after 50 ms, like a client that disconnects, without cancelling it on the cluster")
     .WithOpenApi();
 
 app.MapGet(
         "/nyctaxitrips/stream-with-streaming-query-result",
         async static Task<Results<Ok<StreamingQueryResult<NycTaxiTrip>>, ProblemHttpResult>> (
-            [FromHeader(Name = "x-client-session-id")] string? sessionId,
             IKustoProcessorFactory processorFactory,
             CancellationToken cancellationToken)
-            => await processorFactory.Create("Samples")
+            => BufferedResult(
+                await processorFactory.Create("Samples")
                     .ExecuteBufferedStreamingQuery(
                         new NycTaxiTripsStreamingQuery(),
                         new AtcStreamingQueryOptions
                         {
                             NoTruncation = true,
                         },
-                        cancellationToken)
-                is { } streamingQueryResult
-                    ? TypedResults.Ok(streamingQueryResult)
-                    : QueryFailed())
+                        cancellationToken)))
     .WithName("GetNycTaxiTripsStreamWithStreamingQueryResult")
     .ProducesProblem(StatusCodes.Status502BadGateway)
     .WithDescription("Streaming nyc taxi trips with streaming query result")
@@ -233,7 +216,6 @@ app.MapGet(
 app.MapGet(
         "/nyctaxitrips/stream",
         static (
-            [FromHeader(Name = "x-client-session-id")] string? sessionId,
             IKustoProcessorFactory processorFactory,
             CancellationToken cancellationToken)
             => TypedResults.Ok(processorFactory.Create("Samples")
@@ -304,9 +286,49 @@ app.MapPost(
 
 await app.RunAsync();
 
-// Atc.Kusto query methods return null when the query failed (the error is logged by the library).
-static ProblemHttpResult QueryFailed()
-    => TypedResults.Problem(
-        "The Kusto query failed; see the application logs.",
-        statusCode: StatusCodes.Status502BadGateway,
-        title: "Query failed");
+// A buffered streaming query doesn't throw when the query fails: it reports the error in Completion.
+static Results<Ok<StreamingQueryResult<T>>, ProblemHttpResult> BufferedResult<T>(
+    StreamingQueryResult<T>? result)
+    => result switch
+    {
+        null => TypedResults.Problem(
+            "The Kusto query returned no result.",
+            statusCode: StatusCodes.Status502BadGateway,
+            title: "Query failed"),
+        { Completion.HasErrors: true } => TypedResults.Problem(
+            result.Completion.ErrorMessage,
+            statusCode: StatusCodes.Status502BadGateway,
+            title: "Query failed"),
+        _ => TypedResults.Ok(result),
+    };
+
+// Cancels the query after 50 ms, like a client that disconnects, and tells how far it got.
+static async Task<string> StreamUntilCancelled(
+    IKustoProcessor processor,
+    AtcStreamingQueryOptions options,
+    CancellationToken cancellationToken)
+{
+    using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+    cts.CancelAfter(TimeSpan.FromMilliseconds(50));
+
+    var rows = 0;
+
+    try
+    {
+        await foreach (var customer in processor.ExecuteStreamingQuery(
+                           new CustomersStreamingQuery(),
+                           options,
+                           cts.Token))
+        {
+            rows++;
+        }
+
+        return $"The query completed before it was cancelled ({rows} rows).";
+    }
+    catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+    {
+        return options.EnableServerSideCancellation
+            ? $"Cancelled after {rows} rows. The query was also cancelled on the cluster."
+            : $"Cancelled after {rows} rows. The query keeps running on the cluster until it completes.";
+    }
+}

@@ -3,6 +3,7 @@ declare query_parameters (
 );
 Customers
 | where isnull(customerId) or customerId == CustomerKey
+| order by CustomerKey asc
 | project
     CustomerKey,
     FirstName,

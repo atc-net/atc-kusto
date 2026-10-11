@@ -499,7 +499,7 @@ The token doesn't contain the name of the stored result. The name is calculated 
 
 The cluster deletes a stored result after `AtcKustoOptions.PagedResultExpiration`: 1 hour by default, and anything from 1 second to 24 hours (whole seconds). A value outside that range makes every paged query on that connection throw `InvalidOperationException`. A page requested after that runs the query again, saves the new result under the same name, and returns the requested page.
 
-The new run uses the data as it is now, so rows that were added or removed in the meantime can shift between pages: a page can repeat rows or skip some. **End a paged query with an `order by` that includes a unique column**, such as `| order by Name asc, Id asc`, so a new run numbers the rows the same way. Without a sort order, the rows can come back in a completely different order. Sorting is cheap for lists that are paged through, and only page 1 (or a new run) runs the query.
+The new run uses the data as it is now, so rows that were added or removed in the meantime can shift between pages: a page can repeat rows or skip some. **Sort a paged query with an `order by` that includes a unique column**, such as `| order by Name asc, Id asc`, so a new run numbers the rows the same way. The `order by` can come before the final `project`, which keeps the order. Without a sort order, the rows can come back in a completely different order. Sorting is cheap for lists that are paged through, and only page 1 (or a new run) runs the query.
 
 A longer expiration means fewer new runs, while the cluster keeps each result for longer:
 
