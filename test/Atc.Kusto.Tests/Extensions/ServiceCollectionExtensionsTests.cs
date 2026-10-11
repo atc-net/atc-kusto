@@ -20,6 +20,21 @@ public sealed class ServiceCollectionExtensionsTests
     }
 
     [Theory, AutoNSubstituteData]
+    public void IKustoClusterDiagnosticsHealthCheck_Is_Resolvable(
+        Azure.Core.TokenCredential credential)
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        services.ConfigureAzureDataExplorer(HostAddress, "Db", credential);
+
+        // Act
+        using var provider = services.BuildServiceProvider();
+
+        // Assert
+        provider.GetService<IKustoClusterDiagnosticsHealthCheck>().Should().BeOfType<KustoClusterDiagnosticsHealthCheck>();
+    }
+
+    [Theory, AutoNSubstituteData]
     public void Query_And_Ingest_Provider_Interfaces_Share_One_Instance(
         Azure.Core.TokenCredential credential)
     {
@@ -53,6 +68,7 @@ public sealed class ServiceCollectionExtensionsTests
         services.Count(d => d.ServiceType == typeof(IKustoClientProvider)).Should().Be(1);
         services.Count(d => d.ServiceType == typeof(IKustoIngestClientProvider)).Should().Be(1);
         services.Count(d => d.ServiceType == typeof(IKustoIngestor)).Should().Be(1);
+        services.Count(d => d.ServiceType == typeof(IKustoClusterDiagnosticsHealthCheck)).Should().Be(1);
         services.Count(d => d.ServiceType == typeof(IKustoProcessor)).Should().Be(1);
         services.Count(d => d.ServiceType == typeof(ResiliencePipeline)).Should().Be(1);
     }
