@@ -6,7 +6,7 @@ A console app showing every `IKustoIngestor` capability against a real cluster. 
 
 Ingestion needs a **writable** database (`help.kusto.windows.net` is read-only). A [free Kusto cluster](https://aka.ms/kustofree) works.
 
-1. Run [`setup.kql`](setup.kql) against the database once. It creates the `SampleDeviceReadings` table (camelCase columns), its JSON mapping `SampleDeviceReadings_mapping`, and enables the streaming ingestion policy.
+1. Run [`setup.kql`](setup.kql) against the database once. It creates the `SampleDeviceReadings` table (camelCase columns), its JSON mappings `SampleDeviceReadings_mapping` (camelCase paths) and `SampleDeviceReadings_snake_case_mapping` (snake_case paths), and enables the streaming ingestion policy. The script can be run again, for example after an update of the sample.
 2. Set the environment variables:
 
    | Variable                    | Required | Example                                                    |
@@ -30,7 +30,8 @@ Without the required variables the sample prints these steps and exits.
 | 4 | CSV from a stream | No mapping needed (columns by position); the caller's stream is left open. |
 | 5 | Empty batch | `Skipped`, `IsSuccess = true`, the cluster isn't contacted. |
 | 6 | Mapping mismatch | PascalCase JSON against camelCase mapping paths: the ingestion **succeeds**, but the read-back shows `(empty)` columns. This is why property names must match the mapping. |
-| 7 | Failure handling | A missing table gives `Status = Failed` with an error message, not an exception; `EnsureSuccess()` then throws `KustoIngestionException`. |
-| 8 | Blob | Runs only when `ATC_KUSTO_INGEST_BLOB_URL` is set; queued ingestion of a CSV blob read by the cluster. |
+| 7 | A connection with snake_case names | A second connection, configured with `ConfigureSerializerOptions(json => json.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower)`, writes `"device_id"` instead of `"deviceId"`. Against the snake_case mapping, the read-back shows filled columns. |
+| 8 | Failure handling | A missing table gives `Status = Failed` with an error message, not an exception; `EnsureSuccess()` then throws `KustoIngestionException`. |
+| 9 | Blob | Runs only when `ATC_KUSTO_INGEST_BLOB_URL` is set; queued ingestion of a CSV blob read by the cluster. |
 
-Every row is tagged with a per-run `runId` and the scenario name, so repeated runs don't interfere. Clean up with `.drop table SampleDeviceReadings`.
+A failing scenario logs a warning and the next scenario runs. Every row is tagged with a per-run `runId` and the scenario name, so repeated runs don't interfere. Clean up with `.drop table SampleDeviceReadings`.

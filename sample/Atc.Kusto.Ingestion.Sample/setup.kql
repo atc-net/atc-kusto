@@ -22,6 +22,18 @@
         '{"column": "timestamp", "path": "$.timestamp"}'
     ']'
 
+// A second JSON mapping with snake_case paths, used by the scenario whose connection writes
+// snake_case names (ConfigureSerializerOptions with JsonNamingPolicy.SnakeCaseLower).
+.create-or-alter table SampleDeviceReadings ingestion json mapping "SampleDeviceReadings_snake_case_mapping"
+    '['
+        '{"column": "runId", "path": "$.run_id"},'
+        '{"column": "scenario", "path": "$.scenario"},'
+        '{"column": "deviceId", "path": "$.device_id"},'
+        '{"column": "serialNumber", "path": "$.serial_number"},'
+        '{"column": "value", "path": "$.value"},'
+        '{"column": "timestamp", "path": "$.timestamp"}'
+    ']'
+
 // Enables real streaming ingestion for the table (streaming must also be enabled on the cluster).
 // Without it, ManagedStreaming falls back to queued and the Streaming scenario fails.
 .alter table SampleDeviceReadings policy streamingingestion enable

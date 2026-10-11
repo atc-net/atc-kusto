@@ -27,6 +27,18 @@ services.ConfigureAzureDataExplorer(
     databaseName,
     new DefaultAzureCredential());
 
+// The same database through a second connection, whose JSON settings write snake_case names
+// ("device_id") for tables whose mappings use snake_case paths.
+services.ConfigureAzureDataExplorer(
+    options =>
+    {
+        options.HostAddress = new Uri(clusterUrl);
+        options.DatabaseName = databaseName;
+        options.Credential = new DefaultAzureCredential();
+        options.ConfigureSerializerOptions(json => json.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower);
+    },
+    IngestionScenarios.SnakeCaseConnectionName);
+
 await using var serviceProvider = services.BuildServiceProvider();
 
 var scenarios = new IngestionScenarios(
