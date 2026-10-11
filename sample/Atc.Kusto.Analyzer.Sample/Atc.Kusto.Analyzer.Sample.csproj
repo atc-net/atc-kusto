@@ -18,10 +18,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- For runtime (existing requirement) -->
+    <!-- Embeds the .kusto files, which the queries load at runtime -->
     <EmbeddedResource Include="**/*.kusto" />
 
-    <!-- For analyzer compile-time checking (NEW requirement) -->
+    <!-- Lets the Atc.Kusto analyzer read the .kusto files -->
     <AdditionalFiles Include="**/*.kusto" />
   </ItemGroup>
 
