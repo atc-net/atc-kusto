@@ -25,4 +25,15 @@ public class AtcKustoOptions
     /// Contributor on them.
     /// </remarks>
     public IList<Uri> IngestUploadContainers { get; } = new List<Uri>();
+
+    /// <summary>
+    /// Gets or sets how long Kusto keeps the stored query result behind a paged query.
+    /// Default is 1 hour.
+    /// </summary>
+    /// <remarks>
+    /// Must be between 1 second and 24 hours; whole seconds are used. A later page that arrives after the
+    /// result has expired runs the query again, so a longer time means fewer re-runs, while Kusto keeps
+    /// each result for longer.
+    /// </remarks>
+    public TimeSpan PagedResultExpiration { get; set; } = TimeSpan.FromHours(1);
 }

@@ -7,6 +7,10 @@ public sealed class AtcKustoOptionsTests
         => new AtcKustoOptions().DefaultIngestionMode.Should().Be(IngestionMode.ManagedStreaming);
 
     [Fact]
+    public void PagedResultExpiration_Defaults_To_One_Hour()
+        => new AtcKustoOptions().PagedResultExpiration.Should().Be(TimeSpan.FromHours(1));
+
+    [Fact]
     public void IngestUploadContainers_Defaults_To_An_Empty_Mutable_List()
     {
         // Arrange

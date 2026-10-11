@@ -90,6 +90,7 @@ public sealed class ServiceCollectionExtensionsTests
             Credential = credential,
             ConnectionString = "Data Source=https://example.kusto.windows.net",
             DefaultIngestionMode = IngestionMode.Queued,
+            PagedResultExpiration = TimeSpan.FromHours(2),
         };
 
         options.IngestUploadContainers.Add(container);
@@ -109,6 +110,7 @@ public sealed class ServiceCollectionExtensionsTests
         registered.Credential.Should().BeSameAs(credential);
         registered.ConnectionString.Should().Be("Data Source=https://example.kusto.windows.net");
         registered.DefaultIngestionMode.Should().Be(IngestionMode.Queued);
+        registered.PagedResultExpiration.Should().Be(TimeSpan.FromHours(2));
         registered.IngestUploadContainers.Should().ContainSingle().Which.Should().Be(container);
     }
 }

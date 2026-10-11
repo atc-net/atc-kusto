@@ -6,21 +6,24 @@ namespace Atc.Kusto.Handlers.Internal;
 internal static class StoredQueryResultCommands
 {
     /// <summary>
-    /// Creates the command that runs <paramref name="query"/> and stores its result under <paramref name="queryId"/>
-    /// for an hour, with the rows numbered from 1 in a <c>row_number</c> column.
+    /// Creates the command that runs <paramref name="query"/> and stores its result under <paramref name="queryId"/>,
+    /// with the rows numbered from 1 in a <c>row_number</c> column.
     /// </summary>
     /// <param name="query">The paged query.</param>
     /// <param name="queryId">The queryId (the stored query result name).</param>
     /// <param name="pageSize">The number of rows the command returns, which is the first page.</param>
+    /// <param name="expiration">How long Kusto keeps the stored result, in whole seconds.</param>
     /// <returns>The <c>.set-or-replace stored_query_result</c> command.</returns>
     public static string CreateSetOrReplace(
         IKustoScript query,
         string queryId,
-        int pageSize)
+        int pageSize,
+        TimeSpan expiration)
     {
+        var expirationSeconds = (long)expiration.TotalSeconds;
         var header = string.Create(
             CultureInfo.InvariantCulture,
-            $".set-or-replace stored_query_result ['{queryId}'] with (previewCount = {pageSize}, expiresAfter = 1h) <|");
+            $".set-or-replace stored_query_result ['{queryId}'] with (previewCount = {pageSize}, expiresAfter = {expirationSeconds}s) <|");
         const string footer = "| serialize row_number = row_number()";
 
         return $"{header}\n{query.GetQueryText().Trim(' ', '\n', '\t', ';')}\n{footer}";

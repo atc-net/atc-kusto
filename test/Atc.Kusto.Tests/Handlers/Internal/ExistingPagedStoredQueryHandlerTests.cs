@@ -4,6 +4,8 @@ public sealed class ExistingPagedStoredQueryHandlerTests
 {
     private const string Nonce = "nonce1";
 
+    private static readonly TimeSpan Expiration = TimeSpan.FromHours(1);
+
     private readonly IQueryIdProvider queryIdProvider;
     private readonly ICslAdminProvider adminProvider;
     private readonly ICslQueryProvider queryProvider;
@@ -245,7 +247,7 @@ public sealed class ExistingPagedStoredQueryHandlerTests
             .Received(1)
             .ExecuteControlCommandAsync(
                 databaseName: null,
-                $".set-or-replace stored_query_result ['{queryId}'] with (previewCount = 3, expiresAfter = 1h) <|\n" +
+                $".set-or-replace stored_query_result ['{queryId}'] with (previewCount = 3, expiresAfter = 3600s) <|\n" +
                 "Devices | order by DeviceId asc\n" +
                 "| serialize row_number = row_number()",
                 Arg.Any<ClientRequestProperties>());
@@ -439,6 +441,7 @@ public sealed class ExistingPagedStoredQueryHandlerTests
             query,
             sessionId: null,
             pageSize,
+            Expiration,
             continuationToken);
 
     private ExistingPagedStoredQueryHandler<string> CreateHandlerWithAdminProvider()
@@ -451,5 +454,6 @@ public sealed class ExistingPagedStoredQueryHandlerTests
             query,
             sessionId: null,
             pageSize,
+            Expiration,
             $"v2;{Nonce};{itemsReturned}");
 }
