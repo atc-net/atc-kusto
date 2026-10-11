@@ -1,45 +1,42 @@
 # Kusto Health Check
 
-This directory contains a sample application demonstrating how to use the Kusto (Azure Data Explorer) health check functionality in ASP.NET Core applications.
+This sample shows the Kusto (Azure Data Explorer) cluster health check in an ASP.NET Core application. It checks the `ContosoSales` database on the Microsoft ADX sample cluster (`https://help.kusto.windows.net`).
 
 ## Overview
 
-The Kusto health check provides a simple way to verify that your Azure Data Explorer cluster is healthy and operational. It uses the `.show diagnostics` command to retrieve cluster health metrics and exposes them through ASP.NET Core's Health Checks API.
+The health check runs `.show diagnostics` on the cluster and reports the result through ASP.NET Core's Health Checks API:
 
-## Key Features
-
-- Check cluster health status
-- Get detailed health information, including:
-  - Whether the cluster is healthy
-  - Whether the cluster requires attention
-  - Whether the cluster needs to be scaled out
-  - Specific diagnostic reasons for health issues
+- whether the cluster is healthy, and why not;
+- whether the cluster requires attention, and why;
+- whether scaling out the cluster is recommended.
 
 ## Usage
 
 ### Register the Health Check
 
-In your `Program.cs` or startup class:
+In `Program.cs`:
 
 ```csharp
 // Configure Azure Data Explorer
-services.ConfigureAzureDataExplorer(
+builder.Services.ConfigureAzureDataExplorer(
     o =>
     {
-        o.HostAddress = new Uri("https://your-adx-cluster-url.kusto.windows.net");
-        o.DatabaseName = "YourDatabase";
+        o.HostAddress = new Uri("https://help.kusto.windows.net/");
+        o.DatabaseName = "ContosoSales";
         o.Credential = new DefaultAzureCredential();
     },
-    "DefaultConnection");
+    "ContosoSales");
 
 // Add health checks
-services
+builder.Services
     .AddHealthChecks()
-    .AddKustoHealthCheck(
-        name: "adx", 
-        connectionName: "DefaultConnection",
-        tags: new[] { "adx", "database" });
+    .AddKustoClusterDiagnosticsHealthCheck(
+        name: "adx-contososales",
+        connectionName: "ContosoSales",
+        tags: ["adx", "database"]);
 ```
+
+`AddKustoClusterDiagnosticsHealthCheck` also takes `databaseName`, `failureStatus` and `timeout`. See the [Health checks](../../README.md#health-checks) section of the main README.
 
 ### Add Health Check Endpoint
 
@@ -49,7 +46,7 @@ app.MapHealthChecks("/health", new HealthCheckOptions
     ResponseWriter = async (context, report) =>
     {
         context.Response.ContentType = "application/json";
-        
+
         var response = new
         {
             Status = report.Status.ToString(),
@@ -60,17 +57,19 @@ app.MapHealthChecks("/health", new HealthCheckOptions
                 Status = entry.Value.Status.ToString(),
                 Duration = entry.Value.Duration,
                 Description = entry.Value.Description,
-                Data = entry.Value.Data
-            })
+                Data = entry.Value.Data,
+            }),
         };
 
         var options = new JsonSerializerOptions { WriteIndented = true };
         await context.Response.WriteAsync(JsonSerializer.Serialize(response, options), Encoding.UTF8);
-    }
+    },
 });
 ```
 
 ## Sample Health Check Response
+
+`GET /health`:
 
 ```json
 {
@@ -78,56 +77,53 @@ app.MapHealthChecks("/health", new HealthCheckOptions
   "Duration": "00:00:00.2485141",
   "Checks": [
     {
-      "Name": "adx",
+      "Name": "adx-contososales",
       "Status": "Healthy",
       "Duration": "00:00:00.2422320",
       "Description": "Kusto cluster is healthy",
       "Data": {
-        "Duration": "00:00:00.2422320",
-        "IsAttentionRequired": false,
-        "IsScaleOutRequired": false
+        "duration": "00:00:00.2422320",
+        "isAttentionRequired": false,
+        "isScaleOutRequired": false
       }
     }
   ]
 }
 ```
 
+The outer property names come from the anonymous type in the response writer. The `Data` keys come from the health check, which writes them in camelCase. `Data` also contains `notHealthyReason` and `attentionRequiredReason` when there is a reason.
+
 ## Status Descriptions
 
-- **Healthy**: The cluster is functioning normally
-- **Degraded**: The cluster requires attention but is still operational
-- **Unhealthy**: The cluster is not healthy and may not be operational
+- **Healthy**: The cluster is functioning normally (also when scaling out is recommended).
+- **Degraded**: The cluster requires attention but is still operational.
+- **Unhealthy** (or the registration's `failureStatus`): The cluster is not healthy, or the check failed, for example because the cluster can't be reached.
 
 ## Advanced Usage
 
-You can directly use `IKustoHealthCheck` in your own services if you need more control over the health checking process or want to add custom handling based on health check results:
+`ConfigureAzureDataExplorer(...)` also registers `IKustoClusterDiagnosticsHealthCheck`, so you can check the cluster from your own services:
 
 ```csharp
-public class MyService
+public sealed class ClusterStatusService(
+    IKustoClusterDiagnosticsHealthCheck healthCheck)
 {
-    private readonly IKustoHealthCheck kustoHealthCheck;
-
-    public MyService(IKustoHealthCheck kustoHealthCheck)
+    public async Task LogClusterStatusAsync(
+        CancellationToken cancellationToken)
     {
-        this.kustoHealthCheck = kustoHealthCheck;
-    }
+        var result = await healthCheck.CheckHealthAsync(
+            connectionName: "ContosoSales",
+            cancellationToken: cancellationToken);
 
-    public async Task DoSomethingWithHealthCheck()
-    {
-        var healthResult = await kustoHealthCheck.CheckHealthAsync();
-        
-        if (!healthResult.IsHealthy)
+        if (!result.IsHealthy)
         {
-            // Handle unhealthy cluster scenario
-            Console.WriteLine($"Cluster unhealthy: {healthResult.NotHealthyReason}");
+            Console.WriteLine($"Cluster unhealthy: {result.NotHealthyReason}");
         }
-        else if (healthResult.IsAttentionRequired)
+        else if (result.IsAttentionRequired)
         {
-            // Handle cluster that needs attention
-            Console.WriteLine($"Cluster needs attention: {healthResult.AttentionRequiredReason}");
+            Console.WriteLine($"Cluster needs attention: {result.AttentionRequiredReason}");
         }
-        
-        // Continue with normal operation
     }
 }
 ```
+
+`CheckHealthAsync` doesn't throw when the cluster is unhealthy or can't be reached: it returns a result with `IsHealthy = false` and the reason. It only throws `OperationCanceledException` when your token is cancelled.

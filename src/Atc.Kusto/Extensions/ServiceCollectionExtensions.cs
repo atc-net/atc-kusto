@@ -154,6 +154,8 @@ public static class ServiceCollectionExtensions
         // failures itself, and retrying a write on top of that risks duplicate ingestion.
         services.TryAddSingleton<IKustoIngestor, KustoIngestor>();
 
+        services.TryAddSingleton<IKustoClusterDiagnosticsHealthCheck, KustoClusterDiagnosticsHealthCheck>();
+
         return services;
 
         ResiliencePipeline ResiliencePipelineImplementationFactory(
