@@ -13,13 +13,37 @@ public sealed class StoredQueryResultCommandsTests
         var actual = StoredQueryResultCommands.CreateSetOrReplace(
             query,
             "DevicesQueryabc",
-            pageSize: 1000);
+            pageSize: 1000,
+            TimeSpan.FromHours(1));
 
         // Assert
         actual.Should().Be(
-            ".set-or-replace stored_query_result ['DevicesQueryabc'] with (previewCount = 1000, expiresAfter = 1h) <|\n" +
+            ".set-or-replace stored_query_result ['DevicesQueryabc'] with (previewCount = 1000, expiresAfter = 3600s) <|\n" +
             "Devices | order by DeviceId asc\n" +
             "| serialize row_number = row_number()");
+    }
+
+    [Theory]
+    [InlineData(90 * 60, "expiresAfter = 5400s")]
+    [InlineData(1.9, "expiresAfter = 1s")]
+    [InlineData(24 * 60 * 60, "expiresAfter = 86400s")]
+    public void CreateSetOrReplace_Writes_The_Expiration_In_Whole_Seconds(
+        double expirationSeconds,
+        string expected)
+    {
+        // Arrange
+        var query = Substitute.For<IKustoScript>();
+        query.GetQueryText().Returns("Devices");
+
+        // Act
+        var actual = StoredQueryResultCommands.CreateSetOrReplace(
+            query,
+            "DevicesQueryabc",
+            pageSize: 10,
+            TimeSpan.FromSeconds(expirationSeconds));
+
+        // Assert
+        actual.Should().Contain(expected);
     }
 
     [Theory]

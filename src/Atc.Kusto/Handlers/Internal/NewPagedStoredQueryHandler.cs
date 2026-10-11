@@ -8,6 +8,7 @@ internal sealed class NewPagedStoredQueryHandler<T> : IScriptHandler<PagedResult
     private readonly IKustoQuery<IReadOnlyList<T>> query;
     private readonly string? sessionId;
     private readonly int pageSize;
+    private readonly TimeSpan expiration;
 
     public NewPagedStoredQueryHandler(
         [FromKeyedServices(Constants.ResiliencePipelineKey)] ResiliencePipeline resiliencePipeline,
@@ -15,7 +16,8 @@ internal sealed class NewPagedStoredQueryHandler<T> : IScriptHandler<PagedResult
         ICslAdminProvider adminProvider,
         IKustoQuery<IReadOnlyList<T>> query,
         string? sessionId,
-        int pageSize)
+        int pageSize,
+        TimeSpan expiration)
     {
         this.resiliencePipeline = resiliencePipeline;
         this.queryIdProvider = queryIdProvider;
@@ -23,6 +25,7 @@ internal sealed class NewPagedStoredQueryHandler<T> : IScriptHandler<PagedResult
         this.query = query;
         this.sessionId = sessionId;
         this.pageSize = pageSize;
+        this.expiration = expiration;
     }
 
     /// <summary>
@@ -64,7 +67,8 @@ internal sealed class NewPagedStoredQueryHandler<T> : IScriptHandler<PagedResult
         var queryText = StoredQueryResultCommands.CreateSetOrReplace(
             query,
             queryId,
-            pageSize);
+            pageSize,
+            expiration);
 
         var items = await ExecuteControlCommand(queryText, cancellationToken);
         if (items is null)

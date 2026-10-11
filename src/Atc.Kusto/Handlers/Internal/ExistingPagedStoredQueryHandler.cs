@@ -16,6 +16,7 @@ internal sealed partial class ExistingPagedStoredQueryHandler<T> : IScriptHandle
     private readonly IKustoQuery<IReadOnlyList<T>> query;
     private readonly string? sessionId;
     private readonly int pageSize;
+    private readonly TimeSpan expiration;
     private readonly string continuationToken;
 
     public ExistingPagedStoredQueryHandler(
@@ -27,6 +28,7 @@ internal sealed partial class ExistingPagedStoredQueryHandler<T> : IScriptHandle
         IKustoQuery<IReadOnlyList<T>> query,
         string? sessionId,
         int pageSize,
+        TimeSpan expiration,
         string continuationToken)
     {
         this.logger = logger;
@@ -37,6 +39,7 @@ internal sealed partial class ExistingPagedStoredQueryHandler<T> : IScriptHandle
         this.query = query;
         this.sessionId = sessionId;
         this.pageSize = pageSize;
+        this.expiration = expiration;
         this.continuationToken = continuationToken;
     }
 
@@ -49,15 +52,16 @@ internal sealed partial class ExistingPagedStoredQueryHandler<T> : IScriptHandle
         IKustoQuery<IReadOnlyList<T>> query,
         string? sessionId,
         int pageSize,
+        TimeSpan expiration,
         string continuationToken)
-        : this(logger, resiliencePipeline, queryIdProvider, adminProvider: null!, queryProvider, query, sessionId, pageSize, continuationToken)
+        : this(logger, resiliencePipeline, queryIdProvider, adminProvider: null!, queryProvider, query, sessionId, pageSize, expiration, continuationToken)
         => adminProvider = null;
 
     /// <summary>
     /// Executes the stored Kusto query asynchronously and returns a paginated result set.
     /// </summary>
     /// <remarks>
-    /// When the stored query result no longer exists (it expires after an hour), the query runs again into the
+    /// When the stored query result no longer exists (it has expired), the query runs again into the
     /// same queryId and the requested page is read from the new result. The data may have changed in between,
     /// so rows can shift between pages; a query without <c>order by</c> can even return its rows in another order.
     /// </remarks>
@@ -209,7 +213,8 @@ internal sealed partial class ExistingPagedStoredQueryHandler<T> : IScriptHandle
             StoredQueryResultCommands.CreateSetOrReplace(
                 query,
                 queryId,
-                pageSize),
+                pageSize,
+                expiration),
             query.GetClientRequestProperties());
     }
 }

@@ -117,6 +117,7 @@ public static class ServiceCollectionExtensions
         target.Credential = source.Credential;
         target.ConnectionString = source.ConnectionString;
         target.DefaultIngestionMode = source.DefaultIngestionMode;
+        target.PagedResultExpiration = source.PagedResultExpiration;
 
         foreach (var container in source.IngestUploadContainers)
         {

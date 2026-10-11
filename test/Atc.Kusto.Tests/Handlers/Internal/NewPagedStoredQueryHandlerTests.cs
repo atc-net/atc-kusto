@@ -2,6 +2,8 @@ namespace Atc.Kusto.Tests.Handlers.Internal;
 
 public sealed class NewPagedStoredQueryHandlerTests
 {
+    private static readonly TimeSpan Expiration = TimeSpan.FromHours(1);
+
     private readonly IQueryIdProvider queryIdProvider;
     private readonly ICslAdminProvider adminProvider;
     private readonly IKustoQuery<IReadOnlyList<string>> query;
@@ -25,7 +27,7 @@ public sealed class NewPagedStoredQueryHandlerTests
             .Create(query, sessionId, nonce: null)
             .ReturnsForAnyArgs(queryId);
 
-        sut = new NewPagedStoredQueryHandler<string>(ResiliencePipeline.Empty, queryIdProvider, adminProvider, query, sessionId, pageSize);
+        sut = new NewPagedStoredQueryHandler<string>(ResiliencePipeline.Empty, queryIdProvider, adminProvider, query, sessionId, pageSize, Expiration);
     }
 
     [Theory, AutoNSubstituteData]
@@ -73,7 +75,7 @@ public sealed class NewPagedStoredQueryHandlerTests
             .ExecuteControlCommandAsync(
                 databaseName: null,
                 $"""
-                  .set-or-replace stored_query_result ['{queryId}'] with (previewCount = {pageSize}, expiresAfter = 1h) <|
+                  .set-or-replace stored_query_result ['{queryId}'] with (previewCount = {pageSize}, expiresAfter = 3600s) <|
                   {queryText}
                   | serialize row_number = row_number()
                   """.Replace("\r\n", "\n", StringComparison.Ordinal),
@@ -140,7 +142,7 @@ public sealed class NewPagedStoredQueryHandlerTests
             .ExecuteControlCommandAsync(
                 databaseName: null,
                 $"""
-                 .set-or-replace stored_query_result ['{queryId}'] with (previewCount = {pageSize}, expiresAfter = 1h) <|
+                 .set-or-replace stored_query_result ['{queryId}'] with (previewCount = {pageSize}, expiresAfter = 3600s) <|
                  {queryText}
                  | serialize row_number = row_number()
                  """.Replace("\r\n", "\n", StringComparison.Ordinal),
@@ -165,7 +167,7 @@ public sealed class NewPagedStoredQueryHandlerTests
             .ReadResult(reader)
             .Returns(["A", "B", "C"]);
 
-        var handler = new NewPagedStoredQueryHandler<string>(ResiliencePipeline.Empty, queryIdProvider, adminProvider, query, sessionId: null, pageSize);
+        var handler = new NewPagedStoredQueryHandler<string>(ResiliencePipeline.Empty, queryIdProvider, adminProvider, query, sessionId: null, pageSize, Expiration);
 
         // Act
         var result = await handler.Execute(CancellationToken.None);
@@ -190,7 +192,7 @@ public sealed class NewPagedStoredQueryHandlerTests
             .ExecuteControlCommandAsync(Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<ClientRequestProperties>())
             .Returns(reader);
 
-        var handler = new NewPagedStoredQueryHandler<string>(ResiliencePipeline.Empty, queryIdProvider, adminProvider, query, sessionId: null, pageSize);
+        var handler = new NewPagedStoredQueryHandler<string>(ResiliencePipeline.Empty, queryIdProvider, adminProvider, query, sessionId: null, pageSize, Expiration);
 
         // Act
         await handler.Execute(CancellationToken.None);
@@ -243,7 +245,8 @@ public sealed class NewPagedStoredQueryHandlerTests
             adminProvider,
             query,
             sessionId,
-            pageSize);
+            pageSize,
+            Expiration);
 
         // Act
         var result = await handler.Execute(CancellationToken.None);
@@ -287,7 +290,8 @@ public sealed class NewPagedStoredQueryHandlerTests
             adminProvider,
             query,
             sessionId,
-            pageSize);
+            pageSize,
+            Expiration);
 
         // Act
         var act = () => handler.Execute(cts.Token);
