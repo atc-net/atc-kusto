@@ -41,14 +41,13 @@ if (isIngestionConfigured)
 // The exception handler turns that into a 500 problem details response.
 builder.Services.AddProblemDetails();
 
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
 app.UseExceptionHandler();
 
-app.ConfigureSwagger();
+app.ConfigureScalar();
 
 app.UseHttpsRedirection();
 
@@ -93,8 +92,7 @@ app.MapGet(
         })
     .WithName("GetCustomers")
     .ProducesProblem(StatusCodes.Status400BadRequest)
-    .WithDescription("Get all customers, one page at a time. Optional ?includeTotalCount=true")
-    .WithOpenApi();
+    .WithDescription("Get all customers, one page at a time. Optional ?includeTotalCount=true");
 
 app.MapGet(
         "/customers/{customerId}",
@@ -112,8 +110,7 @@ app.MapGet(
                     _ => TypedResults.NotFound(),
                 })
     .WithName("GetCustomerById")
-    .WithDescription("Get customer by id")
-    .WithOpenApi();
+    .WithDescription("Get customer by id");
 
 app.MapGet(
         "/customers/sales",
@@ -132,8 +129,7 @@ app.MapGet(
                         cancellationToken: cancellationToken)
                 ?? []))
     .WithName("GetCustomerSales")
-    .WithDescription("Get summarized sales amounts per customer (at most 10)")
-    .WithOpenApi();
+    .WithDescription("Get summarized sales amounts per customer (at most 10)");
 
 app.MapGet(
         "/customers/stream-with-streaming-query-result",
@@ -147,8 +143,7 @@ app.MapGet(
                         cancellationToken)))
     .WithName("GetCustomersStreamWithStreamingQueryResult")
     .ProducesProblem(StatusCodes.Status502BadGateway)
-    .WithDescription("Streaming customers with streaming query result")
-    .WithOpenApi();
+    .WithDescription("Streaming customers with streaming query result");
 
 app.MapGet(
         "/customers/stream",
@@ -160,8 +155,7 @@ app.MapGet(
                     new CustomersStreamingQuery(),
                     cancellationToken)))
     .WithName("GetCustomersStream")
-    .WithDescription("Streaming customers")
-    .WithOpenApi();
+    .WithDescription("Streaming customers");
 
 app.MapGet(
         "/customers/stream-cancel-demo",
@@ -174,8 +168,7 @@ app.MapGet(
                     new AtcStreamingQueryOptions(),
                     cancellationToken)))
     .WithName("GetCustomersStreamCancelDemo")
-    .WithDescription("Cancels a streaming query after 50 ms, like a client that disconnects; the query is also cancelled on the cluster")
-    .WithOpenApi();
+    .WithDescription("Cancels a streaming query after 50 ms, like a client that disconnects; the query is also cancelled on the cluster");
 
 app.MapGet(
         "/customers/stream-cancel-demo-no-server",
@@ -191,8 +184,7 @@ app.MapGet(
                     },
                     cancellationToken)))
     .WithName("GetCustomersStreamCancelDemoNoServer")
-    .WithDescription("Cancels a streaming query after 50 ms, like a client that disconnects, without cancelling it on the cluster")
-    .WithOpenApi();
+    .WithDescription("Cancels a streaming query after 50 ms, like a client that disconnects, without cancelling it on the cluster");
 
 app.MapGet(
         "/nyctaxitrips/stream-with-streaming-query-result",
@@ -210,8 +202,7 @@ app.MapGet(
                         cancellationToken)))
     .WithName("GetNycTaxiTripsStreamWithStreamingQueryResult")
     .ProducesProblem(StatusCodes.Status502BadGateway)
-    .WithDescription("Streaming nyc taxi trips with streaming query result")
-    .WithOpenApi();
+    .WithDescription("Streaming nyc taxi trips with streaming query result");
 
 app.MapGet(
         "/nyctaxitrips/stream",
@@ -227,8 +218,7 @@ app.MapGet(
                     },
                     cancellationToken)))
     .WithName("GetNycTaxiTripsStream")
-    .WithDescription("Streaming nyc taxi trips")
-    .WithOpenApi();
+    .WithDescription("Streaming nyc taxi trips");
 
 app.MapPost(
         "/device-readings",
@@ -281,8 +271,7 @@ app.MapPost(
     .WithName("IngestDeviceReadings")
     .ProducesProblem(StatusCodes.Status502BadGateway)
     .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
-    .WithDescription("Ingest device readings (200 = in the table, 202 = queued, 502 = failed). Optional ?mode=Streaming|ManagedStreaming|Queued")
-    .WithOpenApi();
+    .WithDescription("Ingest device readings (200 = in the table, 202 = queued, 502 = failed). Optional ?mode=Streaming|ManagedStreaming|Queued");
 
 await app.RunAsync();
 
