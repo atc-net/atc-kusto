@@ -11,6 +11,7 @@ The library provides a streamlined interface for handling Kusto operations, maki
   - [Setup with Explicit Parameters](#setup-with-explicit-parameters)
   - [Setup with Pre-Configured Options](#setup-with-pre-configured-options)
   - [Setup with Configuration Delegate](#setup-with-configuration-delegate)
+  - [Setup with a Connection String](#setup-with-a-connection-string)
   - [JSON serializer settings](#json-serializer-settings)
 - [Queries](#queries)
   - [Adding a Kusto query](#adding-a-kusto-query)
@@ -84,16 +85,17 @@ The library provides a streamlined interface for handling Kusto operations, maki
 
 ## Features
 
-The library extends the official .NET SDK, and adds the following add-on functionality, which supports passing parameters and proper deserialization:
+The library builds on the official Kusto .NET SDK and adds:
 
-- **Kusto Query and Command Execution**: Simplifies the execution of Kusto queries and commands with asynchronous support through embedded .kusto scripts.
-- **Decimal Type Deserialization**: Seamless handling of ADX decimal values (including those surfaced via structured SqlDecimal representations) through internal custom JSON converters bridging Newtonsoft.Json and System.Text.Json.
-- **Paged Query Support**: Efficient handling of large datasets with built-in support for paginated query results through stored query results.
-- **Streaming Query Support**: Two approaches for streaming large result sets:
-  - **Direct Streaming**: Immediately yield rows as they become available, minimizing memory usage and latency.
-  - **Buffered Streaming**: Buffer results with additional metadata like schemas and completion information.
-- **Data Ingestion**: `IKustoIngestor` ingests in-memory rows, streams and blobs with streaming, managed-streaming (default) or queued ingestion, built on the Kusto Ingest V2 SDK.
-- **Health Checks**: Built-in health check integration for Azure Data Explorer clusters with ASP.NET Core's Health Checks API.
+- **Queries and commands as code**: each query is a `.kusto` file embedded in your assembly, paired with a C# record whose properties are the query parameters. Results are mapped to your types.
+- **Compile-time checks**: a bundled [analyzer](#analyzer) checks that the `.kusto` file exists, and that its parameters and columns match the record and the result type.
+- **Paged queries**: results are stored on the cluster as a stored query result and read page by page with a continuation token, optionally with the total count.
+- **Streaming queries**: direct streaming hands out each row as it is read; buffered streaming adds the header, schemas and completion information.
+- **Data ingestion**: `IKustoIngestor` ingests in-memory rows, streams and blobs, with managed streaming (default), streaming or queued ingestion, built on the Kusto Ingest V2 SDK.
+- **Retries and cancellation**: temporary errors are retried; cancelling your token also cancels the query on the cluster.
+- **Several connections**: named connections and per-call databases, each connection with its own JSON serializer settings.
+- **Kusto types**: `decimal` (rounded when it has more digits than .NET's `decimal` holds), `bool` (also `0`/`1`), `DateOnly` and `dynamic` columns map to .NET types.
+- **Health checks and telemetry**: a cluster health check for ASP.NET Core, and OpenTelemetry tracing.
 - **CLI Tool**: Interactive Kusto CLI with query execution, schema export, cluster management, database/table browsing, and multiple output formats.
 
 ## Getting started
@@ -148,6 +150,23 @@ builder.Services.ConfigureAzureDataExplorer(options =>
     options.Credential = new DefaultAzureCredential();
 });
 ```
+
+### Setup with a Connection String
+
+Instead of `HostAddress`, a connection can use a Kusto connection string:
+
+```csharp
+builder.Services.ConfigureAzureDataExplorer(options =>
+{
+    options.ConnectionString = "Data Source=https://mycluster.westeurope.kusto.windows.net;Initial Catalog=MyDatabase";
+    options.Credential = new DefaultAzureCredential();
+});
+```
+
+- When `Credential` is set, it is used to sign in; otherwise the connection string must contain the authentication itself.
+- `DatabaseName` (or a database passed to `IKustoProcessorFactory.Create`) overrides `Initial Catalog`.
+- When `HostAddress` is set too, `HostAddress` is used whenever a database is known.
+- A connection string connection can query, but not ingest: [ingestion](#ingesting-data) needs `HostAddress` and `Credential`.
 
 ### JSON serializer settings
 
@@ -441,6 +460,8 @@ catch (KustoException ex)
 
 `ExecutePagedQuery` returns one page at a time. The first call runs the query once and saves the whole result in the cluster as a *stored query result*, then returns the first page and a `ContinuationToken`. Pass the token back to get the next page: it is read from the saved result, without running the query again. When `ContinuationToken` is `null`, there are no more pages.
 
+A full page always gets a token, because there may be more items. So when the number of items is an exact multiple of the page size, the last call returns an empty page without a token. With the [total count](#total-count), paging stops at the last full page instead.
+
 ```csharp
 app.MapGet(
     "/customers",
@@ -476,7 +497,7 @@ The token doesn't contain the name of the stored result. The name is calculated 
 
 ##### When the stored result has expired
 
-The cluster deletes a stored result after `AtcKustoOptions.PagedResultExpiration`: 1 hour by default, and anything from 1 second to 24 hours (whole seconds). A page requested after that runs the query again, saves the new result under the same name, and returns the requested page.
+The cluster deletes a stored result after `AtcKustoOptions.PagedResultExpiration`: 1 hour by default, and anything from 1 second to 24 hours (whole seconds). A value outside that range makes every paged query on that connection throw `InvalidOperationException`. A page requested after that runs the query again, saves the new result under the same name, and returns the requested page.
 
 The new run uses the data as it is now, so rows that were added or removed in the meantime can shift between pages: a page can repeat rows or skip some. **End a paged query with an `order by` that includes a unique column**, such as `| order by Name asc, Id asc`, so a new run numbers the rows the same way. Without a sort order, the rows can come back in a completely different order. Sorting is cheap for lists that are paged through, and only page 1 (or a new run) runs the query.
 
@@ -743,7 +764,8 @@ Only these throw:
 
 | Exception                     | When                                                                                                    |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `ArgumentException`           | Invalid request: missing table name, JSON format without `MappingReference`, no resolvable database, a non-seekable stream, a relative blob URI, more than 10 MB for `Streaming`. Validated before any data is read. |
+| `ArgumentNullException`       | `rows`, `data`, `blobUri` or `target` is `null`.                                                        |
+| `ArgumentException`           | Invalid request: missing table name, JSON format without `MappingReference`, in-memory rows with a format other than `Json`/`MultiJson`, `EnableTracking` with `Streaming`, no resolvable database, a non-seekable stream, a relative blob URI, more than 10 MB for `Streaming`. The target is checked before any data is read; the 10 MB limit for in-memory rows is checked once they are serialized. |
 | `InvalidOperationException`   | The connection has no `HostAddress` or `Credential`.                                                    |
 | `OperationCanceledException`  | Your `CancellationToken` was cancelled. The original exception, if any, is the `InnerException`.         |
 
@@ -825,17 +847,32 @@ builder.Services.ConfigureAzureDataExplorer(options =>
 });
 ```
 
-Or for a single call:
+Or for a single call. Options passed to a call replace the connection's settings, so start from a copy of them to keep everything else (enums as strings, the Kusto `bool`/`DateOnly` handling):
 
 ```csharp
-var snakeCase = new JsonSerializerOptions
+public sealed class ReadingsWriter(
+    IKustoIngestor ingestor,
+    IOptionsMonitor<AtcKustoOptions> kustoOptions)
 {
-    PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower, // SerialNumber → "serial_number"
-    Converters = { new JsonStringEnumConverter() },         // re-add what you still need: these options replace the defaults
-};
+    // A copy of the default connection's settings, with snake_case names: SerialNumber → "serial_number".
+    private readonly JsonSerializerOptions snakeCase = new(kustoOptions.CurrentValue.SerializerOptions)
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+    };
 
-await ingestor.IngestAsync(readings, target, serializerOptions: snakeCase, cancellationToken: cancellationToken);
+    public Task<KustoIngestionResult> WriteAsync(
+        IReadOnlyList<DeviceReading> readings,
+        KustoIngestTarget target,
+        CancellationToken cancellationToken)
+        => ingestor.IngestAsync(
+            readings,
+            target,
+            serializerOptions: snakeCase,
+            cancellationToken: cancellationToken);
+}
 ```
+
+For a named connection, copy `kustoOptions.Get("name").SerializerOptions` instead.
 
 ### Ingesting a stream or a blob
 
@@ -918,7 +955,7 @@ if (status.Status != KustoIngestionOperationStatus.Succeeded)
 | `Failed`         | Ingestion failed — see `Errors` (`ErrorCode`, `IsTransient`, `Details`). | `true` |
 | `Cancelled`      | The service cancelled the ingestion.                             | `true`        |
 
-Unlike the ingest methods, a failure to **check** the status (cluster unreachable, credential failure) throws `KustoIngestionException` — the check only reads, so it is safe to retry. An ingestion that was streamed (managed streaming without fallback) reports `Succeeded` immediately without contacting the cluster.
+Unlike the ingest methods, a failure to **check** the status (cluster unreachable, credential failure) throws `KustoIngestionException` — the check only reads, so it is safe to retry. An empty or unreadable handle throws `ArgumentException`. An ingestion that was streamed (managed streaming without fallback) reports `Succeeded` immediately without contacting the cluster.
 
 ### Retries and duplicates
 
@@ -1185,7 +1222,7 @@ await foreach (var row in processor.ExecuteStreamingQuery(new LargeDataQuery(), 
 
 ## Telemetry
 
-Atc.Kusto supports opt-in OpenTelemetry tracing. When enabled, the library emits spans for query and command execution, which can be collected by any OpenTelemetry-compatible backend.
+Atc.Kusto supports opt-in OpenTelemetry tracing. When enabled, the library emits spans for queries, commands, streaming queries and ingestion, which can be collected by any OpenTelemetry-compatible backend.
 
 ### Enabling Telemetry
 
@@ -1201,15 +1238,25 @@ builder.Services.AddOpenTelemetry()
 
 ### Activity Spans
 
-When enabled, you'll see spans for:
-- `kusto.query` - Standard query execution
-- `kusto.command` - Command execution
-- `kusto.streaming` - Streaming query execution
+| Span | Created by |
+| --- | --- |
+| `kusto.query` | `ExecuteQuery` (also the health check) |
+| `kusto.command` | `ExecuteCommand` |
+| `kusto.streaming` | `ExecuteStreamingQuery` and `ExecuteBufferedStreamingQuery` |
+| `kusto.ingest` | `IngestAsync` and `IngestFromBlobAsync` (not for `Skipped` ingestions, which don't contact the cluster) |
+
+Paged queries (`ExecutePagedQuery`) don't create spans. A span's status is `Error` when the operation failed.
 
 ### Span Attributes
 
-Each span includes:
-- `db.statement`: The query or command text
+| Attribute | Spans | Value |
+| --- | --- | --- |
+| `db.statement` | `kusto.query`, `kusto.command`, `kusto.streaming` | The query or command text |
+| `kusto.ingest.database` | `kusto.ingest` | The target database |
+| `kusto.ingest.table` | `kusto.ingest` | The target table |
+| `kusto.ingest.mode` | `kusto.ingest` | The resolved ingestion mode |
+| `kusto.ingest.status` | `kusto.ingest` | The result's `Status` (`Succeeded`, `Queued` or `Failed`) |
+| `kusto.ingest.operation_id` | `kusto.ingest` | The service's operation id, when the ingestion was accepted |
 
 ### Zero Overhead When Disabled
 
