@@ -1,21 +1,26 @@
 namespace Atc.Kusto.Providers.Internal;
 
 /// <summary>
-/// Provides functionality to generate a unique query identifier based on the query type and an optional session ID.
-/// This identifier is alphanumeric, making it suitable for use in scenarios where only alphanumeric characters are allowed.
+/// Calculates the queryId of a paged query: the name its result is stored under in Kusto
+/// (<c>stored_query_result('{queryId}')</c>).
 /// </summary>
 internal interface IQueryIdProvider
 {
     /// <summary>
-    /// Creates a unique identifier for a query based on the query type name and an optional session ID.
-    /// If the session ID is provided, it is appended to the query type name. If no session ID is provided,
-    /// a new GUID is generated, formatted as a string without hyphens, and appended to the query type name.
-    /// The resulting identifier is then filtered to contain only alphanumeric characters.
+    /// Calculates the queryId (the stored query result name) for <paramref name="query"/>.
     /// </summary>
-    /// <param name="queryType">The <see cref="Type"/> of the query for which the identifier is being generated.</param>
-    /// <param name="sessionId">An optional session ID to be included in the identifier. If null, a new GUID is used instead.</param>
-    /// <returns>A string representing the unique alphanumeric query identifier.</returns>
+    /// <remarks>
+    /// The queryId is the query type's name followed by a hash of the query type, <paramref name="sessionId"/>,
+    /// <paramref name="nonce"/> and a fingerprint of the query (its text and parameters). So every instance calculates
+    /// the same queryId, and a continuation token can only continue the exact query it was created for: the same query
+    /// with other parameters (e.g. another partner) gets another queryId.
+    /// </remarks>
+    /// <param name="query">The paged query.</param>
+    /// <param name="sessionId">The caller's session id, or <see langword="null"/>.</param>
+    /// <param name="nonce">The random value of this paging run (used when there is no session), or <see langword="null"/>.</param>
+    /// <returns>An alphanumeric queryId.</returns>
     string Create(
-        Type queryType,
-        string? sessionId);
+        IKustoScript query,
+        string? sessionId,
+        string? nonce);
 }

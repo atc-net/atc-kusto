@@ -73,6 +73,7 @@ internal sealed class ScriptHandlerFactory : IScriptHandlerFactory
             : new ExistingPagedStoredQueryHandler<T>(
                 loggerFactory.CreateLogger<ExistingPagedStoredQueryHandler<T>>(),
                 resiliencePipeline,
+                queryIdProvider,
                 clientProvider.GetAdminClient(
                     connectionName,
                     databaseName),
@@ -80,6 +81,7 @@ internal sealed class ScriptHandlerFactory : IScriptHandlerFactory
                     connectionName,
                     databaseName),
                 query,
+                sessionId,
                 pageSize,
                 continuationToken);
 
