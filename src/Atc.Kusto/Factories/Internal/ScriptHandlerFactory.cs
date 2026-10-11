@@ -56,6 +56,7 @@ internal sealed class ScriptHandlerFactory : IScriptHandlerFactory
                 connectionName,
                 databaseName),
             query,
+            GetSerializerOptions(connectionName),
             options);
     }
 
@@ -82,6 +83,7 @@ internal sealed class ScriptHandlerFactory : IScriptHandlerFactory
                     connectionName,
                     databaseName),
                 query,
+                GetSerializerOptions(connectionName),
                 sessionId,
                 pageSize,
                 expiration,
@@ -97,6 +99,7 @@ internal sealed class ScriptHandlerFactory : IScriptHandlerFactory
                     connectionName,
                     databaseName),
                 query,
+                GetSerializerOptions(connectionName),
                 sessionId,
                 pageSize,
                 expiration,
@@ -121,6 +124,7 @@ internal sealed class ScriptHandlerFactory : IScriptHandlerFactory
                 connectionName,
                 databaseName),
             query,
+            GetSerializerOptions(connectionName),
             options);
     }
 
@@ -142,6 +146,7 @@ internal sealed class ScriptHandlerFactory : IScriptHandlerFactory
                 connectionName,
                 databaseName),
             query,
+            GetSerializerOptions(connectionName),
             options);
     }
 
@@ -164,4 +169,12 @@ internal sealed class ScriptHandlerFactory : IScriptHandlerFactory
 
         return expiration;
     }
+
+    /// <summary>
+    /// Gets <see cref="AtcKustoOptions.SerializerOptions"/> of the connection.
+    /// </summary>
+    private JsonSerializerOptions GetSerializerOptions(string? connectionName)
+        => optionsMonitor
+            .Get(connectionName)
+            .SerializerOptions;
 }

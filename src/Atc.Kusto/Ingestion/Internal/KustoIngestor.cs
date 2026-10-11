@@ -47,7 +47,9 @@ internal sealed partial class KustoIngestor : IKustoIngestor
         ArgumentNullException.ThrowIfNull(rows);
         var (mode, database) = Resolve(target, isInlineRows: true);
 
-        await using var stream = MultiJsonSerializer.Serialize(rows, serializerOptions, cancellationToken);
+        var options = serializerOptions ?? optionsMonitor.Get(target.ConnectionName).SerializerOptions;
+
+        await using var stream = MultiJsonSerializer.Serialize(rows, options, cancellationToken);
         if (stream.Length == 0)
         {
             return Skipped(target, mode);

@@ -7,7 +7,9 @@ namespace Atc.Kusto;
 /// <typeparam name="T">The type of the result returned by the query.</typeparam>
 public abstract record KustoQuery<T> : KustoScript, IKustoQuery<T[]>
 {
-    /// <inheritdoc />>
-    public virtual T[]? ReadResult(IDataReader reader)
-        => reader.ReadObjects<T>();
+    /// <inheritdoc />
+    public virtual T[]? ReadResult(
+        IDataReader reader,
+        JsonSerializerOptions serializerOptions)
+        => reader.ReadObjects<T>(serializerOptions);
 }

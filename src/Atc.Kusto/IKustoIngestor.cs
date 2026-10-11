@@ -32,8 +32,9 @@ public interface IKustoIngestor
     /// <para>
     /// By default, property names are written in camelCase (<c>SerialNumber</c> → <c>"serialNumber"</c>).
     /// The table's JSON ingestion mapping paths are case-sensitive and must match (<c>$.serialNumber</c>);
-    /// a mismatch does not fail, the column is just left empty. Use <paramref name="serializerOptions"/>
-    /// or <c>[JsonPropertyName]</c> to change names.
+    /// a mismatch does not fail, the column is just left empty. Change the names for the connection with
+    /// <see cref="AtcKustoOptions.ConfigureSerializerOptions"/>, per call with <paramref name="serializerOptions"/>,
+    /// or per property with <c>[JsonPropertyName]</c>.
     /// </para>
     /// <para>
     /// The rows are enumerated once and buffered in memory; validation happens before enumeration.
@@ -43,9 +44,9 @@ public interface IKustoIngestor
     /// <param name="rows">The rows to ingest. An empty sequence returns <see cref="KustoIngestionStatus.Skipped"/>.</param>
     /// <param name="target">The ingestion target.</param>
     /// <param name="serializerOptions">
-    /// Optional serializer options; when <see langword="null"/>, the library's Kusto JSON options are used
-    /// (camelCase names, enums as strings, Kusto boolean and <see cref="DateOnly"/> handling). Supplied
-    /// options replace those defaults entirely.
+    /// Optional serializer settings for this call; when <see langword="null"/>, the connection's
+    /// <see cref="AtcKustoOptions.SerializerOptions"/> are used (by default camelCase names, enums as strings,
+    /// Kusto boolean and <see cref="DateOnly"/> handling). Supplied settings replace the connection's entirely.
     /// </param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>

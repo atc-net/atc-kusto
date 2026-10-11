@@ -31,7 +31,7 @@ public sealed class DataReaderExtensionsTests
         reader.Read(); // now on the second row
 
         // Act
-        var actual = reader.ReadObject<TestObject>();
+        var actual = reader.ReadObject<TestObject>(KustoJsonSerializerOptions.Default);
 
         // Assert
         actual.Should().Be(new TestObject("second-1", "second-2", "second-3"));
@@ -54,8 +54,8 @@ public sealed class DataReaderExtensionsTests
         var expected = new BooleanTestObject(IsActive: true, IsEnabled: false);
 
         // Act
-        var fromReadObjects = readerForReadObjects.ReadObjects<BooleanTestObject>();
-        var fromReadObject = readerForReadObject.ReadObject<BooleanTestObject>();
+        var fromReadObjects = readerForReadObjects.ReadObjects<BooleanTestObject>(KustoJsonSerializerOptions.Default);
+        var fromReadObject = readerForReadObject.ReadObject<BooleanTestObject>(KustoJsonSerializerOptions.Default);
 
         // Assert
         fromReadObjects.Should().Equal(expected);
@@ -93,7 +93,7 @@ public sealed class DataReaderExtensionsTests
             .ReturnsForAnyArgs(x => values[index][x.Arg<int>()]);
 
         // Act
-        var actual = dataReader.ReadObjects<TestObject>();
+        var actual = dataReader.ReadObjects<TestObject>(KustoJsonSerializerOptions.Default);
 
         // Assert
         actual.Should().BeEquivalentTo(data);
@@ -134,7 +134,7 @@ public sealed class DataReaderExtensionsTests
             .Returns(true);
 
         // Act
-        var actual = dataReader.ReadObjectsFromNextResult<TestObject>();
+        var actual = dataReader.ReadObjectsFromNextResult<TestObject>(KustoJsonSerializerOptions.Default);
 
         // Assert
         actual.Should().BeEquivalentTo(data);
@@ -174,7 +174,7 @@ public sealed class DataReaderExtensionsTests
             .Returns(x => rowValues[x.Arg<int>()]);
 
         // Act
-        var actual = dataReader.ReadObjects<BooleanTestObject>();
+        var actual = dataReader.ReadObjects<BooleanTestObject>(KustoJsonSerializerOptions.Default);
 
         // Assert
         Assert.Single(actual);
@@ -209,11 +209,25 @@ public sealed class DataReaderExtensionsTests
             .Returns(x => rowValues[x.Arg<int>()]);
 
         // Act
-        var actual = dataReader.ReadObjects<DateOnlyTestObject>();
+        var actual = dataReader.ReadObjects<DateOnlyTestObject>(KustoJsonSerializerOptions.Default);
 
         // Assert
         Assert.Single(actual);
         Assert.Equal("TestEvent", actual[0].Name);
         Assert.Equal(new DateOnly(2024, 1, 15), actual[0].EventDate);
+    }
+
+    [Fact]
+    public void ReadObjects_Throws_When_No_SerializerOptions_Are_Given()
+    {
+        // Arrange
+        using var table = new DataTable();
+        using var reader = table.CreateDataReader();
+
+        // Act
+        var act = () => reader.ReadObjects<TestObject>(null!);
+
+        // Assert
+        act.Should().Throw<ArgumentNullException>().WithParameterName("options");
     }
 }

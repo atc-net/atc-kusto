@@ -17,6 +17,7 @@ public sealed class SimpleQueryHandlerTests
             ResiliencePipeline.Empty,
             queryProvider,
             query,
+            KustoJsonSerializerOptions.Default,
             new AtcQueryOptions { EnableServerSideCancellation = false });
     }
 
@@ -69,6 +70,7 @@ public sealed class SimpleQueryHandlerTests
             adminProvider,
             queryProvider,
             query,
+            KustoJsonSerializerOptions.Default,
             options);
 
         using var cts = new CancellationTokenSource();
@@ -124,6 +126,7 @@ public sealed class SimpleQueryHandlerTests
             adminProvider,
             queryProvider,
             query,
+            KustoJsonSerializerOptions.Default,
             options);
 
         using var cts = new CancellationTokenSource();
@@ -167,7 +170,7 @@ public sealed class SimpleQueryHandlerTests
             .ReturnsForAnyArgs(reader);
 
         query
-            .ReadResult(reader)
+            .ReadResult(reader, Arg.Any<JsonSerializerOptions>())
             .ReturnsForAnyArgs(expectedResult);
 
         // Act
@@ -190,7 +193,7 @@ public sealed class SimpleQueryHandlerTests
 
         query
             .Received(1)
-            .ReadResult(reader);
+            .ReadResult(reader, Arg.Any<JsonSerializerOptions>());
     }
 
     [Theory, AutoNSubstituteData]
@@ -208,7 +211,7 @@ public sealed class SimpleQueryHandlerTests
             .ReturnsForAnyArgs(reader);
 
         query
-            .ReadResult(reader)
+            .ReadResult(reader, Arg.Any<JsonSerializerOptions>())
             .ReturnsForAnyArgs((string?)null);
 
         // Act
@@ -229,7 +232,7 @@ public sealed class SimpleQueryHandlerTests
 
         query
             .Received(1)
-            .ReadResult(reader);
+            .ReadResult(reader, Arg.Any<JsonSerializerOptions>());
     }
 
     [Theory]
@@ -274,5 +277,37 @@ public sealed class SimpleQueryHandlerTests
 
         // Assert
         result.Should().BeNull();
+    }
+
+    [Theory, AutoNSubstituteData]
+    internal async Task Execute_Passes_Its_SerializerOptions_To_ReadResult(
+        IDataReader reader)
+    {
+        // Arrange
+        var serializerOptions = new JsonSerializerOptions();
+
+        queryProvider
+            .ExecuteQueryAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<ClientRequestProperties>(),
+                Arg.Any<CancellationToken>())
+            .Returns(reader);
+
+        var handler = new SimpleQueryHandler<string>(
+            new NullLogger<SimpleQueryHandler<string>>(),
+            ResiliencePipeline.Empty,
+            queryProvider,
+            query,
+            serializerOptions,
+            new AtcQueryOptions { EnableServerSideCancellation = false });
+
+        // Act
+        await handler.Execute(CancellationToken.None);
+
+        // Assert
+        query
+            .Received(1)
+            .ReadResult(reader, serializerOptions);
     }
 }

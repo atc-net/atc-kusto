@@ -14,6 +14,7 @@ internal sealed partial class ExistingPagedStoredQueryHandler<T> : IScriptHandle
     private readonly ICslAdminProvider? adminProvider;
     private readonly ICslQueryProvider queryProvider;
     private readonly IKustoQuery<IReadOnlyList<T>> query;
+    private readonly JsonSerializerOptions serializerOptions;
     private readonly string? sessionId;
     private readonly int pageSize;
     private readonly TimeSpan expiration;
@@ -26,6 +27,7 @@ internal sealed partial class ExistingPagedStoredQueryHandler<T> : IScriptHandle
         ICslAdminProvider adminProvider,
         ICslQueryProvider queryProvider,
         IKustoQuery<IReadOnlyList<T>> query,
+        JsonSerializerOptions serializerOptions,
         string? sessionId,
         int pageSize,
         TimeSpan expiration,
@@ -37,6 +39,7 @@ internal sealed partial class ExistingPagedStoredQueryHandler<T> : IScriptHandle
         this.adminProvider = adminProvider;
         this.queryProvider = queryProvider;
         this.query = query;
+        this.serializerOptions = serializerOptions;
         this.sessionId = sessionId;
         this.pageSize = pageSize;
         this.expiration = expiration;
@@ -50,11 +53,12 @@ internal sealed partial class ExistingPagedStoredQueryHandler<T> : IScriptHandle
         IQueryIdProvider queryIdProvider,
         ICslQueryProvider queryProvider,
         IKustoQuery<IReadOnlyList<T>> query,
+        JsonSerializerOptions serializerOptions,
         string? sessionId,
         int pageSize,
         TimeSpan expiration,
         string continuationToken)
-        : this(logger, resiliencePipeline, queryIdProvider, adminProvider: null!, queryProvider, query, sessionId, pageSize, expiration, continuationToken)
+        : this(logger, resiliencePipeline, queryIdProvider, adminProvider: null!, queryProvider, query, serializerOptions, sessionId, pageSize, expiration, continuationToken)
         => adminProvider = null;
 
     /// <summary>
@@ -191,7 +195,7 @@ internal sealed partial class ExistingPagedStoredQueryHandler<T> : IScriptHandle
                 clientRequestProperties,
                 cancellationToken);
 
-        var items = query.ReadResult(reader);
+        var items = query.ReadResult(reader, serializerOptions);
         if (items is null)
         {
             return null;

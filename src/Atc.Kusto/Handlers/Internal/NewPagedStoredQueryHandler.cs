@@ -6,6 +6,7 @@ internal sealed class NewPagedStoredQueryHandler<T> : IScriptHandler<PagedResult
     private readonly IQueryIdProvider queryIdProvider;
     private readonly ICslAdminProvider adminProvider;
     private readonly IKustoQuery<IReadOnlyList<T>> query;
+    private readonly JsonSerializerOptions serializerOptions;
     private readonly string? sessionId;
     private readonly int pageSize;
     private readonly TimeSpan expiration;
@@ -16,6 +17,7 @@ internal sealed class NewPagedStoredQueryHandler<T> : IScriptHandler<PagedResult
         IQueryIdProvider queryIdProvider,
         ICslAdminProvider adminProvider,
         IKustoQuery<IReadOnlyList<T>> query,
+        JsonSerializerOptions serializerOptions,
         string? sessionId,
         int pageSize,
         TimeSpan expiration,
@@ -25,6 +27,7 @@ internal sealed class NewPagedStoredQueryHandler<T> : IScriptHandler<PagedResult
         this.queryIdProvider = queryIdProvider;
         this.adminProvider = adminProvider;
         this.query = query;
+        this.serializerOptions = serializerOptions;
         this.sessionId = sessionId;
         this.pageSize = pageSize;
         this.expiration = expiration;
@@ -157,7 +160,7 @@ internal sealed class NewPagedStoredQueryHandler<T> : IScriptHandler<PagedResult
                             queryText,
                             query.GetClientRequestProperties());
 
-                    return query.ReadResult(reader);
+                    return query.ReadResult(reader, serializerOptions);
                 },
                 cancellationToken);
         }

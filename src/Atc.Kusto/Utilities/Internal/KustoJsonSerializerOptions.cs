@@ -15,11 +15,18 @@ internal static class KustoJsonSerializerOptions
     /// so that it matches the camelCase column names and <c>$.camelCase</c> ingestion mapping paths typical of Kusto
     /// tables fed by Event Hubs. Reading is unaffected because property matching is case-insensitive.
     /// </remarks>
-    public static JsonSerializerOptions Default { get; } = new()
-    {
-        Converters = { new JsonStringEnumConverter(), new KustoBooleanJsonConverter(), new KustoDateOnlyJsonConverter() },
-        PropertyNameCaseInsensitive = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        NumberHandling = JsonNumberHandling.AllowReadingFromString,
-    };
+    public static JsonSerializerOptions Default { get; } = CreateDefault();
+
+    /// <summary>
+    /// Creates a new instance with the same settings as <see cref="Default"/>, which can still be changed.
+    /// </summary>
+    /// <returns>A new <see cref="JsonSerializerOptions"/> instance.</returns>
+    public static JsonSerializerOptions CreateDefault()
+        => new()
+        {
+            Converters = { new JsonStringEnumConverter(), new KustoBooleanJsonConverter(), new KustoDateOnlyJsonConverter() },
+            PropertyNameCaseInsensitive = true,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            NumberHandling = JsonNumberHandling.AllowReadingFromString,
+        };
 }

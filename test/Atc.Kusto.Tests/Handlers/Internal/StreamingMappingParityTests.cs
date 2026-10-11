@@ -80,7 +80,7 @@ public sealed class StreamingMappingParityTests
             var record = CreateTable(CapturedColumns).CreateRecord(values);
 
             // Act
-            var json = record.ReadObject<JsonElement>().GetRawText();
+            var json = record.ReadObject<JsonElement>(KustoJsonSerializerOptions.Default).GetRawText();
 
             // Assert
             json.Should().Be(CapturedJson);
@@ -122,7 +122,7 @@ public sealed class StreamingMappingParityTests
         reader.Read();
 
         // Act
-        var json = reader.ReadObject<JsonElement>().GetRawText();
+        var json = reader.ReadObject<JsonElement>(KustoJsonSerializerOptions.Default).GetRawText();
 
         // Assert
         json.Should().Be(CapturedJson);
@@ -194,9 +194,9 @@ public sealed class StreamingMappingParityTests
 
         // Act
         var fromMapDataRow = table.Rows[0].MapDataRow<Device>();
-        var fromFragment = query.MapRecord(CreateTable(DeviceColumns).CreateRecord(fragmentValues));
-        var fromReader = query.MapRecord(reader);
-        var fromKustoQuery = new DevicesListQuery().ReadResult(readerForKustoQuery);
+        var fromFragment = query.MapRecord(CreateTable(DeviceColumns).CreateRecord(fragmentValues), KustoJsonSerializerOptions.Default);
+        var fromReader = query.MapRecord(reader, KustoJsonSerializerOptions.Default);
+        var fromKustoQuery = new DevicesListQuery().ReadResult(readerForKustoQuery, KustoJsonSerializerOptions.Default);
 
         // Assert
         fromMapDataRow.Should().BeEquivalentTo(expected);

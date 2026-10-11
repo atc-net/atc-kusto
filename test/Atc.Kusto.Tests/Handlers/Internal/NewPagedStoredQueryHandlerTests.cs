@@ -27,7 +27,7 @@ public sealed class NewPagedStoredQueryHandlerTests
             .Create(query, sessionId, nonce: null)
             .ReturnsForAnyArgs(queryId);
 
-        sut = new NewPagedStoredQueryHandler<string>(ResiliencePipeline.Empty, queryIdProvider, adminProvider, query, sessionId, pageSize, Expiration, includeTotalCount: false);
+        sut = new NewPagedStoredQueryHandler<string>(ResiliencePipeline.Empty, queryIdProvider, adminProvider, query, KustoJsonSerializerOptions.Default, sessionId, pageSize, Expiration, includeTotalCount: false);
     }
 
     [Theory, AutoNSubstituteData]
@@ -43,7 +43,7 @@ public sealed class NewPagedStoredQueryHandlerTests
         query.GetParameters().Returns(parameters);
 
         query
-            .ReadResult(reader)
+            .ReadResult(reader, Arg.Any<JsonSerializerOptions>())
             .ReturnsForAnyArgs(items);
 
         adminProvider
@@ -69,7 +69,7 @@ public sealed class NewPagedStoredQueryHandlerTests
 
         _ = query
             .Received(1)
-            .ReadResult(reader);
+            .ReadResult(reader, Arg.Any<JsonSerializerOptions>());
 
         _ = adminProvider
             .Received(1)
@@ -89,7 +89,7 @@ public sealed class NewPagedStoredQueryHandlerTests
     {
         // Arrange
         query
-            .ReadResult(reader)
+            .ReadResult(reader, Arg.Any<JsonSerializerOptions>())
             .Returns(["A", "B"]);
 
         adminProvider
@@ -114,7 +114,7 @@ public sealed class NewPagedStoredQueryHandlerTests
         query.GetQueryText().Returns(queryText);
 
         query
-            .ReadResult(reader)
+            .ReadResult(reader, Arg.Any<JsonSerializerOptions>())
             .ReturnsForAnyArgs((IReadOnlyList<string>?)null);
 
         adminProvider
@@ -136,7 +136,7 @@ public sealed class NewPagedStoredQueryHandlerTests
 
         _ = query
             .Received(1)
-            .ReadResult(reader);
+            .ReadResult(reader, Arg.Any<JsonSerializerOptions>());
 
         _ = adminProvider
             .Received(1)
@@ -165,10 +165,10 @@ public sealed class NewPagedStoredQueryHandlerTests
             .Returns(reader);
 
         query
-            .ReadResult(reader)
+            .ReadResult(reader, Arg.Any<JsonSerializerOptions>())
             .Returns(["A", "B", "C"]);
 
-        var handler = new NewPagedStoredQueryHandler<string>(ResiliencePipeline.Empty, queryIdProvider, adminProvider, query, sessionId: null, pageSize, Expiration, includeTotalCount: false);
+        var handler = new NewPagedStoredQueryHandler<string>(ResiliencePipeline.Empty, queryIdProvider, adminProvider, query, KustoJsonSerializerOptions.Default, sessionId: null, pageSize, Expiration, includeTotalCount: false);
 
         // Act
         var result = await handler.Execute(CancellationToken.None);
@@ -193,7 +193,7 @@ public sealed class NewPagedStoredQueryHandlerTests
             .ExecuteControlCommandAsync(Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<ClientRequestProperties>())
             .Returns(reader);
 
-        var handler = new NewPagedStoredQueryHandler<string>(ResiliencePipeline.Empty, queryIdProvider, adminProvider, query, sessionId: null, pageSize, Expiration, includeTotalCount: false);
+        var handler = new NewPagedStoredQueryHandler<string>(ResiliencePipeline.Empty, queryIdProvider, adminProvider, query, KustoJsonSerializerOptions.Default, sessionId: null, pageSize, Expiration, includeTotalCount: false);
 
         // Act
         await handler.Execute(CancellationToken.None);
@@ -237,7 +237,7 @@ public sealed class NewPagedStoredQueryHandlerTests
                 _ => Task.FromResult(reader));
 
         query
-            .ReadResult(reader)
+            .ReadResult(reader, Arg.Any<JsonSerializerOptions>())
             .Returns(["A", "B"]);
 
         var handler = new NewPagedStoredQueryHandler<string>(
@@ -245,6 +245,7 @@ public sealed class NewPagedStoredQueryHandlerTests
             queryIdProvider,
             adminProvider,
             query,
+            KustoJsonSerializerOptions.Default,
             sessionId,
             pageSize,
             Expiration,
@@ -291,6 +292,7 @@ public sealed class NewPagedStoredQueryHandlerTests
             queryIdProvider,
             adminProvider,
             query,
+            KustoJsonSerializerOptions.Default,
             sessionId,
             pageSize,
             Expiration,
@@ -351,7 +353,7 @@ public sealed class NewPagedStoredQueryHandlerTests
         ReturnFromControlCommands(pageReader, showReader);
 
         query
-            .ReadResult(pageReader)
+            .ReadResult(pageReader, Arg.Any<JsonSerializerOptions>())
             .Returns(["A", "B", "C"]);
 
         var handler = CreateHandlerWithTotalCount();
@@ -380,7 +382,7 @@ public sealed class NewPagedStoredQueryHandlerTests
         ReturnFromControlCommands(pageReader, showReader);
 
         query
-            .ReadResult(pageReader)
+            .ReadResult(pageReader, Arg.Any<JsonSerializerOptions>())
             .Returns(["A", "B"]);
 
         var handler = CreateHandlerWithTotalCount();
@@ -409,7 +411,7 @@ public sealed class NewPagedStoredQueryHandlerTests
         ReturnFromControlCommands(pageReader, showReader);
 
         query
-            .ReadResult(pageReader)
+            .ReadResult(pageReader, Arg.Any<JsonSerializerOptions>())
             .Returns(["A", "B", "C"]);
 
         var handler = CreateHandlerWithTotalCount();
@@ -428,6 +430,7 @@ public sealed class NewPagedStoredQueryHandlerTests
             queryIdProvider,
             adminProvider,
             query,
+            KustoJsonSerializerOptions.Default,
             sessionId,
             pageSize,
             Expiration,
