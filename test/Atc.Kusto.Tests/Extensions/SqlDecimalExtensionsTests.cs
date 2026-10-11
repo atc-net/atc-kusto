@@ -82,16 +82,14 @@ public sealed class SqlDecimalExtensionsTests
     [Fact]
     public void ToDecimal_Should_Adjust_Scale_When_Total_Precision_Requires_It()
     {
-        // Arrange - Create SqlDecimal with valid but high precision
-        // 18 integer digits + 10 scale = 28 total (at limit, should convert directly)
-        const decimal value = 123456789012345678.9876543210m;
-        var sqlDecimal = new SqlDecimal(value);
+        // Arrange - 1 integer digit + 32 decimals = 33 digits, more than the 28 a decimal can hold
+        var sqlDecimal = SqlDecimal.Parse("1.12345678901234567890123456789012");
 
         // Act
         var result = sqlDecimal.ToDecimal();
 
-        // Assert
-        result.Should().Be(value);
+        // Assert - rounded to 27 decimals
+        result.Should().Be(1.123456789012345678901234568m);
     }
 
     [Fact]
@@ -169,8 +167,8 @@ public sealed class SqlDecimalExtensionsTests
     [Fact]
     public void ToDecimal_Should_Preserve_Precision_When_Within_Limits()
     {
-        // Arrange - Value with 28 total digits (max for .NET decimal)
-        const decimal value = 1234567890123456.7890123456m; // 16 integer + 10 decimal = 26 total
+        // Arrange - 16 integer digits + 10 decimals = 26 digits, within the 28 a decimal can hold
+        const decimal value = 1234567890123456.7890123456m;
         var sqlDecimal = new SqlDecimal(value);
 
         // Act
