@@ -6,8 +6,11 @@ namespace Atc.Kusto.Ingestion.Sample;
 /// </summary>
 public sealed class IngestionScenarios
 {
+    public const string SnakeCaseConnectionName = "SnakeCase";
+
     private const string TableName = "SampleDeviceReadings";
     private const string MappingName = "SampleDeviceReadings_mapping";
+    private const string SnakeCaseMappingName = "SampleDeviceReadings_snake_case_mapping";
 
     private readonly IKustoIngestor ingestor;
     private readonly IKustoProcessor processor;
@@ -37,6 +40,7 @@ public sealed class IngestionScenarios
         await CsvStreamAsync(cancellationToken);
         await EmptyBatchIsSkippedAsync(cancellationToken);
         await MappingMismatchLeavesColumnsEmptyAsync(cancellationToken);
+        await SnakeCaseConnectionAsync(cancellationToken);
         await FailuresAreReturnedNotThrownAsync(cancellationToken);
         await BlobAsync(cancellationToken);
     }
@@ -54,7 +58,12 @@ public sealed class IngestionScenarios
             JsonTarget(),
             cancellationToken: cancellationToken);
 
-        result.EnsureSuccess();
+        if (!result.IsSuccess)
+        {
+            logger.LogWarning("Ingestion failed: {Error}", result.ErrorMessage);
+            return;
+        }
+
         logger.LogInformation("Status {Status} (mode {Mode}), operation {OperationId}", result.Status, result.Mode, result.OperationId);
     }
 
@@ -93,7 +102,12 @@ public sealed class IngestionScenarios
             JsonTarget() with { Mode = IngestionMode.Queued, EnableTracking = true },
             cancellationToken: cancellationToken);
 
-        result.EnsureSuccess();
+        if (!result.IsSuccess)
+        {
+            logger.LogWarning("Queued ingestion failed: {Error}", result.ErrorMessage);
+            return;
+        }
+
         logger.LogInformation(
             "Status {Status}; store the handle to check the outcome later. Operation {OperationId}, handle {OperationHandle}",
             result.Status,
@@ -135,7 +149,12 @@ public sealed class IngestionScenarios
             new KustoIngestTarget { TableName = TableName, Format = KustoIngestFormat.Csv },
             cancellationToken);
 
-        result.EnsureSuccess();
+        if (!result.IsSuccess)
+        {
+            logger.LogWarning("CSV ingestion failed: {Error}", result.ErrorMessage);
+            return;
+        }
+
         logger.LogInformation("Status {Status}; the stream is still open: {CanRead}", result.Status, stream.CanRead);
     }
 
@@ -192,12 +211,40 @@ public sealed class IngestionScenarios
     }
 
     /// <summary>
+    /// A connection configured with ConfigureSerializerOptions writes snake_case names, which match a mapping
+    /// with snake_case paths. The rows read back show filled columns.
+    /// </summary>
+    private async Task SnakeCaseConnectionAsync(
+        CancellationToken cancellationToken)
+    {
+        logger.LogInformation("--- 7. A connection that writes snake_case JSON names, for a snake_case mapping");
+
+        var result = await ingestor.IngestAsync(
+            Readings("snakecase", count: 2),
+            JsonTarget() with
+            {
+                ConnectionName = SnakeCaseConnectionName,
+                MappingReference = SnakeCaseMappingName,
+                Mode = IngestionMode.Streaming,
+            },
+            cancellationToken: cancellationToken);
+
+        if (!result.IsSuccess)
+        {
+            logger.LogWarning("Ingestion failed (was the latest setup.kql run, with the snake_case mapping?): {Error}", result.ErrorMessage);
+            return;
+        }
+
+        await LogRowsAsync("snakecase", cancellationToken);
+    }
+
+    /// <summary>
     /// Operational failures come back as Status = Failed; EnsureSuccess() turns them into an exception.
     /// </summary>
     private async Task FailuresAreReturnedNotThrownAsync(
         CancellationToken cancellationToken)
     {
-        logger.LogInformation("--- 7. A failure is returned, not thrown");
+        logger.LogInformation("--- 8. A failure is returned, not thrown");
 
         var result = await ingestor.IngestAsync(
             Readings("failure", count: 1),
@@ -221,7 +268,7 @@ public sealed class IngestionScenarios
     /// </summary>
     private async Task BlobAsync(CancellationToken cancellationToken)
     {
-        logger.LogInformation("--- 8. Blob (CSV)");
+        logger.LogInformation("--- 9. Blob (CSV)");
 
         if (blobUri is null)
         {
