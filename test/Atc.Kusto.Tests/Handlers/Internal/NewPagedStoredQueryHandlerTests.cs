@@ -22,7 +22,7 @@ public sealed class NewPagedStoredQueryHandlerTests
         queryId = fixture.Create<string>().ToAlphanumeric();
 
         queryIdProvider
-            .Create(query.GetType(), sessionId)
+            .Create(query, sessionId, nonce: null)
             .ReturnsForAnyArgs(queryId);
 
         sut = new NewPagedStoredQueryHandler<string>(queryIdProvider, adminProvider, query, sessionId, pageSize);
@@ -39,10 +39,6 @@ public sealed class NewPagedStoredQueryHandlerTests
         // Arrange
         query.GetQueryText().Returns(queryText);
         query.GetParameters().Returns(parameters);
-
-        queryIdProvider
-            .Create(query.GetType(), sessionId)
-            .ReturnsForAnyArgs(queryId);
 
         query
             .ReadResult(reader)
@@ -69,12 +65,12 @@ public sealed class NewPagedStoredQueryHandlerTests
         }
         else
         {
-            result.ContinuationToken.Should().Be($"{queryId};{items.Count}");
+            result.ContinuationToken.Should().Be($"v2;;{items.Count}");
         }
 
         queryIdProvider
             .Received(1)
-            .Create(query.GetType(), sessionId);
+            .Create(query, sessionId, nonce: null);
 
         _ = query
             .Received(1)
@@ -120,7 +116,7 @@ public sealed class NewPagedStoredQueryHandlerTests
 
         queryIdProvider
             .Received(1)
-            .Create(query.GetType(), sessionId);
+            .Create(query, sessionId, nonce: null);
 
         _ = query
             .Received(1)
@@ -136,6 +132,60 @@ public sealed class NewPagedStoredQueryHandlerTests
                  | serialize row_number = row_number()
                  """.Replace("\r\n", "\n", StringComparison.Ordinal),
                 Arg.Is<ClientRequestProperties>(p => p.ClientRequestId != null));
+    }
+
+    [Theory, AutoNSubstituteData]
+    internal async Task Execute_Puts_The_Nonce_Of_The_Stored_Result_In_The_Token_When_There_Is_No_Session(
+        IDataReader reader)
+    {
+        // Arrange - a full first page, so there is a next page
+        string? usedNonce = null;
+        queryIdProvider
+            .Create(query, Arg.Is<string?>(sessionId => sessionId == null), Arg.Do<string?>(nonce => usedNonce = nonce))
+            .Returns(queryId);
+
+        adminProvider
+            .ExecuteControlCommandAsync(Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<ClientRequestProperties>())
+            .Returns(reader);
+
+        query
+            .ReadResult(reader)
+            .Returns(["A", "B", "C"]);
+
+        var handler = new NewPagedStoredQueryHandler<string>(queryIdProvider, adminProvider, query, sessionId: null, pageSize);
+
+        // Act
+        var result = await handler.Execute(CancellationToken.None);
+
+        // Assert - the token carries the nonce, never the queryId
+        usedNonce.Should().MatchRegex("^[0-9a-f]{32}$");
+        result!.ContinuationToken.Should().Be($"v2;{usedNonce};3");
+        result.ContinuationToken.Should().NotContain(queryId);
+    }
+
+    [Theory, AutoNSubstituteData]
+    internal async Task Execute_Uses_A_New_Nonce_For_Each_Paging_Run_Without_A_Session(
+        IDataReader reader)
+    {
+        // Arrange
+        var usedNonces = new List<string?>();
+        queryIdProvider
+            .Create(query, Arg.Is<string?>(sessionId => sessionId == null), Arg.Do<string?>(usedNonces.Add))
+            .Returns(queryId);
+
+        adminProvider
+            .ExecuteControlCommandAsync(Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<ClientRequestProperties>())
+            .Returns(reader);
+
+        var handler = new NewPagedStoredQueryHandler<string>(queryIdProvider, adminProvider, query, sessionId: null, pageSize);
+
+        // Act
+        await handler.Execute(CancellationToken.None);
+        await handler.Execute(CancellationToken.None);
+
+        // Assert
+        usedNonces.Should().HaveCount(2);
+        usedNonces[1].Should().NotBe(usedNonces[0]);
     }
 
     [Fact]

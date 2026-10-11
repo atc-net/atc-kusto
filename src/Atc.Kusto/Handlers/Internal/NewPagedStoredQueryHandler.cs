@@ -41,9 +41,16 @@ internal sealed class NewPagedStoredQueryHandler<T> : IScriptHandler<PagedResult
     {
         cancellationToken.ThrowIfCancellationRequested();
 
+        // Without a session, a random nonce gives each paging run its own stored result.
+        // The continuation token carries the nonce, never the queryId.
+        var nonce = sessionId is null
+            ? Guid.NewGuid().ToString("N")
+            : null;
+
         var queryId = queryIdProvider.Create(
-            query.GetType(),
-            sessionId);
+            query,
+            sessionId,
+            nonce);
 
         var header = $".set-or-replace stored_query_result ['{queryId}'] with (previewCount = {pageSize}, expiresAfter = 1h) <|";
         const string footer = "| serialize row_number = row_number()";
@@ -59,7 +66,7 @@ internal sealed class NewPagedStoredQueryHandler<T> : IScriptHandler<PagedResult
 
         var continuationToken = items.Count < pageSize
             ? null
-            : $"{queryId};{items.Count}";
+            : new PagedContinuationToken(nonce, items.Count).ToString();
 
         return new PagedResult<T>(items, continuationToken);
     }

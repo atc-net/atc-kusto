@@ -2,6 +2,9 @@ namespace Atc.Kusto.Tests.Handlers.Internal;
 
 public sealed class ExistingPagedStoredQueryHandlerTests
 {
+    private const string Nonce = "nonce1";
+
+    private readonly IQueryIdProvider queryIdProvider;
     private readonly ICslQueryProvider queryProvider;
     private readonly IKustoQuery<IReadOnlyList<string>> query;
     private readonly int pageSize;
@@ -11,6 +14,7 @@ public sealed class ExistingPagedStoredQueryHandlerTests
 
     public ExistingPagedStoredQueryHandlerTests()
     {
+        queryIdProvider = Substitute.For<IQueryIdProvider>();
         queryProvider = Substitute.For<ICslQueryProvider>();
         query = Substitute.For<IKustoQuery<IReadOnlyList<string>>>();
 
@@ -18,15 +22,12 @@ public sealed class ExistingPagedStoredQueryHandlerTests
         pageSize = 3;
         queryId = fixture.Create<string>().ToAlphanumeric();
         itemsReturned = fixture.Create<int>();
-        var continuationToken = $"{queryId};{itemsReturned}";
 
-        sut = new ExistingPagedStoredQueryHandler<string>(
-            new NullLogger<ExistingPagedStoredQueryHandler<string>>(),
-            ResiliencePipeline.Empty,
-            queryProvider,
-            query,
-            pageSize,
-            continuationToken);
+        queryIdProvider
+            .Create(query, sessionId: null, Nonce)
+            .Returns(queryId);
+
+        sut = CreateHandler($"v2;{Nonce};{itemsReturned}");
     }
 
     [Theory, AutoNSubstituteData]
@@ -66,7 +67,7 @@ public sealed class ExistingPagedStoredQueryHandlerTests
         }
         else
         {
-            var expectedContinuationToken = $"{queryId};{itemsReturned + items.Count}";
+            var expectedContinuationToken = $"v2;{Nonce};{itemsReturned + items.Count}";
             result.ContinuationToken.Should().Be(expectedContinuationToken);
         }
 
@@ -90,13 +91,7 @@ public sealed class ExistingPagedStoredQueryHandlerTests
         CancellationToken cancellationToken)
     {
         // Arrange
-        var handler = new ExistingPagedStoredQueryHandler<string>(
-            new NullLogger<ExistingPagedStoredQueryHandler<string>>(),
-            ResiliencePipeline.Empty,
-            queryProvider,
-            query,
-            pageSize,
-            invalidContinuationToken);
+        var handler = CreateHandler(invalidContinuationToken);
 
         // Act
         var result = await handler.Execute(cancellationToken);
@@ -109,6 +104,50 @@ public sealed class ExistingPagedStoredQueryHandlerTests
             .ExecuteQueryAsync(
                 Arg.Any<string>(),
                 Arg.Any<string>(),
+                Arg.Any<ClientRequestProperties>(),
+                Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Execute_Rejects_A_Token_That_Contains_A_QueryId()
+    {
+        // Arrange - a token in the format "{queryId};{items returned}"
+        var handler = CreateHandler($"{queryId};5");
+
+        // Act
+        var result = await handler.Execute(CancellationToken.None);
+
+        // Assert
+        result.Should().BeNull();
+
+        await queryProvider
+            .DidNotReceive()
+            .ExecuteQueryAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<ClientRequestProperties>(),
+                Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Execute_Calculates_The_QueryId_Instead_Of_Reading_It_From_The_Token()
+    {
+        // Arrange - another query's queryId in the nonce slot only becomes an ingredient of the calculated queryId
+        queryIdProvider
+            .Create(query, sessionId: null, "SomeOtherQuerysQueryId")
+            .Returns("CalculatedQueryId");
+
+        var handler = CreateHandler("v2;SomeOtherQuerysQueryId;5");
+
+        // Act
+        await handler.Execute(CancellationToken.None);
+
+        // Assert
+        await queryProvider
+            .Received(1)
+            .ExecuteQueryAsync(
+                databaseName: null,
+                "stored_query_result('CalculatedQueryId') | where row_number between(6 .. 8)",
                 Arg.Any<ClientRequestProperties>(),
                 Arg.Any<CancellationToken>());
     }
@@ -230,4 +269,16 @@ public sealed class ExistingPagedStoredQueryHandlerTests
         // Assert
         result.Should().BeNull();
     }
+
+    private ExistingPagedStoredQueryHandler<string> CreateHandler(
+        string continuationToken)
+        => new(
+            new NullLogger<ExistingPagedStoredQueryHandler<string>>(),
+            ResiliencePipeline.Empty,
+            queryIdProvider,
+            queryProvider,
+            query,
+            sessionId: null,
+            pageSize,
+            continuationToken);
 }

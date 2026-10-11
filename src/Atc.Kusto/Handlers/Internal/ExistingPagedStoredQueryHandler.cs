@@ -10,26 +10,32 @@ namespace Atc.Kusto.Handlers.Internal;
 internal sealed partial class ExistingPagedStoredQueryHandler<T> : IScriptHandler<PagedResult<T>>
 {
     private readonly ResiliencePipeline resiliencePipeline;
+    private readonly IQueryIdProvider queryIdProvider;
     private readonly ICslAdminProvider? adminProvider;
     private readonly ICslQueryProvider queryProvider;
     private readonly IKustoQuery<IReadOnlyList<T>> query;
+    private readonly string? sessionId;
     private readonly int pageSize;
     private readonly string continuationToken;
 
     public ExistingPagedStoredQueryHandler(
         ILogger<ExistingPagedStoredQueryHandler<T>> logger,
         [FromKeyedServices(Constants.ResiliencePipelineKey)] ResiliencePipeline resiliencePipeline,
+        IQueryIdProvider queryIdProvider,
         ICslAdminProvider adminProvider,
         ICslQueryProvider queryProvider,
         IKustoQuery<IReadOnlyList<T>> query,
+        string? sessionId,
         int pageSize,
         string continuationToken)
     {
         this.logger = logger;
         this.resiliencePipeline = resiliencePipeline;
+        this.queryIdProvider = queryIdProvider;
         this.adminProvider = adminProvider;
         this.queryProvider = queryProvider;
         this.query = query;
+        this.sessionId = sessionId;
         this.pageSize = pageSize;
         this.continuationToken = continuationToken;
     }
@@ -38,11 +44,13 @@ internal sealed partial class ExistingPagedStoredQueryHandler<T> : IScriptHandle
     public ExistingPagedStoredQueryHandler(
         ILogger<ExistingPagedStoredQueryHandler<T>> logger,
         [FromKeyedServices(Constants.ResiliencePipelineKey)] ResiliencePipeline resiliencePipeline,
+        IQueryIdProvider queryIdProvider,
         ICslQueryProvider queryProvider,
         IKustoQuery<IReadOnlyList<T>> query,
+        string? sessionId,
         int pageSize,
         string continuationToken)
-        : this(logger, resiliencePipeline, adminProvider: null!, queryProvider, query, pageSize, continuationToken)
+        : this(logger, resiliencePipeline, queryIdProvider, adminProvider: null!, queryProvider, query, sessionId, pageSize, continuationToken)
         => adminProvider = null;
 
     /// <summary>
@@ -57,19 +65,18 @@ internal sealed partial class ExistingPagedStoredQueryHandler<T> : IScriptHandle
     public async Task<PagedResult<T>?> Execute(
         CancellationToken cancellationToken)
     {
-        var split = continuationToken.Split(';');
-        if (split.Length != 2)
+        if (PagedContinuationToken.Parse(continuationToken) is not { } token)
         {
             return null;
         }
 
-        var queryId = split[0].ToAlphanumeric();
+        // The queryId is calculated on the server, never read from the token.
+        var queryId = queryIdProvider.Create(
+            query,
+            sessionId,
+            token.Nonce);
 
-        if (!long.TryParse(split[1], GlobalizationConstants.EnglishCultureInfo, out var itemsReturned))
-        {
-            return null;
-        }
-
+        var itemsReturned = token.ItemsReturned;
         var firstRowNum = itemsReturned + 1;
         var lastRowNum = itemsReturned + pageSize;
 
@@ -104,7 +111,7 @@ internal sealed partial class ExistingPagedStoredQueryHandler<T> : IScriptHandle
 
                     var newContinuationToken = items.Count < pageSize
                         ? null
-                        : $"{queryId};{itemsReturned + items.Count}";
+                        : new PagedContinuationToken(token.Nonce, itemsReturned + items.Count).ToString();
 
                     return new PagedResult<T>(items, newContinuationToken);
                 },
