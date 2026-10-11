@@ -436,11 +436,17 @@ app.MapGet(
 
 #### When a query fails
 
-Temporary errors, such as throttling or a dropped connection, are retried first (see [Retries](#retries)). When the query still fails, or fails with an error that retrying can't fix, such as a misspelled column, `ExecuteQuery` throws the exception from the Kusto SDK as it is: for example a `SemanticException`, or a `KustoServiceException` when the cluster can't be reached. So a failing query can never be mistaken for "no data".
+Temporary errors, such as throttling or a dropped connection, are retried first (see [Retries](#retries)). When the query still fails, or fails with an error that retrying can't fix, such as a misspelled column, `ExecuteQuery` throws the exception as it is. So a failing query can never be mistaken for "no data".
+
+Most failures are a `KustoException` from the Kusto SDK, for example a `SemanticException` for a misspelled column, or a `KustoServiceException` when the cluster can't be reached. But not all of them:
+
+- a query that is cancelled on the cluster (`.cancel query`) fails with the SDK's `UtilsException`, which is not a `KustoException`;
+- a sign-in failure is an `AuthenticationFailedException` from Azure.Identity;
+- a result that can't be mapped to your type is a `JsonException`.
 
 `ExecuteQuery` returns `null` only when your own `ReadResult` returns `null`, for example a `FirstOrDefault()` that finds no rows. A `KustoQuery<T>` returns an array, which is empty when there are no rows.
 
-In an ASP.NET Core endpoint, an exception you don't catch becomes a 500 response. Catch it where a failure needs other handling, for example in a background job that should keep its last known state and try again later:
+In an ASP.NET Core endpoint, an exception you don't catch becomes a 500 response. Catch it where a failure needs other handling, for example in a background job that should keep its last known state and try again later. Catch `Exception`, not only `KustoException`, and let cancellation through:
 
 ```csharp
 try
@@ -451,7 +457,7 @@ try
 
     // ...
 }
-catch (KustoException ex)
+catch (Exception ex) when (ex is not OperationCanceledException)
 {
     logger.LogWarning(ex, "Could not read the active alarms, keeping the current state");
 }
@@ -1300,7 +1306,7 @@ public override string? MapRecord(
 
 ### Changes in behaviour
 
-**Failing queries throw.** In 3.x, `ExecuteQuery` and page 2 or later of `ExecutePagedQuery` logged the error and returned `null`, so a failing query looked like a query without rows. In 4.0 they throw the Kusto SDK's exception once the retries are used up, on every page and also without a page size. Check code that treats `null` as "no data": `null` now only means that your own `ReadResult` returned `null`, or (paged) that the continuation token can't be read. See [When a query fails](#when-a-query-fails).
+**Failing queries throw.** In 3.x, `ExecuteQuery` and page 2 or later of `ExecutePagedQuery` logged the error and returned `null`, so a failing query looked like a query without rows. In 4.0 they throw the exception once the retries are used up (usually, but not always, a `KustoException`), on every page and also without a page size. Check code that treats `null` as "no data": `null` now only means that your own `ReadResult` returned `null`, or (paged) that the continuation token can't be read. See [When a query fails](#when-a-query-fails).
 
 **Cancellation throws `OperationCanceledException`.** In 3.x, when your token was cancelled, the Kusto SDK's cancel errors were logged and the query returned `null`. In 4.0 queries, paged queries and streaming queries end with an `OperationCanceledException`, with the SDK's error as `InnerException`. See [Cancellation](#cancellation).
 
