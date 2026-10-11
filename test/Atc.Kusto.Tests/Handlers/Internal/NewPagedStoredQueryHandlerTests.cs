@@ -25,7 +25,7 @@ public sealed class NewPagedStoredQueryHandlerTests
             .Create(query, sessionId, nonce: null)
             .ReturnsForAnyArgs(queryId);
 
-        sut = new NewPagedStoredQueryHandler<string>(queryIdProvider, adminProvider, query, sessionId, pageSize);
+        sut = new NewPagedStoredQueryHandler<string>(ResiliencePipeline.Empty, queryIdProvider, adminProvider, query, sessionId, pageSize);
     }
 
     [Theory, AutoNSubstituteData]
@@ -165,7 +165,7 @@ public sealed class NewPagedStoredQueryHandlerTests
             .ReadResult(reader)
             .Returns(["A", "B", "C"]);
 
-        var handler = new NewPagedStoredQueryHandler<string>(queryIdProvider, adminProvider, query, sessionId: null, pageSize);
+        var handler = new NewPagedStoredQueryHandler<string>(ResiliencePipeline.Empty, queryIdProvider, adminProvider, query, sessionId: null, pageSize);
 
         // Act
         var result = await handler.Execute(CancellationToken.None);
@@ -190,7 +190,7 @@ public sealed class NewPagedStoredQueryHandlerTests
             .ExecuteControlCommandAsync(Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<ClientRequestProperties>())
             .Returns(reader);
 
-        var handler = new NewPagedStoredQueryHandler<string>(queryIdProvider, adminProvider, query, sessionId: null, pageSize);
+        var handler = new NewPagedStoredQueryHandler<string>(ResiliencePipeline.Empty, queryIdProvider, adminProvider, query, sessionId: null, pageSize);
 
         // Act
         await handler.Execute(CancellationToken.None);
@@ -222,6 +222,84 @@ public sealed class NewPagedStoredQueryHandlerTests
                 Arg.Any<ClientRequestProperties>());
     }
 
+    [Theory, AutoNSubstituteData]
+    internal async Task Execute_Retries_A_Temporary_Error_And_Returns_The_First_Page(
+        IDataReader reader)
+    {
+        // Arrange - the first attempt times out, the second one succeeds
+        adminProvider
+            .ExecuteControlCommandAsync(Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<ClientRequestProperties>())
+            .Returns(
+                _ => Task.FromException<IDataReader>(new TimeoutException()),
+                _ => Task.FromResult(reader));
+
+        query
+            .ReadResult(reader)
+            .Returns(["A", "B"]);
+
+        var handler = new NewPagedStoredQueryHandler<string>(
+            CreateRetryOnTimeoutPipeline(),
+            queryIdProvider,
+            adminProvider,
+            query,
+            sessionId,
+            pageSize);
+
+        // Act
+        var result = await handler.Execute(CancellationToken.None);
+
+        // Assert
+        result!.Items.Should().Equal("A", "B");
+
+        await adminProvider
+            .Received(2)
+            .ExecuteControlCommandAsync(Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<ClientRequestProperties>());
+    }
+
+    [Fact]
+    public Task Execute_Throws_An_Error_That_Is_Not_Temporary()
+    {
+        // Arrange
+        adminProvider
+            .ExecuteControlCommandAsync(Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<ClientRequestProperties>())
+            .ThrowsAsync(new SemanticException());
+
+        // Act
+        var act = () => sut.Execute(CancellationToken.None);
+
+        // Assert
+        return act.Should().ThrowAsync<SemanticException>();
+    }
+
+    [Fact]
+    public async Task Execute_Does_Not_Retry_Once_The_Caller_Has_Cancelled()
+    {
+        // Arrange - the caller cancels while the first attempt times out
+        using var cts = new CancellationTokenSource();
+
+        adminProvider
+            .ExecuteControlCommandAsync(Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<ClientRequestProperties>())
+            .Returns(_ => CancellationTestData.CancelThenThrow<IDataReader>(cts.CancelAsync, new TimeoutException()));
+
+        var handler = new NewPagedStoredQueryHandler<string>(
+            CreateRetryOnTimeoutPipeline(),
+            queryIdProvider,
+            adminProvider,
+            query,
+            sessionId,
+            pageSize);
+
+        // Act
+        var act = () => handler.Execute(cts.Token);
+
+        // Assert
+        await act.Should().ThrowAsync<OperationCanceledException>();
+
+        await adminProvider
+            .Received(1)
+            .ExecuteControlCommandAsync(Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<ClientRequestProperties>());
+    }
+
     [Theory]
     [MemberData(nameof(CancellationTestData.SdkCancellationErrors), MemberType = typeof(CancellationTestData))]
     public async Task Execute_Throws_OperationCanceledException_When_The_Sdk_Fails_After_The_Caller_Cancelled(
@@ -245,4 +323,15 @@ public sealed class NewPagedStoredQueryHandlerTests
         thrown.Which.InnerException.Should().BeSameAs(sdkError);
         thrown.Which.CancellationToken.Should().Be(cts.Token);
     }
+
+    // Retries a timeout once, without waiting, like the real pipeline retries a temporary error.
+    private static ResiliencePipeline CreateRetryOnTimeoutPipeline()
+        => new ResiliencePipelineBuilder()
+            .AddRetry(new RetryStrategyOptions
+            {
+                ShouldHandle = new PredicateBuilder().Handle<TimeoutException>(),
+                MaxRetryAttempts = 1,
+                Delay = TimeSpan.Zero,
+            })
+            .Build();
 }
