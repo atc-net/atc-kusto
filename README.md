@@ -28,6 +28,7 @@ The library provides a streamlined interface for handling Kusto operations, maki
 - [Streaming queries](#streaming-queries)
   - [Direct streaming](#direct-streaming)
   - [Buffered streaming](#buffered-streaming)
+  - [When a streaming query fails](#when-a-streaming-query-fails)
   - [Custom row mapping](#custom-row-mapping)
   - [Progressive mode](#progressive-mode)
 - [Ingesting data](#ingesting-data)
@@ -43,8 +44,8 @@ The library provides a streamlined interface for handling Kusto operations, maki
   - [Dependencies](#dependencies)
 - [Health checks](#health-checks)
   - [Setup Health Check](#setup-health-check)
-  - [Health Check Response](#health-check-response)
   - [Health Check Statuses](#health-check-statuses)
+  - [Health Check Response](#health-check-response)
   - [Using Health Check Programmatically](#using-health-check-programmatically)
 - [Retries](#retries)
 - [Cancellation](#cancellation)
@@ -552,11 +553,18 @@ A `HostAddress` connection with neither 1 nor 2 throws `InvalidOperationExceptio
 
 ## Streaming queries
 
-Streaming queries allow you to process large result sets more efficiently by streaming results as they become available. Atc.Kusto provides two approaches for streaming:
+A streaming query returns its rows one at a time, mapped with [`MapRecord`](#custom-row-mapping). Atc.Kusto provides two ways to run one:
+
+| | Direct streaming (`ExecuteStreamingQuery`) | Buffered streaming (`ExecuteBufferedStreamingQuery`) |
+| --- | --- | --- |
+| First row | As soon as it is read from the response | After the whole result has been read |
+| Memory | Atc.Kusto keeps no rows | Every row is held until you have read it |
+| Header, schema, completion | No | Yes |
+| When the query fails | Throws, possibly after some rows (see [below](#when-a-streaming-query-fails)) | Doesn't throw: `Completion.HasErrors` |
 
 ### Direct streaming
 
-Direct streaming yields rows immediately as they are processed from Kusto, providing the lowest latency and minimal memory usage. This approach is suitable when you need to process a large number of results as quickly as possible and don't require metadata about the query execution:
+Direct streaming maps each row as it is read from the response and hands it to you; Atc.Kusto doesn't keep it. Use it for large results, or when you want the first rows as early as possible:
 
 ```csharp
 // Define your streaming query
@@ -577,7 +585,7 @@ await foreach (var customer in kustoProcessor.ExecuteStreamingQuery(
 
 ### Buffered streaming
 
-Buffered streaming provides additional metadata like table schemas and completion information, while still allowing you to stream the results:
+Buffered streaming reads the **whole result** before `ExecuteBufferedStreamingQuery` returns, so every row is in memory at that point; `Rows` then hands them to you one at a time. In return you get the data-set header, the table schemas and the completion information. Use it when you need that information, not to save memory:
 
 ```csharp
 // Execute buffered streaming query
@@ -596,20 +604,39 @@ await foreach (var customer in streamingResult.Rows.WithCancellation(cancellatio
 }
 ```
 
-In a web API scenario, you can return the stream directly to the client:
+In a web API, you can return the stream directly. ASP.NET Core writes it as a JSON array while the rows arrive:
 
 ```csharp
 app.MapGet(
     "/customers/stream",
-    (IKustoProcessorFactory processorFactory, CancellationToken cancellationToken) =>
-        Task.FromResult(processorFactory.Create(databaseName: "DatabaseName")
-            .ExecuteStreamingQuery(
-                new CustomersStreamingQuery(),
-                cancellationToken)))
+    (IKustoProcessor processor, CancellationToken cancellationToken)
+        => processor.ExecuteStreamingQuery(
+            new CustomersStreamingQuery(),
+            cancellationToken))
     .WithName("GetCustomersStream");
 ```
 
-This returns a streamed response to the client, which can be processed as it arrives.
+Once the first rows are sent, the status code can't change anymore: when the query fails halfway, the response is aborted instead of becoming a 500.
+
+### When a streaming query fails
+
+**Direct streaming** throws the exception from the Kusto SDK, like [`ExecuteQuery`](#when-a-query-fails). A failure can come after rows were already handed out, so code that writes rows somewhere as they arrive must be ready for a partial result.
+
+**Buffered streaming** doesn't throw for a failing query (only for [cancellation](#cancellation)). It returns a result with `Completion.HasErrors = true` and the error in `Completion.ErrorMessage`, and `Rows` is empty (or, when mapping a row failed, holds the rows mapped before it). Always check `Completion`:
+
+```csharp
+var result = await kustoProcessor.ExecuteBufferedStreamingQuery(
+    new CustomersStreamingQuery(),
+    cancellationToken);
+
+if (result?.Completion?.HasErrors == true)
+{
+    logger.LogError("The query failed: {Error}", result.Completion.ErrorMessage);
+    return;
+}
+```
+
+A common failure for large results is Kusto's result limit: by default a query may return at most 500,000 rows or 64 MB. For a 600,000-row result, direct streaming hands out the first 500,000 rows and then throws `KustoServicePartialQueryFailureLimitsExceededException`; buffered streaming returns no rows and `HasErrors = true`. To read a larger result, set `NoTruncation` (or raise `TruncationMaxRecords`/`TruncationMaxSize`) in the [per-call query options](#per-call-query-options).
 
 ### Custom row mapping
 
@@ -1047,10 +1074,10 @@ Atc.Kusto supports cooperative cancellation via CancellationToken for all query 
 
 ### What happens when you cancel
 
-When **your** `CancellationToken` is cancelled, every `IKustoProcessor` method ends with an `OperationCanceledException`, never with `null` or an error log:
+When **your** `CancellationToken` is cancelled, the query methods of `IKustoProcessor` end with an `OperationCanceledException`, never with `null`, an error result or an error log (commands are the exception, see below):
 
 - The Kusto SDK often reports a cancelled request with its own exceptions, such as `KustoClientRequestCanceledByUserException`, or with a service error once the server-side cancel has stopped the query. These are translated into an `OperationCanceledException` that carries your token and keeps the SDK's exception as `InnerException`.
-- An `OperationCanceledException` that was already thrown is rethrown unchanged.
+- An `OperationCanceledException` that was already thrown is rethrown unchanged. That's also the case when your token was not cancelled, for example when the SDK reports an HTTP timeout as a `TaskCanceledException`.
 - Hosts like ASP.NET Core recognise `OperationCanceledException` as cancellation, so a client that disconnects mid-query no longer produces an error log or a 500 response.
 
 This applies to queries, paged queries, streaming and buffered streaming queries, and commands. For a streaming query it also covers the token you pass through `.WithCancellation(token)`, which is how ASP.NET Core passes `RequestAborted` when an endpoint returns the stream.
@@ -1063,39 +1090,21 @@ The built-in health check follows the same rule: when its token is cancelled it 
 
 ### Server-side cancellation setting
 
-Server-side cancel is enabled by default and can be toggled per-call via options:
-- For non-streaming queries: `AtcQueryOptions.EnableServerSideCancellation`
-- For streaming queries: `AtcStreamingQueryOptions.EnableServerSideCancellation`
+Server-side cancel is enabled by default and can be turned off per call:
+
+- for queries: `AtcQueryOptions.EnableServerSideCancellation`;
+- for streaming queries: `AtcStreamingQueryOptions.EnableServerSideCancellation`.
+
+Paged queries always use it for page 2 and later; page 1 is a command, which can't be cancelled once it is sent.
 
 ### Performance Implications
 
-**Server-side cancellation (default - recommended):**
+Server-side cancel costs nothing until your token is cancelled: Atc.Kusto only registers a callback on the token. When the token is cancelled, it sends one `.cancel query` command in the background, which doesn't delay the `OperationCanceledException` you get.
 
-- ✅ The Kusto cluster immediately stops processing the query upon cancellation
-- ✅ Frees up cluster resources (CPU, memory, network) for other queries
-- ✅ Reduces unnecessary cluster costs for pay-per-use scenarios
-- ⚠️ Adds a small overhead of one additional network call to send the cancel command
+- **On (default):** the cluster stops the query, which frees its CPU and memory for other queries.
+- **Off:** the cluster keeps running the query until it completes or times out, although nobody reads the result.
 
-**Local-only cancellation (opt-out):**
-
-- ✅ No additional network overhead
-- ✅ Slightly faster client-side cancellation response
-- ❌ The Kusto cluster continues processing the query even after client cancellation
-- ❌ Wastes cluster resources until the query naturally completes or times out
-- ❌ May impact cluster performance and increase costs unnecessarily
-
-**When to use each mode:**
-
-- Use **server-side cancellation** (default) for:
-  - Long-running queries (> 1 second)
-  - Resource-intensive queries
-  - Production environments where cluster efficiency matters
-  - Scenarios where you pay for cluster usage
-
-- Consider **local-only cancellation** for:
-  - Very short queries (< 100ms) where the overhead might exceed query time
-  - Testing scenarios where cluster resource usage is not a concern
-  - Situations where network reliability to the cluster is poor
+When the cancel command fails, that's logged as an error, and you still get the `OperationCanceledException` as usual. There is rarely a reason to turn it off.
 
 ### Examples
 
@@ -1127,7 +1136,20 @@ The API sample exposes endpoints to demonstrate cancellation behavior:
 
 ## Per-call query options
 
-Query options can be configured per-call via `AtcQueryOptions` (for standard queries) or `AtcStreamingQueryOptions` (for streaming queries).
+Query options can be set per call with `AtcQueryOptions` (for `ExecuteQuery`) or `AtcStreamingQueryOptions` (for streaming queries). Paged queries don't take these options.
+
+| Option | Kusto request property | What it does |
+| --- | --- | --- |
+| `QueryTimeout` | `servertimeout` | How long the cluster runs the query before it times out. Default: the cluster's default, about 4 minutes. |
+| `QueryTakeMaxRecords` | `query_take_max_records` | Returns at most this many rows. The rest is dropped silently, without an error. |
+| `NoTruncation` | `notruncation` | Lifts the result limit of 500,000 rows or 64 MB. |
+| `TruncationMaxRecords` | `truncationmaxrecords` | Changes the row limit. |
+| `TruncationMaxSize` | `truncationmaxsize` | Changes the size limit, in bytes. |
+| `EnableServerSideCancellation` | | Sends `.cancel query` when your token is cancelled (default `true`, see [Cancellation](#server-side-cancellation-setting)). |
+
+`AtcStreamingQueryOptions` also has `ProgressiveEnabled` (see [Progressive mode](#progressive-mode)) and `OptionalFrames` (which frames buffered streaming reads into its result; the default includes all of them).
+
+A query that goes over the result limit fails: see [When a streaming query fails](#when-a-streaming-query-fails) for what that looks like.
 
 ### Query Timeout
 
