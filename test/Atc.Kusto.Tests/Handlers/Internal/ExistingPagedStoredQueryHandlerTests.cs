@@ -5,6 +5,7 @@ public sealed class ExistingPagedStoredQueryHandlerTests
     private const string Nonce = "nonce1";
 
     private readonly IQueryIdProvider queryIdProvider;
+    private readonly ICslAdminProvider adminProvider;
     private readonly ICslQueryProvider queryProvider;
     private readonly IKustoQuery<IReadOnlyList<string>> query;
     private readonly int pageSize;
@@ -15,6 +16,7 @@ public sealed class ExistingPagedStoredQueryHandlerTests
     public ExistingPagedStoredQueryHandlerTests()
     {
         queryIdProvider = Substitute.For<IQueryIdProvider>();
+        adminProvider = Substitute.For<ICslAdminProvider>();
         queryProvider = Substitute.For<ICslQueryProvider>();
         query = Substitute.For<IKustoQuery<IReadOnlyList<string>>>();
 
@@ -194,7 +196,148 @@ public sealed class ExistingPagedStoredQueryHandlerTests
     }
 
     [Theory, AutoNSubstituteData]
-    internal async Task Execute_ShouldReturnNull_WhenSemanticExceptionIsThrown(
+    internal async Task Execute_Runs_The_Query_Again_When_The_Stored_Result_Has_Expired(
+        IDataReader reader)
+    {
+        // Arrange - the stored result has expired, so the first read fails and the second one succeeds
+        query.GetQueryText().Returns("Devices | order by DeviceId asc");
+
+        queryProvider
+            .ExecuteQueryAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<ClientRequestProperties>(),
+                Arg.Any<CancellationToken>())
+            .Returns(
+                _ => Task.FromException<IDataReader>(new SemanticException()),
+                _ => Task.FromResult(reader));
+
+        query
+            .ReadResult(reader)
+            .Returns(["A", "B", "C"]);
+
+        var handler = CreateHandlerWithAdminProvider();
+
+        // Act
+        var result = await handler.Execute(CancellationToken.None);
+
+        // Assert - the query ran again into the same queryId, and the requested page was read from it
+        result!.Items.Should().Equal("A", "B", "C");
+        result.ContinuationToken.Should().Be($"v2;{Nonce};{itemsReturned + 3}");
+
+        await adminProvider
+            .Received(1)
+            .ExecuteControlCommandAsync(
+                databaseName: null,
+                $".set-or-replace stored_query_result ['{queryId}'] with (previewCount = 3, expiresAfter = 1h) <|\n" +
+                "Devices | order by DeviceId asc\n" +
+                "| serialize row_number = row_number()",
+                Arg.Any<ClientRequestProperties>());
+
+        await queryProvider
+            .Received(2)
+            .ExecuteQueryAsync(
+                databaseName: null,
+                $"stored_query_result('{queryId}') " +
+                $"| where row_number between({itemsReturned + 1} .. {itemsReturned + pageSize})",
+                Arg.Any<ClientRequestProperties>(),
+                Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Execute_Returns_Null_When_The_Stored_Result_Is_Still_Missing_After_Running_The_Query_Again()
+    {
+        // Arrange
+        queryProvider
+            .ExecuteQueryAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<ClientRequestProperties>(),
+                Arg.Any<CancellationToken>())
+            .ThrowsAsync(new SemanticException());
+
+        var handler = CreateHandlerWithAdminProvider();
+
+        // Act
+        var result = await handler.Execute(CancellationToken.None);
+
+        // Assert - the query ran again once, not in a loop
+        result.Should().BeNull();
+
+        await adminProvider
+            .Received(1)
+            .ExecuteControlCommandAsync(
+                Arg.Any<string?>(),
+                Arg.Is<string>(command => command.StartsWith(".set-or-replace", StringComparison.Ordinal)),
+                Arg.Any<ClientRequestProperties>());
+    }
+
+    [Theory, AutoNSubstituteData]
+    internal async Task Execute_Returns_An_Empty_Page_Past_The_Last_Row_Without_Running_The_Query_Again(
+        IDataReader reader)
+    {
+        // Arrange - e.g. 6 rows with a page size of 3: the token after page 2 points past the last row
+        queryProvider
+            .ExecuteQueryAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<ClientRequestProperties>(),
+                Arg.Any<CancellationToken>())
+            .Returns(reader);
+
+        query
+            .ReadResult(reader)
+            .Returns([]);
+
+        var handler = CreateHandlerWithAdminProvider();
+
+        // Act
+        var result = await handler.Execute(CancellationToken.None);
+
+        // Assert
+        result!.Items.Should().BeEmpty();
+        result.ContinuationToken.Should().BeNull();
+
+        await adminProvider
+            .DidNotReceive()
+            .ExecuteControlCommandAsync(
+                Arg.Any<string?>(),
+                Arg.Any<string>(),
+                Arg.Any<ClientRequestProperties>());
+    }
+
+    [Fact]
+    public async Task Execute_Does_Not_Run_The_Query_Again_When_The_Caller_Cancelled()
+    {
+        // Arrange - the caller cancels while the page is read, and the read fails as not found
+        using var cts = new CancellationTokenSource();
+
+        queryProvider
+            .ExecuteQueryAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<ClientRequestProperties>(),
+                Arg.Any<CancellationToken>())
+            .Returns(_ => CancellationTestData.CancelThenThrow<IDataReader>(cts.CancelAsync, new SemanticException()));
+
+        var handler = CreateHandlerWithAdminProvider();
+
+        // Act
+        var act = () => handler.Execute(cts.Token);
+
+        // Assert
+        await act.Should().ThrowAsync<OperationCanceledException>();
+
+        await adminProvider
+            .DidNotReceive()
+            .ExecuteControlCommandAsync(
+                Arg.Any<string?>(),
+                Arg.Is<string>(command => command.StartsWith(".set-or-replace", StringComparison.Ordinal)),
+                Arg.Any<ClientRequestProperties>());
+    }
+
+    [Theory, AutoNSubstituteData]
+    internal async Task Execute_Returns_Null_When_The_Stored_Result_Has_Expired_And_There_Is_No_Admin_Provider(
         CancellationToken cancellationToken)
     {
         // Arrange
@@ -281,4 +424,16 @@ public sealed class ExistingPagedStoredQueryHandlerTests
             sessionId: null,
             pageSize,
             continuationToken);
+
+    private ExistingPagedStoredQueryHandler<string> CreateHandlerWithAdminProvider()
+        => new(
+            new NullLogger<ExistingPagedStoredQueryHandler<string>>(),
+            ResiliencePipeline.Empty,
+            queryIdProvider,
+            adminProvider,
+            queryProvider,
+            query,
+            sessionId: null,
+            pageSize,
+            $"v2;{Nonce};{itemsReturned}");
 }

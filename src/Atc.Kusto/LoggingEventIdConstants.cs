@@ -16,6 +16,7 @@ public static class LoggingEventIdConstants
         public const int KustoServiceException = 20_010;
         public const int SemanticException = 20_020;
         public const int UnhandledException = 20_030;
+        public const int StoredQueryResultNotFound = 20_040;
     }
 
     internal static class ResiliencePipeline

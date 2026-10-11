@@ -52,9 +52,10 @@ internal sealed class NewPagedStoredQueryHandler<T> : IScriptHandler<PagedResult
             sessionId,
             nonce);
 
-        var header = $".set-or-replace stored_query_result ['{queryId}'] with (previewCount = {pageSize}, expiresAfter = 1h) <|";
-        const string footer = "| serialize row_number = row_number()";
-        var queryText = $"{header}\n{query.GetQueryText().Trim(' ', '\n', '\t', ';')}\n{footer}";
+        var queryText = StoredQueryResultCommands.CreateSetOrReplace(
+            query,
+            queryId,
+            pageSize);
 
         using var reader = await ExecuteControlCommand(queryText, cancellationToken);
 

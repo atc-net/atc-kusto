@@ -32,6 +32,12 @@ internal sealed partial class ExistingPagedStoredQueryHandler<T>
         string semanticErrors);
 
     [LoggerMessage(
+        EventId = LoggingEventIdConstants.ExistingPagedStoredQueryHandler.StoredQueryResultNotFound,
+        Level = LogLevel.Information,
+        Message = "The stored query result {QueryId} was not found (it expires after an hour), so the query runs again")]
+    private partial void LogStoredQueryResultNotFound(string queryId);
+
+    [LoggerMessage(
         EventId = LoggingEventIdConstants.ExistingPagedStoredQueryHandler.UnhandledException,
         Level = LogLevel.Error,
         Message = "An unhandled exception occurred and some data might be lost")]
