@@ -9,7 +9,10 @@ public sealed class AtcStreamingQueryOptions : AtcQueryOptionsBase
     /// <summary>
     /// Gets or sets the optional frame headers to include in the response.
     /// <para>
-    /// Default is <see cref="FrameHeaders.All"/>.
+    /// Only used by <see cref="IKustoProcessor.ExecuteBufferedStreamingQuery{T}(IKustoStreamingQuery{T}, AtcStreamingQueryOptions?, CancellationToken)"/>,
+    /// which fills the header, schema and completion of its <see cref="StreamingQueryResult{T}"/> for the frames included.
+    /// There, the default <see cref="FrameHeaders.None"/> includes all of them, like <see cref="FrameHeaders.All"/>.
+    /// <see cref="IKustoProcessor.ExecuteStreamingQuery{T}(IKustoStreamingQuery{T}, AtcStreamingQueryOptions?, CancellationToken)"/> ignores this setting.
     /// </para>
     /// <para>
     /// Available optional FrameHeaders options:
