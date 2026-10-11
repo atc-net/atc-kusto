@@ -1,24 +1,73 @@
 @Atc.Kusto.Api.Sample_HostAddress = https://localhost:46612
 @customerId=143
 
-### GetCustomers
-
+### GetCustomers - page 1, 100 customers per page
+# @name GetCustomers
 GET {{Atc.Kusto.Api.Sample_HostAddress}}/customers
 Accept: application/json
+x-pageSize: 100
+
+### GetCustomers - page 2, using the continuation token from page 1
+GET {{Atc.Kusto.Api.Sample_HostAddress}}/customers
+Accept: application/json
+x-pageSize: 100
+x-continuation-token: {{GetCustomers.response.body.$.continuationToken}}
+
+### GetCustomers - page 1 with the total count
+# @name GetCustomersWithTotalCount
+GET {{Atc.Kusto.Api.Sample_HostAddress}}/customers?includeTotalCount=true
+Accept: application/json
+x-pageSize: 100
+
+### GetCustomers - page 2 with the total count (the total travels in the token)
+GET {{Atc.Kusto.Api.Sample_HostAddress}}/customers?includeTotalCount=true
+Accept: application/json
+x-pageSize: 100
+x-continuation-token: {{GetCustomersWithTotalCount.response.body.$.continuationToken}}
+
+### GetCustomers - an unreadable continuation token (-> 400)
+GET {{Atc.Kusto.Api.Sample_HostAddress}}/customers
+Accept: application/json
+x-continuation-token: not-a-token
 
 ### GetCustomerById
 
 GET {{Atc.Kusto.Api.Sample_HostAddress}}/customers/{{customerId}}
 Accept: application/json
 
-
 ### GetCustomerSales
 
 GET {{Atc.Kusto.Api.Sample_HostAddress}}/customers/sales
 Accept: application/json
 
-### GetCustomersStream
+### GetCustomersStream - direct streaming
+
 GET {{Atc.Kusto.Api.Sample_HostAddress}}/customers/stream
+Accept: application/json
+
+### GetCustomersStreamWithStreamingQueryResult - buffered streaming, with header, schema and completion
+
+GET {{Atc.Kusto.Api.Sample_HostAddress}}/customers/stream-with-streaming-query-result
+Accept: application/json
+
+### GetCustomersStreamCancelDemo - cancels after 50 ms, also on the cluster
+
+GET {{Atc.Kusto.Api.Sample_HostAddress}}/customers/stream-cancel-demo
+Accept: application/json
+
+### GetCustomersStreamCancelDemoNoServer - cancels after 50 ms, the query keeps running on the cluster
+
+GET {{Atc.Kusto.Api.Sample_HostAddress}}/customers/stream-cancel-demo-no-server
+Accept: application/json
+
+### GetNycTaxiTripsStream - direct streaming of a large result (NoTruncation)
+
+GET {{Atc.Kusto.Api.Sample_HostAddress}}/nyctaxitrips/stream
+Accept: application/json
+
+### GetNycTaxiTripsStreamWithStreamingQueryResult - buffered streaming of a large result (the whole result is read into memory first)
+
+GET {{Atc.Kusto.Api.Sample_HostAddress}}/nyctaxitrips/stream-with-streaming-query-result
 Accept: application/json
 
 ### IngestDeviceReadings (default mode: ManagedStreaming -> 200 when streamed, 202 when it fell back to queued)
