@@ -303,4 +303,38 @@ public sealed class KustoClusterDiagnosticsHealthCheckTests
         result.IsHealthy.Should().BeFalse();
         result.NotHealthyReason.Should().Contain("timeout");
     }
+
+    [Theory, AutoNSubstituteData]
+    internal async Task CheckHealthAsync_Reports_The_Duration_Measured_By_The_TimeProvider(
+        [Frozen] IKustoProcessorFactory factory,
+        [Frozen] IKustoProcessor processor)
+    {
+        // Arrange
+        var timeProvider = new FakeTimeProvider();
+
+        factory
+            .Create(Arg.Any<string?>(), Arg.Any<string?>())
+            .Returns(processor);
+
+        processor
+            .ExecuteQuery(
+                Arg.Any<KustoHealthCheckQuery>(),
+                Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                timeProvider.Advance(TimeSpan.FromMilliseconds(250));
+                return Task.FromResult<KustoClusterDiagnostics[]?>([new KustoClusterDiagnostics { IsHealthy = 1 }]);
+            });
+
+        var sut = new KustoClusterDiagnosticsHealthCheck(
+            NullLogger<KustoClusterDiagnosticsHealthCheck>.Instance,
+            factory,
+            timeProvider);
+
+        // Act
+        var result = await sut.CheckHealthAsync(cancellationToken: CancellationToken.None);
+
+        // Assert
+        result.Duration.Should().Be(TimeSpan.FromMilliseconds(250));
+    }
 }

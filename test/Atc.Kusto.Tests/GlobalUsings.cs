@@ -32,6 +32,7 @@ global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Diagnostics.HealthChecks;
 global using Microsoft.Extensions.Logging.Abstractions;
 global using Microsoft.Extensions.Options;
+global using Microsoft.Extensions.Time.Testing;
 global using NSubstitute.ExceptionExtensions;
 global using Polly;
 global using Polly.Retry;

@@ -20,6 +20,7 @@ internal sealed partial class KustoIngestor : IKustoIngestor
 {
     private readonly IKustoIngestClientProvider clientProvider;
     private readonly IOptionsMonitor<AtcKustoOptions> optionsMonitor;
+    private readonly TimeProvider timeProvider;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="KustoIngestor"/> class.
@@ -27,14 +28,17 @@ internal sealed partial class KustoIngestor : IKustoIngestor
     /// <param name="logger">The logger.</param>
     /// <param name="clientProvider">Provides cached ingest clients per connection and mode.</param>
     /// <param name="optionsMonitor">Resolves <see cref="AtcKustoOptions"/> per named connection.</param>
+    /// <param name="timeProvider">Measures the duration of each ingestion.</param>
     public KustoIngestor(
         ILogger<KustoIngestor> logger,
         IKustoIngestClientProvider clientProvider,
-        IOptionsMonitor<AtcKustoOptions> optionsMonitor)
+        IOptionsMonitor<AtcKustoOptions> optionsMonitor,
+        TimeProvider timeProvider)
     {
         this.logger = logger;
         this.clientProvider = clientProvider;
         this.optionsMonitor = optionsMonitor;
+        this.timeProvider = timeProvider;
     }
 
     /// <inheritdoc />
@@ -246,7 +250,7 @@ internal sealed partial class KustoIngestor : IKustoIngestor
         activity?.SetTag(KustoDiagnostics.TagNames.IngestMode, mode.ToString());
 
         LogIngestionStarted(database, target.TableName, mode);
-        var startTimestamp = Stopwatch.GetTimestamp();
+        var startTimestamp = timeProvider.GetTimestamp();
 
         try
         {
@@ -255,7 +259,7 @@ internal sealed partial class KustoIngestor : IKustoIngestor
             var client = clientProvider.GetIngestClient(mode, target.ConnectionName);
             var result = await ingest(client, cancellationToken);
 
-            var durationMs = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
+            var durationMs = timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds;
             if (result.Status == KustoIngestionStatus.Queued)
             {
                 LogIngestionQueued(database, target.TableName, mode, result.OperationId, durationMs);

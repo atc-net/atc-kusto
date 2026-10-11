@@ -139,6 +139,8 @@ public static class ServiceCollectionExtensions
     {
         services.AddLogging();
 
+        services.TryAddSingleton(TimeProvider.System);
+
         services.TryAddKeyedSingleton(Constants.ResiliencePipelineKey, ResiliencePipelineImplementationFactory);
 
         services.TryAddSingleton<KustoClientProvider>();
@@ -188,7 +190,10 @@ public static class ServiceCollectionExtensions
                 },
             };
 
-            return new ResiliencePipelineBuilder()
+            return new ResiliencePipelineBuilder
+                {
+                    TimeProvider = serviceProvider.GetRequiredService<TimeProvider>(),
+                }
                 .AddRetry(retryStrategyOptions)
                 .Build();
         }

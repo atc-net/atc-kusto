@@ -42,7 +42,8 @@ public static class HealthCheckExtensions
                 sp => new KustoHealthCheckPublisher(
                     new KustoClusterDiagnosticsHealthCheck(
                         sp.GetService<ILogger<KustoClusterDiagnosticsHealthCheck>>() ?? NullLogger<KustoClusterDiagnosticsHealthCheck>.Instance,
-                        sp.GetRequiredService<IKustoProcessorFactory>()),
+                        sp.GetRequiredService<IKustoProcessorFactory>(),
+                        sp.GetService<TimeProvider>()),
                     connectionName,
                     databaseName),
                 failureStatus,

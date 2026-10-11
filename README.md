@@ -51,6 +51,7 @@ The library provides a streamlined interface for handling Kusto operations, maki
   - [Health Check Response](#health-check-response)
   - [Using Health Check Programmatically](#using-health-check-programmatically)
 - [Retries](#retries)
+  - [The clock behind the retries](#the-clock-behind-the-retries)
 - [Cancellation](#cancellation)
   - [What happens when you cancel](#what-happens-when-you-cancel)
   - [Server-side cancellation setting](#server-side-cancellation-setting)
@@ -1101,6 +1102,12 @@ So a broken query fails at once instead of after ~20 seconds of retries.
 Sign-in failures are always retried because a temporary one cannot be told apart from a misconfigured credential, so a wrong credential still takes ~20 seconds to fail.
 
 When the retries don't help, the last error is thrown (see [When a query fails](#when-a-query-fails)). Commands, streaming queries and ingestion are not retried by Atc.Kusto (the ingestion SDK retries on its own).
+
+### The clock behind the retries
+
+The waits between retries, and the durations that the health check and ingestion report, use the `TimeProvider` registered in dependency injection. Atc.Kusto registers `TimeProvider.System` unless your app already registers one, and uses your app's `TimeProvider` when you register one, before or after `ConfigureAzureDataExplorer`.
+
+So if your tests register a fake clock, such as `FakeTimeProvider`, a query that hits a temporary error waits until the test moves the clock forward (3, 6 and 12 seconds), and the health check reports a duration of 0. Tests that replace `IKustoProcessor` with a mock are not affected.
 
 ## Cancellation
 
