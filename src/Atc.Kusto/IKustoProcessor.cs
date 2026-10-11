@@ -40,10 +40,12 @@ public interface IKustoProcessor
     /// <returns>A task representing the asynchronous operation.
     /// The task result contains the query result of type <typeparamref name="T"/>, or null when the query's
     /// <see cref="IKustoQuery{T}.ReadResult"/> returns null.</returns>
-    /// <exception cref="KustoException">
-    /// Thrown when the query fails, for example with a <see cref="SemanticException"/> for an unknown column, or a
-    /// <see cref="KustoServiceException"/> when the cluster can't be reached. Temporary errors are retried first
-    /// (see the README's Retries section); the exception that remains is thrown as it is.
+    /// <exception cref="Exception">
+    /// Thrown when the query fails. Temporary errors are retried first (see the README's Retries section); the
+    /// exception that remains is thrown as it is. Usually a <see cref="KustoException"/>, for example a
+    /// <see cref="SemanticException"/> for an unknown column, or a <see cref="KustoServiceException"/> when the
+    /// cluster can't be reached. Not always: a query that is cancelled on the cluster fails with the SDK's
+    /// <c>UtilsException</c>, and a result that can't be mapped with a <see cref="System.Text.Json.JsonException"/>.
     /// </exception>
     /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is cancelled.</exception>
     Task<T?> ExecuteQuery<T>(
@@ -60,10 +62,12 @@ public interface IKustoProcessor
     /// <returns>A task representing the asynchronous operation.
     /// The task result contains the query result of type <typeparamref name="T"/>, or null when the query's
     /// <see cref="IKustoQuery{T}.ReadResult"/> returns null.</returns>
-    /// <exception cref="KustoException">
-    /// Thrown when the query fails, for example with a <see cref="SemanticException"/> for an unknown column, or a
-    /// <see cref="KustoServiceException"/> when the cluster can't be reached. Temporary errors are retried first
-    /// (see the README's Retries section); the exception that remains is thrown as it is.
+    /// <exception cref="Exception">
+    /// Thrown when the query fails. Temporary errors are retried first (see the README's Retries section); the
+    /// exception that remains is thrown as it is. Usually a <see cref="KustoException"/>, for example a
+    /// <see cref="SemanticException"/> for an unknown column, or a <see cref="KustoServiceException"/> when the
+    /// cluster can't be reached. Not always: a query that is cancelled on the cluster fails with the SDK's
+    /// <c>UtilsException</c>, and a result that can't be mapped with a <see cref="System.Text.Json.JsonException"/>.
     /// </exception>
     /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is cancelled.</exception>
     Task<T?> ExecuteQuery<T>(
@@ -85,10 +89,12 @@ public interface IKustoProcessor
     /// <paramref name="continuationToken"/> is not a valid continuation token.
     /// </returns>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="pageSize"/> is zero or negative.</exception>
-    /// <exception cref="KustoException">
-    /// Thrown when the query fails, for example with a <see cref="SemanticException"/> for an unknown column, or a
-    /// <see cref="KustoServiceException"/> when the cluster can't be reached. Temporary errors are retried first
-    /// (see the README's Retries section); the exception that remains is thrown as it is.
+    /// <exception cref="Exception">
+    /// Thrown when the query fails. Temporary errors are retried first (see the README's Retries section); the
+    /// exception that remains is thrown as it is. Usually a <see cref="KustoException"/>, for example a
+    /// <see cref="SemanticException"/> for an unknown column, or a <see cref="KustoServiceException"/> when the
+    /// cluster can't be reached. Not always: a query that is cancelled on the cluster fails with the SDK's
+    /// <c>UtilsException</c>, and a result that can't be mapped with a <see cref="System.Text.Json.JsonException"/>.
     /// </exception>
     /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is cancelled.</exception>
     Task<PagedResult<T>?> ExecutePagedQuery<T>(
@@ -113,10 +119,12 @@ public interface IKustoProcessor
     /// <paramref name="continuationToken"/> is not a valid continuation token.
     /// </returns>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="pageSize"/> is zero or negative.</exception>
-    /// <exception cref="KustoException">
-    /// Thrown when the query fails, for example with a <see cref="SemanticException"/> for an unknown column, or a
-    /// <see cref="KustoServiceException"/> when the cluster can't be reached. Temporary errors are retried first
-    /// (see the README's Retries section); the exception that remains is thrown as it is.
+    /// <exception cref="Exception">
+    /// Thrown when the query fails. Temporary errors are retried first (see the README's Retries section); the
+    /// exception that remains is thrown as it is. Usually a <see cref="KustoException"/>, for example a
+    /// <see cref="SemanticException"/> for an unknown column, or a <see cref="KustoServiceException"/> when the
+    /// cluster can't be reached. Not always: a query that is cancelled on the cluster fails with the SDK's
+    /// <c>UtilsException</c>, and a result that can't be mapped with a <see cref="System.Text.Json.JsonException"/>.
     /// </exception>
     /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is cancelled.</exception>
     Task<PagedResult<T>?> ExecutePagedQuery<T>(
