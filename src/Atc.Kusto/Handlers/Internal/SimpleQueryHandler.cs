@@ -10,6 +10,7 @@ internal sealed partial class SimpleQueryHandler<T> : IScriptHandler<T>
     private readonly ICslAdminProvider? adminProvider;
     private readonly ICslQueryProvider queryProvider;
     private readonly IKustoQuery<T> query;
+    private readonly JsonSerializerOptions serializerOptions;
     private readonly AtcQueryOptions queryOptions;
 
     public SimpleQueryHandler(
@@ -18,6 +19,7 @@ internal sealed partial class SimpleQueryHandler<T> : IScriptHandler<T>
         ICslAdminProvider adminProvider,
         ICslQueryProvider queryProvider,
         IKustoQuery<T> query,
+        JsonSerializerOptions serializerOptions,
         AtcQueryOptions queryOptions)
     {
         this.logger = logger;
@@ -25,6 +27,7 @@ internal sealed partial class SimpleQueryHandler<T> : IScriptHandler<T>
         this.adminProvider = adminProvider;
         this.queryProvider = queryProvider;
         this.query = query;
+        this.serializerOptions = serializerOptions;
         this.queryOptions = queryOptions;
     }
 
@@ -34,8 +37,9 @@ internal sealed partial class SimpleQueryHandler<T> : IScriptHandler<T>
         [FromKeyedServices(Constants.ResiliencePipelineKey)] ResiliencePipeline resiliencePipeline,
         ICslQueryProvider queryProvider,
         IKustoQuery<T> query,
+        JsonSerializerOptions serializerOptions,
         AtcQueryOptions queryOptions)
-        : this(logger, resiliencePipeline, adminProvider: null!, queryProvider, query, queryOptions)
+        : this(logger, resiliencePipeline, adminProvider: null!, queryProvider, query, serializerOptions, queryOptions)
     {
         if (queryOptions.EnableServerSideCancellation)
         {
@@ -90,7 +94,7 @@ internal sealed partial class SimpleQueryHandler<T> : IScriptHandler<T>
                             clientRequestProperties,
                             context);
 
-                    return query.ReadResult(reader);
+                    return query.ReadResult(reader, serializerOptions);
                 },
                 cancellationToken);
 

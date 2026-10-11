@@ -25,6 +25,7 @@ internal sealed partial class BufferedStreamingQueryHandler<T> : IScriptHandler<
     private readonly ICslAdminProvider? adminProvider;
     private readonly ICslQueryProvider queryProvider;
     private readonly IKustoStreamingQuery<T> query;
+    private readonly JsonSerializerOptions serializerOptions;
     private readonly AtcStreamingQueryOptions streamingQueryOptions;
 
     public BufferedStreamingQueryHandler(
@@ -32,12 +33,14 @@ internal sealed partial class BufferedStreamingQueryHandler<T> : IScriptHandler<
         ICslAdminProvider adminProvider,
         ICslQueryProvider queryProvider,
         IKustoStreamingQuery<T> query,
+        JsonSerializerOptions serializerOptions,
         AtcStreamingQueryOptions streamingQueryOptions)
     {
         this.logger = logger;
         this.adminProvider = adminProvider;
         this.queryProvider = queryProvider;
         this.query = query;
+        this.serializerOptions = serializerOptions;
         this.streamingQueryOptions = streamingQueryOptions;
     }
 
@@ -46,8 +49,9 @@ internal sealed partial class BufferedStreamingQueryHandler<T> : IScriptHandler<
         Microsoft.Extensions.Logging.ILogger<BufferedStreamingQueryHandler<T>> logger,
         ICslQueryProvider queryProvider,
         IKustoStreamingQuery<T> query,
+        JsonSerializerOptions serializerOptions,
         AtcStreamingQueryOptions streamingQueryOptions)
-        : this(logger, adminProvider: null!, queryProvider, query, streamingQueryOptions)
+        : this(logger, adminProvider: null!, queryProvider, query, serializerOptions, streamingQueryOptions)
     {
         if (streamingQueryOptions.EnableServerSideCancellation)
         {
@@ -176,7 +180,7 @@ internal sealed partial class BufferedStreamingQueryHandler<T> : IScriptHandler<
             // Once all frames are processed, map the PrimaryResult rows and hand them to the consumer.
             foreach (var record in primaryResultRecords)
             {
-                var mapped = query.MapRecord(record);
+                var mapped = query.MapRecord(record, serializerOptions);
 
                 if (mapped is not null)
                 {

@@ -14,15 +14,17 @@ public static class DataReaderExtensions
     /// </summary>
     /// <typeparam name="T">The type of objects to convert the data into.</typeparam>
     /// <param name="reader">The <see cref="IDataReader"/> from which to read the data.</param>
-    /// <param name="options">Optional JSON serializer options. If not provided, default options with enum string conversion, case-insensitive property matching, and number string reading will be used.</param>
+    /// <param name="options">
+    /// The JSON serializer settings, normally the ones <see cref="IKustoQuery{T}.ReadResult"/> receives
+    /// (the connection's <see cref="Options.AtcKustoOptions.SerializerOptions"/>).
+    /// </param>
     /// <returns>An array of objects of type <typeparamref name="T"/> representing the data read from the reader.</returns>
     public static T[] ReadObjects<T>(
         this IDataReader reader,
-        JsonSerializerOptions? options = null)
+        JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(reader);
-
-        options ??= KustoJsonSerializerOptions.Default;
+        ArgumentNullException.ThrowIfNull(options);
 
         var buffer = new ArrayBufferWriter<byte>();
         using var doc = new Utf8JsonWriter(buffer);
@@ -42,15 +44,17 @@ public static class DataReaderExtensions
     /// </summary>
     /// <typeparam name="T">The type of object to convert the row into.</typeparam>
     /// <param name="record">The record (for example an <see cref="IDataReader"/> positioned on a row) to read.</param>
-    /// <param name="options">Optional JSON serializer options. If not provided, default options with enum string conversion, case-insensitive property matching, and number string reading will be used.</param>
+    /// <param name="options">
+    /// The JSON serializer settings, normally the ones <see cref="IKustoStreamingQuery{T}.MapRecord"/> receives
+    /// (the connection's <see cref="Options.AtcKustoOptions.SerializerOptions"/>).
+    /// </param>
     /// <returns>An object of type <typeparamref name="T"/> representing the row.</returns>
     public static T ReadObject<T>(
         this IDataRecord record,
-        JsonSerializerOptions? options = null)
+        JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(record);
-
-        options ??= KustoJsonSerializerOptions.Default;
+        ArgumentNullException.ThrowIfNull(options);
 
         var buffer = new ArrayBufferWriter<byte>();
         using var doc = new Utf8JsonWriter(buffer);
@@ -64,13 +68,19 @@ public static class DataReaderExtensions
     /// </summary>
     /// <typeparam name="T">The type of objects to convert the data into.</typeparam>
     /// <param name="reader">The <see cref="IDataReader"/> from which to read the data.</param>
+    /// <param name="options">
+    /// The JSON serializer settings, normally the ones <see cref="IKustoQuery{T}.ReadResult"/> receives
+    /// (the connection's <see cref="Options.AtcKustoOptions.SerializerOptions"/>).
+    /// </param>
     /// <returns>An array of objects of type <typeparamref name="T"/> representing the data from the next result set, or an empty array if there is no next result set.</returns>
-    public static T[] ReadObjectsFromNextResult<T>(this IDataReader reader)
+    public static T[] ReadObjectsFromNextResult<T>(
+        this IDataReader reader,
+        JsonSerializerOptions options)
     {
         ArgumentNullException.ThrowIfNull(reader);
 
         return reader.NextResult()
-            ? reader.ReadObjects<T>()
+            ? reader.ReadObjects<T>(options)
             : [];
     }
 

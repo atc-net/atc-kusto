@@ -30,6 +30,7 @@ The library provides a streamlined interface for handling Kusto operations, maki
       - [Setup with Explicit Parameters](#setup-with-explicit-parameters)
       - [Setup with Pre-Configured Options](#setup-with-pre-configured-options)
       - [Setup with Configuration Delegate](#setup-with-configuration-delegate)
+      - [JSON serializer settings](#json-serializer-settings)
     - [Adding a Kusto query](#adding-a-kusto-query)
       - [Required Project Configuration](#required-project-configuration)
       - [Defining Query Parameters](#defining-query-parameters)
@@ -412,6 +413,29 @@ builder.Services.ConfigureAzureDataExplorer(options =>
 });
 ```
 
+#### JSON serializer settings
+
+Each connection has its own JSON serializer settings, `AtcKustoOptions.SerializerOptions`. They are used to map query results and streaming rows to your types, and to write rows for ingestion. The defaults:
+
+- write property names in camelCase (`SerialNumber` → `"serialNumber"`), and read them case-insensitively;
+- read numbers that arrive as strings;
+- write and read enums as strings;
+- handle Kusto's `bool` (also `0`/`1`) and `DateOnly` values.
+
+To change them, call `ConfigureSerializerOptions` when you register the connection. It changes a copy of the defaults, so everything you don't change stays as it is:
+
+```csharp
+builder.Services.ConfigureAzureDataExplorer(options =>
+{
+    options.HostAddress = builder.Configuration["Kusto:HostAddress"];
+    options.DatabaseName = builder.Configuration["Kusto:DatabaseName"];
+    options.Credential = new DefaultAzureCredential();
+    options.ConfigureSerializerOptions(json => json.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower);
+}, "Sales");
+```
+
+Configure them during registration: System.Text.Json doesn't allow changes once the settings have been used by a query or an ingestion. Named connections can have different settings.
+
 ### Adding a Kusto query
 
 A Kusto query can be added by creating two files in your project:
@@ -459,8 +483,12 @@ Parameters are specified by adding them to record, and declare them at the top o
 public record GetTeamQuery(long TeamId)
     : KustoScript, IKustoQuery<Team>
 {
-    public Team? ReadResult(IDataReader reader)
-        => reader.ReadObjects<Team>().FirstOrDefault();
+    public Team? ReadResult(
+        IDataReader reader,
+        JsonSerializerOptions serializerOptions)
+        => reader
+            .ReadObjects<Team>(serializerOptions)
+            .FirstOrDefault();
 }
 ```
 
@@ -485,7 +513,9 @@ public record Team(
     string Name);
 ```
 
-> Note: The above example in GetTeamQuery.cs is used to directly override the ReadResults method, if this is not needed, simply inherit directly from KustoQuery and accept the default implementation of the ReadResult method.
+> Note: The above example in GetTeamQuery.cs implements `ReadResult` itself, to return a single team instead of an array. `ReadResult` receives the connection's [JSON serializer settings](#json-serializer-settings); pass them on to `ReadObjects`, `ReadObject` and `ReadObjectsFromNextResult`, which require them. If you don't need your own `ReadResult`, simply inherit from `KustoQuery` and accept the default implementation.
+>
+> Before 4.0 `ReadResult` had only the `reader` parameter, and `ReadObjects<T>()` could be called without settings. Add the `JsonSerializerOptions serializerOptions` parameter and pass it on: `reader.ReadObjects<Team>(serializerOptions)`.
 
 ```csharp
 public record GetTeamQuery(long TeamId)
@@ -557,11 +587,13 @@ Customers
 public record CustomersSplitByGenderQuery
     : KustoScript, IKustoQuery<CustomersByGender>
 {
-    public CustomersByGender ReadResult(IDataReader reader)
+    public CustomersByGender ReadResult(
+        IDataReader reader,
+        JsonSerializerOptions serializerOptions)
         => new(
-            reader.ReadObjects<Customer>(),
-            reader.ReadObjectsFromNextResult<Customer>(),
-            reader.ReadObjectsFromNextResult<CustomerGenderCount>());
+            reader.ReadObjects<Customer>(serializerOptions),
+            reader.ReadObjectsFromNextResult<Customer>(serializerOptions),
+            reader.ReadObjectsFromNextResult<CustomerGenderCount>(serializerOptions));
 }
 ```
 
@@ -793,18 +825,20 @@ This returns a streamed response to the client, which can be processed as it arr
 
 #### Custom row mapping
 
-By default each row is mapped the same way as a `KustoQuery<T>` result (columns matched to properties by name, case-insensitive). To map a row yourself, override `MapRecord`. Read the values you need inside the method: the `IDataRecord` is only valid during the call. Return `null` to skip a row.
+By default each row is mapped the same way as a `KustoQuery<T>` result (columns matched to properties by name, case-insensitive), with the connection's [JSON serializer settings](#json-serializer-settings). To map a row yourself, override `MapRecord`. Read the values you need inside the method: the `IDataRecord` is only valid during the call. Return `null` to skip a row.
 
 ```csharp
 public record CustomerNamesStreamingQuery()
     : KustoStreamingQuery<string>
 {
-    public override string? MapRecord(IDataRecord record)
+    public override string? MapRecord(
+        IDataRecord record,
+        JsonSerializerOptions serializerOptions)
         => $"{record.GetString(record.GetOrdinal("FirstName"))} {record.GetString(record.GetOrdinal("LastName"))}";
 }
 ```
 
-> Before 4.0 this hook was `MapDataRow(DataRow row)`. Rename the override to `MapRecord(IDataRecord record)`; `row["Name"]` becomes `record["Name"]`, and `row.Field<T>("Name")` becomes `(T)record["Name"]` (or one of the typed getters, such as `record.GetString(...)`). A null value is `DBNull.Value`, so check `record.IsDBNull(...)` first.
+> Before 4.0 this hook was `MapDataRow(DataRow row)`. Rename the override to `MapRecord(IDataRecord record, JsonSerializerOptions serializerOptions)`; `row["Name"]` becomes `record["Name"]`, and `row.Field<T>("Name")` becomes `(T)record["Name"]` (or one of the typed getters, such as `record.GetString(...)`). A null value is `DBNull.Value`, so check `record.IsDBNull(...)` first.
 
 #### Progressive mode
 
@@ -954,7 +988,7 @@ In-memory rows are serialized to multijson with **camelCase property names**: `S
 '[{"column":"serialNumber","path":"$.SerialNumber"}]'   // ❌ ingests successfully, but the column is left empty
 ```
 
-A mismatch does **not** fail the ingestion — the rows arrive with empty columns. To use other names, annotate properties with `[JsonPropertyName("...")]`, or pass `serializerOptions` to `IngestAsync` (note: supplied options replace the library defaults, including enum-as-string and the Kusto `bool`/`DateOnly` handling).
+A mismatch does **not** fail the ingestion — the rows arrive with empty columns. To use other names, annotate properties with `[JsonPropertyName("...")]`, change the connection's [JSON serializer settings](#json-serializer-settings), or pass `serializerOptions` to `IngestAsync` for a single call (note: options passed to a call replace the connection's settings entirely, including enum-as-string and the Kusto `bool`/`DateOnly` handling).
 
 Rename a single property — everything else stays camelCase:
 
@@ -966,7 +1000,17 @@ public sealed record DeviceReading(
     DateTimeOffset Timestamp);
 ```
 
-Change the naming for the whole call, e.g. for a table whose mapping uses snake_case paths (`$.serial_number`):
+Change the naming for every ingestion on a connection, e.g. when its tables' mappings use snake_case paths (`$.serial_number`):
+
+```csharp
+builder.Services.ConfigureAzureDataExplorer(options =>
+{
+    // ...
+    options.ConfigureSerializerOptions(json => json.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower);
+});
+```
+
+Or for a single call:
 
 ```csharp
 var snakeCase = new JsonSerializerOptions

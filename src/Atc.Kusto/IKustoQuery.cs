@@ -13,6 +13,12 @@ public interface IKustoQuery<out T> : IKustoScript
     /// Implementations should define how the data is processed and returned.
     /// </summary>
     /// <param name="reader">The <see cref="IDataReader"/> instance used to read the query results.</param>
+    /// <param name="serializerOptions">
+    /// The JSON serializer settings of the connection (<see cref="Options.AtcKustoOptions.SerializerOptions"/>).
+    /// Pass them on, e.g. <c>reader.ReadObjects&lt;Customer&gt;(serializerOptions)</c>.
+    /// </param>
     /// <returns>An instance of <typeparamref name="T"/> representing the processed query result, or null if no result is available.</returns>
-    T? ReadResult(IDataReader reader);
+    T? ReadResult(
+        IDataReader reader,
+        JsonSerializerOptions serializerOptions);
 }

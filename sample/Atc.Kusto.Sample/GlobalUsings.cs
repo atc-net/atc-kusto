@@ -1,5 +1,6 @@
 global using System.Data;
 global using System.Globalization;
+global using System.Text.Json;
 global using Atc.Kusto;
 global using Atc.Kusto.Factories;
 global using Atc.Kusto.Options;

@@ -55,7 +55,7 @@ public sealed class ExistingPagedStoredQueryHandlerTests
             .ReturnsForAnyArgs(reader);
 
         query
-            .ReadResult(reader)
+            .ReadResult(reader, Arg.Any<JsonSerializerOptions>())
             .ReturnsForAnyArgs(items);
 
         // Act
@@ -77,7 +77,7 @@ public sealed class ExistingPagedStoredQueryHandlerTests
 
         _ = query
             .Received(1)
-            .ReadResult(reader);
+            .ReadResult(reader, Arg.Any<JsonSerializerOptions>());
     }
 
     [Theory, AutoNSubstituteData]
@@ -94,7 +94,7 @@ public sealed class ExistingPagedStoredQueryHandlerTests
             .Returns(reader);
 
         query
-            .ReadResult(reader)
+            .ReadResult(reader, Arg.Any<JsonSerializerOptions>())
             .Returns(["A", "B"]);
 
         // Act
@@ -190,7 +190,7 @@ public sealed class ExistingPagedStoredQueryHandlerTests
             .ReturnsForAnyArgs(reader);
 
         query
-            .ReadResult(reader)
+            .ReadResult(reader, Arg.Any<JsonSerializerOptions>())
             .ReturnsForAnyArgs((IReadOnlyList<string>?)null);
 
         // Act
@@ -210,7 +210,7 @@ public sealed class ExistingPagedStoredQueryHandlerTests
 
         _ = query
             .Received(1)
-            .ReadResult(reader);
+            .ReadResult(reader, Arg.Any<JsonSerializerOptions>());
     }
 
     [Theory, AutoNSubstituteData]
@@ -231,7 +231,7 @@ public sealed class ExistingPagedStoredQueryHandlerTests
                 _ => Task.FromResult(reader));
 
         query
-            .ReadResult(reader)
+            .ReadResult(reader, Arg.Any<JsonSerializerOptions>())
             .Returns(["A", "B", "C"]);
 
         var handler = CreateHandlerWithAdminProvider();
@@ -304,7 +304,7 @@ public sealed class ExistingPagedStoredQueryHandlerTests
             .Returns(reader);
 
         query
-            .ReadResult(reader)
+            .ReadResult(reader, Arg.Any<JsonSerializerOptions>())
             .Returns([]);
 
         var handler = CreateHandlerWithAdminProvider();
@@ -384,7 +384,7 @@ public sealed class ExistingPagedStoredQueryHandlerTests
 
         _ = query
             .DidNotReceive()
-            .ReadResult(Arg.Any<IDataReader>());
+            .ReadResult(Arg.Any<IDataReader>(), Arg.Any<JsonSerializerOptions>());
     }
 
     [Theory]
@@ -439,6 +439,7 @@ public sealed class ExistingPagedStoredQueryHandlerTests
             queryIdProvider,
             queryProvider,
             query,
+            KustoJsonSerializerOptions.Default,
             sessionId: null,
             pageSize,
             Expiration,
@@ -456,6 +457,7 @@ public sealed class ExistingPagedStoredQueryHandlerTests
             adminProvider,
             queryProvider,
             query,
+            KustoJsonSerializerOptions.Default,
             sessionId: null,
             pageSize,
             Expiration,
@@ -508,7 +510,7 @@ public sealed class ExistingPagedStoredQueryHandlerTests
                 _ => Task.FromResult(reader));
 
         query
-            .ReadResult(reader)
+            .ReadResult(reader, Arg.Any<JsonSerializerOptions>())
             .Returns(["A", "B", "C"]);
 
         using var showReader = CreateShowStoredQueryResultReader(rowCount: itemsReturned + 50);
@@ -542,7 +544,7 @@ public sealed class ExistingPagedStoredQueryHandlerTests
             .Returns(reader);
 
         query
-            .ReadResult(reader)
+            .ReadResult(reader, Arg.Any<JsonSerializerOptions>())
             .Returns(items);
     }
 

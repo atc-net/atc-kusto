@@ -15,7 +15,10 @@ public abstract record KustoStreamingQuery<T> : KustoScript, IKustoStreamingQuer
     /// <param name="record">
     /// The row. It is only valid during this call: read the values you need, don't keep the record.
     /// </param>
+    /// <param name="serializerOptions">The JSON serializer settings of the connection.</param>
     /// <returns>An instance of <typeparamref name="T"/>, or <see langword="null"/> to skip the row.</returns>
-    public virtual T? MapRecord(IDataRecord record)
-        => record.ReadObject<T>();
+    public virtual T? MapRecord(
+        IDataRecord record,
+        JsonSerializerOptions serializerOptions)
+        => record.ReadObject<T>(serializerOptions);
 }

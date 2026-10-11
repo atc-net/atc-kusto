@@ -149,4 +149,40 @@ public sealed class ScriptHandlerFactoryTests
                 Arg.Is<string>(command => command.Contains("expiresAfter = 5400s", StringComparison.Ordinal)),
                 Arg.Any<ClientRequestProperties>());
     }
+
+    [Fact]
+    public async Task Create_Query_Passes_The_SerializerOptions_Of_The_Connection_To_ReadResult()
+    {
+        // Arrange
+        var connectionOptions = new AtcKustoOptions();
+        optionsMonitor
+            .Get("sales")
+            .Returns(connectionOptions);
+
+        var reader = Substitute.For<IDataReader>();
+        var queryProvider = Substitute.For<ICslQueryProvider>();
+
+        queryProvider
+            .ExecuteQueryAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<ClientRequestProperties>(),
+                Arg.Any<CancellationToken>())
+            .Returns(reader);
+
+        clientProvider
+            .GetQueryClient("sales", null)
+            .Returns(queryProvider);
+
+        var query = Substitute.For<IKustoQuery<int>>();
+        var handler = sut.Create(query, connectionName: "sales");
+
+        // Act
+        await handler.Execute(CancellationToken.None);
+
+        // Assert
+        query
+            .Received(1)
+            .ReadResult(reader, connectionOptions.SerializerOptions);
+    }
 }

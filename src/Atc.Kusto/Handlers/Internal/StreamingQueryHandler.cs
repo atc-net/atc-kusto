@@ -19,6 +19,7 @@ internal sealed partial class StreamingQueryHandler<T> : IStreamingScriptHandler
     private readonly ICslAdminProvider? adminProvider;
     private readonly ICslQueryProvider queryProvider;
     private readonly IKustoStreamingQuery<T> query;
+    private readonly JsonSerializerOptions serializerOptions;
     private readonly AtcStreamingQueryOptions streamingQueryOptions;
 
     public StreamingQueryHandler(
@@ -26,12 +27,14 @@ internal sealed partial class StreamingQueryHandler<T> : IStreamingScriptHandler
         ICslAdminProvider adminProvider,
         ICslQueryProvider queryProvider,
         IKustoStreamingQuery<T> query,
+        JsonSerializerOptions serializerOptions,
         AtcStreamingQueryOptions streamingQueryOptions)
     {
         this.logger = logger;
         this.adminProvider = adminProvider;
         this.queryProvider = queryProvider;
         this.query = query;
+        this.serializerOptions = serializerOptions;
         this.streamingQueryOptions = streamingQueryOptions;
     }
 
@@ -40,8 +43,9 @@ internal sealed partial class StreamingQueryHandler<T> : IStreamingScriptHandler
         ILogger<StreamingQueryHandler<T>> logger,
         ICslQueryProvider queryProvider,
         IKustoStreamingQuery<T> query,
+        JsonSerializerOptions serializerOptions,
         AtcStreamingQueryOptions streamingQueryOptions)
-        : this(logger, adminProvider: null!, queryProvider, query, streamingQueryOptions)
+        : this(logger, adminProvider: null!, queryProvider, query, serializerOptions, streamingQueryOptions)
     {
         if (streamingQueryOptions.EnableServerSideCancellation)
         {
@@ -240,7 +244,7 @@ internal sealed partial class StreamingQueryHandler<T> : IStreamingScriptHandler
 
             if (table.Kind == WellKnownDataSet.PrimaryResult)
             {
-                var mapped = query.MapRecord(table.CreateRecord(values));
+                var mapped = query.MapRecord(table.CreateRecord(values), serializerOptions);
                 if (mapped is not null)
                 {
                     tablesWithReturnedRows.Add(tableFragmentFrame.TableId);
@@ -275,7 +279,7 @@ internal sealed partial class StreamingQueryHandler<T> : IStreamingScriptHandler
                 continue;
             }
 
-            var mapped = query.MapRecord(reader);
+            var mapped = query.MapRecord(reader, serializerOptions);
             if (mapped is not null)
             {
                 yield return mapped;

@@ -480,4 +480,63 @@ public sealed class KustoIngestorTests
             .ReturnsForAnyArgs(Result(status));
 
     private sealed record Row(string Name);
+
+    [Fact]
+    public async Task IngestAsync_Rows_Uses_The_SerializerOptions_Of_The_Connection()
+    {
+        // Arrange - this connection's mappings use PascalCase paths
+        options.ConfigureSerializerOptions(json => json.PropertyNamingPolicy = null);
+        var payload = CapturePayload();
+
+        // Act
+        await sut.IngestAsync([new Row("a")], JsonTarget());
+
+        // Assert
+        payload().Should().Be("{\"Name\":\"a\"}\n");
+    }
+
+    [Fact]
+    public async Task IngestAsync_Rows_Prefers_The_SerializerOptions_Of_The_Call()
+    {
+        // Arrange
+        options.ConfigureSerializerOptions(json => json.PropertyNamingPolicy = null);
+        var payload = CapturePayload();
+        var snakeCaseSerializerOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower };
+
+        // Act
+        await sut.IngestAsync([new Row("a")], JsonTarget(), snakeCaseSerializerOptions);
+
+        // Assert
+        payload().Should().Be("{\"name\":\"a\"}\n");
+    }
+
+    /// <summary>
+    /// Captures the multijson payload that <see cref="IKustoIngestor.IngestAsync{T}"/> sends to the ingest client.
+    /// </summary>
+    /// <returns>
+    /// A function that returns the captured payload, or <see langword="null"/> while nothing has been sent yet.
+    /// Call it after <c>IngestAsync</c> has run.
+    /// </returns>
+    private Func<string?> CapturePayload()
+    {
+        string? payload = null;
+
+        client
+            .IngestStreamAsync(
+                data: null,
+                format: default,
+                database: null,
+                table: null,
+                mappingReference: null,
+                enableTracking: false,
+                mode: default,
+                cancellationToken: CancellationToken.None)
+            .ReturnsForAnyArgs(call =>
+            {
+                payload = Encoding.UTF8.GetString(((MemoryStream)call.Arg<Stream>()).ToArray());
+                return Result(KustoIngestionStatus.Succeeded);
+            });
+
+        return () => payload;
+    }
 }

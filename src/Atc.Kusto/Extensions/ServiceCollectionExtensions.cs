@@ -118,6 +118,7 @@ public static class ServiceCollectionExtensions
         target.ConnectionString = source.ConnectionString;
         target.DefaultIngestionMode = source.DefaultIngestionMode;
         target.PagedResultExpiration = source.PagedResultExpiration;
+        target.SerializerOptions = new JsonSerializerOptions(source.SerializerOptions);
 
         foreach (var container in source.IngestUploadContainers)
         {

@@ -13,8 +13,13 @@ public interface IKustoStreamingQuery<out T> : IKustoScript
     /// <param name="record">
     /// The row to be transformed. It is only valid during this call: read the values you need, don't keep the record.
     /// </param>
+    /// <param name="serializerOptions">
+    /// The JSON serializer settings of the connection (<see cref="Options.AtcKustoOptions.SerializerOptions"/>).
+    /// </param>
     /// <returns>
     /// An object of type <typeparamref name="T"/> that represents the row, or <see langword="null"/> to skip the row.
     /// </returns>
-    T? MapRecord(IDataRecord record);
+    T? MapRecord(
+        IDataRecord record,
+        JsonSerializerOptions serializerOptions);
 }

@@ -94,6 +94,7 @@ public sealed class ServiceCollectionExtensionsTests
         };
 
         options.IngestUploadContainers.Add(container);
+        options.ConfigureSerializerOptions(json => json.PropertyNamingPolicy = null);
 
         var services = new ServiceCollection();
         services.ConfigureAzureDataExplorer(options, configurationName);
@@ -111,6 +112,7 @@ public sealed class ServiceCollectionExtensionsTests
         registered.ConnectionString.Should().Be("Data Source=https://example.kusto.windows.net");
         registered.DefaultIngestionMode.Should().Be(IngestionMode.Queued);
         registered.PagedResultExpiration.Should().Be(TimeSpan.FromHours(2));
+        registered.SerializerOptions.PropertyNamingPolicy.Should().BeNull();
         registered.IngestUploadContainers.Should().ContainSingle().Which.Should().Be(container);
     }
 }

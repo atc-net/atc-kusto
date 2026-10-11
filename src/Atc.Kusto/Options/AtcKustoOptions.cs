@@ -36,4 +36,30 @@ public class AtcKustoOptions
     /// each result for longer.
     /// </remarks>
     public TimeSpan PagedResultExpiration { get; set; } = TimeSpan.FromHours(1);
+
+    /// <summary>
+    /// Gets the JSON serializer settings of this connection, used to map query results to objects and to write
+    /// ingested rows.
+    /// </summary>
+    /// <remarks>
+    /// The defaults write camelCase property names, read property names case-insensitively, read numbers from
+    /// strings, write enums as strings, and handle Kusto's <c>bool</c> and <see cref="DateOnly"/> values.
+    /// Change them with <see cref="ConfigureSerializerOptions"/> when the connection is registered:
+    /// System.Text.Json doesn't allow changes once the settings have been used.
+    /// </remarks>
+    public JsonSerializerOptions SerializerOptions { get; internal set; } = KustoJsonSerializerOptions.CreateDefault();
+
+    /// <summary>
+    /// Changes the JSON serializer settings of this connection, starting from the defaults.
+    /// </summary>
+    /// <param name="configure">Changes the settings, e.g. <c>json => json.PropertyNamingPolicy = null</c>.</param>
+    /// <returns>The same options, so calls can be chained.</returns>
+    public AtcKustoOptions ConfigureSerializerOptions(
+        Action<JsonSerializerOptions> configure)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+
+        configure(SerializerOptions);
+        return this;
+    }
 }

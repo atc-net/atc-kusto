@@ -11,7 +11,7 @@ public sealed class MultiJsonSerializerTests
         var rows = new[] { new Person("Ada", 36), new Person("Linus", 54) };
 
         // Act
-        using var stream = MultiJsonSerializer.Serialize(rows, serializerOptions: null);
+        using var stream = MultiJsonSerializer.Serialize(rows, KustoJsonSerializerOptions.Default);
 
         // Assert
         var text = Encoding.UTF8.GetString(stream.ToArray());
@@ -43,7 +43,7 @@ public sealed class MultiJsonSerializerTests
     public void Serialize_Empty_Sequence_Yields_Empty_Stream()
     {
         // Act
-        using var stream = MultiJsonSerializer.Serialize(Array.Empty<Person>(), serializerOptions: null);
+        using var stream = MultiJsonSerializer.Serialize(Array.Empty<Person>(), KustoJsonSerializerOptions.Default);
 
         // Assert
         stream.Length.Should().Be(0);
@@ -58,7 +58,7 @@ public sealed class MultiJsonSerializerTests
         cts.Cancel();
 
         // Act
-        var act = () => MultiJsonSerializer.Serialize(new[] { new Person("Ada", 36) }, serializerOptions: null, cts.Token);
+        var act = () => MultiJsonSerializer.Serialize(new[] { new Person("Ada", 36) }, KustoJsonSerializerOptions.Default, cts.Token);
 
         // Assert
         act.Should().Throw<OperationCanceledException>();

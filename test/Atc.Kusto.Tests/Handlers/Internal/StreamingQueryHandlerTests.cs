@@ -15,6 +15,7 @@ public sealed class StreamingQueryHandlerTests
             new NullLogger<StreamingQueryHandler<string>>(),
             queryProvider,
             query,
+            KustoJsonSerializerOptions.Default,
             new AtcStreamingQueryOptions { OptionalFrames = FrameHeaders.All, EnableServerSideCancellation = false });
     }
 
@@ -28,7 +29,7 @@ public sealed class StreamingQueryHandlerTests
         var options = new AtcStreamingQueryOptions { OptionalFrames = FrameHeaders.All, EnableServerSideCancellation = true };
 
         query.GetQueryText().Returns("print 1");
-        query.MapRecord(Arg.Any<IDataRecord>()).Returns((string?)null);
+        query.MapRecord(Arg.Any<IDataRecord>(), Arg.Any<JsonSerializerOptions>()).Returns((string?)null);
 
         ClientRequestProperties? capturedProps = null;
 
@@ -65,6 +66,7 @@ public sealed class StreamingQueryHandlerTests
             adminProvider,
             queryProvider,
             query,
+            KustoJsonSerializerOptions.Default,
             options);
 
         using var cts = new CancellationTokenSource();
@@ -106,7 +108,7 @@ public sealed class StreamingQueryHandlerTests
         // Arrange
         query.GetQueryText().Returns(queryText);
 
-        query.MapRecord(Arg.Any<IDataRecord>()).Returns(ci =>
+        query.MapRecord(Arg.Any<IDataRecord>(), Arg.Any<JsonSerializerOptions>()).Returns(ci =>
         {
             var row = ci.Args()[0] as IDataRecord;
             return row?[0].ToString();
@@ -150,7 +152,7 @@ public sealed class StreamingQueryHandlerTests
         // Arrange
         query.GetQueryText().Returns(queryText);
 
-        query.MapRecord(Arg.Any<IDataRecord>()).Returns(ci =>
+        query.MapRecord(Arg.Any<IDataRecord>(), Arg.Any<JsonSerializerOptions>()).Returns(ci =>
         {
             var row = ci.Args()[0] as IDataRecord;
             return row?[0].ToString();
@@ -211,7 +213,7 @@ public sealed class StreamingQueryHandlerTests
         ]);
 
         query
-            .MapRecord(Arg.Any<IDataRecord>())
+            .MapRecord(Arg.Any<IDataRecord>(), Arg.Any<JsonSerializerOptions>())
             .Returns(ci => string.Create(CultureInfo.InvariantCulture, $"{ci.Arg<IDataRecord>().GetGuid(0)}|{ci.Arg<IDataRecord>().GetDouble(1)}"));
 
         // Act
@@ -357,7 +359,7 @@ public sealed class StreamingQueryHandlerTests
     {
         // Arrange
         using var result = ReturnTrackedResult("A", "B");
-        query.MapRecord(Arg.Any<IDataRecord>()).Throws(new InvalidOperationException("mapping failed"));
+        query.MapRecord(Arg.Any<IDataRecord>(), Arg.Any<JsonSerializerOptions>()).Throws(new InvalidOperationException("mapping failed"));
 
         // Act
         var act = async () =>
@@ -436,6 +438,33 @@ public sealed class StreamingQueryHandlerTests
 
     private void MapFirstColumn()
         => query
-            .MapRecord(Arg.Any<IDataRecord>())
+            .MapRecord(Arg.Any<IDataRecord>(), Arg.Any<JsonSerializerOptions>())
             .Returns(ci => ci.Arg<IDataRecord>()[0].ToString());
+
+    [Fact]
+    public async Task Execute_Passes_Its_SerializerOptions_To_MapRecord()
+    {
+        // Arrange
+        var serializerOptions = new JsonSerializerOptions();
+        using var result = ReturnFrames(ProgressiveDataSetBuilder.BuildProgressiveFrames(
+            new FragmentFrameStub(1, ["A"])));
+
+        var handler = new StreamingQueryHandler<string>(
+            new NullLogger<StreamingQueryHandler<string>>(),
+            queryProvider,
+            query,
+            serializerOptions,
+            new AtcStreamingQueryOptions { OptionalFrames = FrameHeaders.All, EnableServerSideCancellation = false });
+
+        // Act
+        await foreach (var row in handler.Execute(CancellationToken.None))
+        {
+            _ = row;
+        }
+
+        // Assert
+        query
+            .Received(1)
+            .MapRecord(Arg.Any<IDataRecord>(), serializerOptions);
+    }
 }
