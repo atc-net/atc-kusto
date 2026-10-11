@@ -37,10 +37,10 @@ public sealed class ExistingPagedStoredQueryHandlerTests
         [Frozen] IDataReader reader,
         string queryText,
         Dictionary<string, object> parameters,
-        List<string> items,
         CancellationToken cancellationToken)
     {
-        // Arrange
+        // Arrange - a full page, so there is a next page
+        IReadOnlyList<string> items = ["A", "B", "C"];
         query.GetQueryText().Returns(queryText);
         query.GetParameters().Returns(parameters);
 
@@ -62,16 +62,7 @@ public sealed class ExistingPagedStoredQueryHandlerTests
         // Assert
         result.Should().NotBeNull();
         result!.Items.Should().BeEquivalentTo(items);
-
-        if (items.Count < pageSize)
-        {
-            result.ContinuationToken.Should().BeNull();
-        }
-        else
-        {
-            var expectedContinuationToken = $"v2;{Nonce};{itemsReturned + items.Count}";
-            result.ContinuationToken.Should().Be(expectedContinuationToken);
-        }
+        result.ContinuationToken.Should().Be($"v2;{Nonce};{itemsReturned + 3}");
 
         _ = queryProvider
             .Received(1)
@@ -85,6 +76,31 @@ public sealed class ExistingPagedStoredQueryHandlerTests
         _ = query
             .Received(1)
             .ReadResult(reader);
+    }
+
+    [Theory, AutoNSubstituteData]
+    internal async Task Execute_ShouldReturnNoContinuationToken_WhenThePageIsNotFull(
+        IDataReader reader)
+    {
+        // Arrange
+        queryProvider
+            .ExecuteQueryAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<ClientRequestProperties>(),
+                Arg.Any<CancellationToken>())
+            .Returns(reader);
+
+        query
+            .ReadResult(reader)
+            .Returns(["A", "B"]);
+
+        // Act
+        var result = await sut.Execute(CancellationToken.None);
+
+        // Assert
+        result!.Items.Should().Equal("A", "B");
+        result.ContinuationToken.Should().BeNull();
     }
 
     [Theory, AutoNSubstituteData]
