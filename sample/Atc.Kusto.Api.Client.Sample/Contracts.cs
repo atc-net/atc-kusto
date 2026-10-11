@@ -66,11 +66,20 @@ public class KustoResultCompletion
 
 public class KustoTableCompletionInfo
 {
-    public int TableId { get; set; }
+    public string TableName { get; set; } = string.Empty;
 
-    public int RowCount { get; set; }
+    public long RowCount { get; set; }
 
     public string? Exception { get; set; }
+}
+
+public class PagedResult<T>
+{
+    public List<T> Items { get; set; } = new();
+
+    public string? ContinuationToken { get; set; }
+
+    public long? TotalCount { get; set; }
 }
 
 public class StreamingQueryResult<T>

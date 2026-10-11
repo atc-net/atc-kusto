@@ -1,146 +1,146 @@
+// Run Atc.Kusto.Api.Sample first; this client calls its endpoints.
 const string baseAddress = "https://localhost:46612/";
-using var client = new HttpClient { BaseAddress = new Uri(baseAddress), Timeout = TimeSpan.FromMinutes(2) };
+using var client = new HttpClient { BaseAddress = new Uri(baseAddress), Timeout = TimeSpan.FromMinutes(5) };
 var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
-Console.WriteLine("Calling /customers/stream-with-streaming-query-result endpoint...");
-var responseWithStreamingQueryResult = await client.GetAsync("/customers/stream-with-streaming-query-result", CancellationToken.None);
-responseWithStreamingQueryResult.EnsureSuccessStatusCode();
+await ReadAllPages(client, options);
+await ReadBuffered<Customer>(client, options, "/customers/stream-with-streaming-query-result", c => $"Customer: {c.FirstName} {c.LastName}");
+await ReadStream<Customer>(client, "/customers/stream", c => $"Customer: {c.FirstName} {c.LastName}");
+await ReadBuffered<NycTaxiTrip>(client, options, "/nyctaxitrips/stream-with-streaming-query-result", t => $"NYC Taxi Trip: Persons: {t.PassengerCount} - Amount: {t.TotalAmount}");
+await ReadStream<NycTaxiTrip>(client, "/nyctaxitrips/stream", t => $"NYC Taxi Trip: Persons: {t.PassengerCount} - Amount: {t.TotalAmount}");
+await StopReadingEarly(client);
 
-var resultWithStreamingQueryResult = await responseWithStreamingQueryResult.Content.ReadFromJsonAsync<StreamingQueryResult<Customer>>(options);
-if (resultWithStreamingQueryResult is not null)
-{
-    if (resultWithStreamingQueryResult.Header is not null)
-    {
-        Console.WriteLine($"Header: Version={resultWithStreamingQueryResult.Header.Version}, Progressive={resultWithStreamingQueryResult.Header.IsProgressive}");
-    }
-    else
-    {
-        Console.WriteLine("No header received.");
-    }
-
-    if (resultWithStreamingQueryResult.TableSchemas.Any())
-    {
-        foreach (var schema in resultWithStreamingQueryResult.TableSchemas)
-        {
-            Console.WriteLine($"Schema for table '{schema.TableName}':");
-            foreach (var col in schema.Columns)
-            {
-                Console.WriteLine($"\tColumn: {col.Name} (Type: {col.Type})");
-            }
-        }
-    }
-    else
-    {
-        Console.WriteLine("No table schema information received.");
-    }
-
-    Console.WriteLine("Streaming rows (with streaming query result):");
-    foreach (var customer in resultWithStreamingQueryResult.Rows)
-    {
-        Console.WriteLine($"Customer: {customer.FirstName} {customer.LastName}");
-    }
-
-    if (resultWithStreamingQueryResult.Completion is not null)
-    {
-        Console.WriteLine($"Completion: HasErrors={resultWithStreamingQueryResult.Completion.HasErrors}");
-        if (!string.IsNullOrEmpty(resultWithStreamingQueryResult.Completion.ErrorMessage))
-        {
-            Console.WriteLine($"Error Message: {resultWithStreamingQueryResult.Completion.ErrorMessage}");
-        }
-    }
-    else
-    {
-        Console.WriteLine("No completion summary received.");
-    }
-}
-
-Console.WriteLine();
-
-Console.WriteLine("Calling /customers/stream endpoint...");
-
-await foreach (var customer in client.GetFromJsonAsAsyncEnumerable<Customer>("/customers/stream", CancellationToken.None))
-{
-    if (customer is not null)
-    {
-        Console.WriteLine($"Customer: {customer.FirstName} {customer.LastName}");
-    }
-}
-
-Console.WriteLine();
-
-Console.WriteLine("Calling /nyctaxitrips/stream-with-streaming-query-result endpoint...");
-var nycResponseWithStreamingQueryResult = await client.GetAsync("/nyctaxitrips/stream-with-streaming-query-result", CancellationToken.None);
-nycResponseWithStreamingQueryResult.EnsureSuccessStatusCode();
-
-var nycResultWithStreamingQueryResult = await nycResponseWithStreamingQueryResult.Content.ReadFromJsonAsync<StreamingQueryResult<NycTaxiTrip>>(options);
-if (nycResultWithStreamingQueryResult is not null)
-{
-    if (nycResultWithStreamingQueryResult.Header is not null)
-    {
-        Console.WriteLine($"Header: Version={nycResultWithStreamingQueryResult.Header.Version}, Progressive={nycResultWithStreamingQueryResult.Header.IsProgressive}");
-    }
-    else
-    {
-        Console.WriteLine("No header received.");
-    }
-
-    if (nycResultWithStreamingQueryResult.TableSchemas.Any())
-    {
-        foreach (var schema in nycResultWithStreamingQueryResult.TableSchemas)
-        {
-            Console.WriteLine($"Schema for table '{schema.TableName}':");
-            foreach (var col in schema.Columns)
-            {
-                Console.WriteLine($"\tColumn: {col.Name} (Type: {col.Type})");
-            }
-        }
-    }
-    else
-    {
-        Console.WriteLine("No table schema information received.");
-    }
-
-    Console.WriteLine("Streaming rows (with streaming query result):");
-    var countWithStreamingQueryResult = 0;
-    foreach (var nycTaxiTrip in nycResultWithStreamingQueryResult.Rows)
-    {
-        countWithStreamingQueryResult++;
-        Console.WriteLine($"NYC Taxi Trip: Persons: {nycTaxiTrip.PassengerCount} - Amount: {nycTaxiTrip.TotalAmount}");
-    }
-
-    Console.WriteLine($"Streamed {countWithStreamingQueryResult} NYC Taxi Trip rows");
-
-    if (nycResultWithStreamingQueryResult.Completion is not null)
-    {
-        Console.WriteLine($"Completion: HasErrors={nycResultWithStreamingQueryResult.Completion.HasErrors}");
-        if (!string.IsNullOrEmpty(nycResultWithStreamingQueryResult.Completion.ErrorMessage))
-        {
-            Console.WriteLine($"Error Message: {nycResultWithStreamingQueryResult.Completion.ErrorMessage}");
-        }
-    }
-    else
-    {
-        Console.WriteLine("No completion summary received.");
-    }
-}
-
-Console.WriteLine();
-
-Console.WriteLine("Calling /nyctaxitrips/stream endpoint...");
-
-var timestamp = Stopwatch.GetTimestamp();
-
-var count = 0;
-await foreach (var nycTaxiTrip in client.GetFromJsonAsAsyncEnumerable<NycTaxiTrip>("/nyctaxitrips/stream", CancellationToken.None))
-{
-    if (nycTaxiTrip is not null)
-    {
-        count++;
-        Console.WriteLine($"NYC Taxi Trip: Persons: {nycTaxiTrip.PassengerCount} - Amount: {nycTaxiTrip.TotalAmount}");
-    }
-}
-
-Console.WriteLine($"Streamed {count} NYC Taxi Trip rows in {Stopwatch.GetElapsedTime(timestamp)}");
-
-Console.WriteLine("Press any key to exit");
+Console.WriteLine("Press Enter to exit");
 Console.ReadLine();
+
+// Follows the continuation token from page to page, and asks for the total count.
+static async Task ReadAllPages(
+    HttpClient client,
+    JsonSerializerOptions options)
+{
+    Console.WriteLine("Calling /customers page by page...");
+
+    string? continuationToken = null;
+    var pages = 0;
+    var items = 0;
+
+    do
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/customers?includeTotalCount=true");
+        request.Headers.Add("x-pageSize", "5000");
+        if (continuationToken is not null)
+        {
+            request.Headers.Add("x-continuation-token", continuationToken);
+        }
+
+        using var response = await client.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+
+        var page = await response.Content.ReadFromJsonAsync<PagedResult<Customer>>(options);
+        pages++;
+        items += page!.Items.Count;
+        Console.WriteLine($"Page {pages}: {page.Items.Count} customers ({items} of {page.TotalCount})");
+
+        continuationToken = page.ContinuationToken;
+    }
+    while (continuationToken is not null);
+
+    Console.WriteLine();
+}
+
+// Reads a buffered streaming result: the header, the table schemas, the rows and the completion.
+static async Task ReadBuffered<T>(
+    HttpClient client,
+    JsonSerializerOptions options,
+    string path,
+    Func<T, string> describe)
+{
+    Console.WriteLine($"Calling {path}...");
+
+    using var response = await client.GetAsync(path);
+    if (!response.IsSuccessStatusCode)
+    {
+        // The API returns 502 when the buffered query reported an error in its completion.
+        Console.WriteLine($"The query failed ({(int)response.StatusCode}): {await response.Content.ReadAsStringAsync()}");
+        Console.WriteLine();
+        return;
+    }
+
+    var result = await response.Content.ReadFromJsonAsync<StreamingQueryResult<T>>(options);
+
+    Console.WriteLine(result!.Header is { } header
+        ? $"Header: Version={header.Version}, Progressive={header.IsProgressive}"
+        : "No header received.");
+
+    foreach (var schema in result.TableSchemas)
+    {
+        Console.WriteLine($"Schema for table '{schema.TableName}': {string.Join(", ", schema.Columns.Select(c => $"{c.Name} ({c.Type})"))}");
+    }
+
+    PrintRows(result.Rows, describe);
+
+    Console.WriteLine(result.Completion is { } completion
+        ? $"Completion: HasErrors={completion.HasErrors} {completion.ErrorMessage}"
+        : "No completion summary received.");
+    Console.WriteLine();
+}
+
+// Reads a directly streamed result: the rows arrive while the API is still reading them from Kusto.
+static async Task ReadStream<T>(
+    HttpClient client,
+    string path,
+    Func<T, string> describe)
+{
+    Console.WriteLine($"Calling {path}...");
+
+    var timestamp = Stopwatch.GetTimestamp();
+    var rows = new List<T>();
+    await foreach (var row in client.GetFromJsonAsAsyncEnumerable<T>(path))
+    {
+        rows.Add(row!);
+    }
+
+    PrintRows(rows, describe);
+    Console.WriteLine($"Read in {Stopwatch.GetElapsedTime(timestamp)}");
+    Console.WriteLine();
+}
+
+// Stops reading a stream after 1000 rows. The connection closes, ASP.NET Core cancels the request,
+// and Atc.Kusto cancels the query on the cluster, without an error in the API's log.
+static async Task StopReadingEarly(HttpClient client)
+{
+    Console.WriteLine("Calling /nyctaxitrips/stream and stopping after 1000 rows...");
+
+    using var cts = new CancellationTokenSource();
+    var rows = 0;
+
+    try
+    {
+        await foreach (var trip in client.GetFromJsonAsAsyncEnumerable<NycTaxiTrip>("/nyctaxitrips/stream", cts.Token))
+        {
+            if (++rows == 1000)
+            {
+                await cts.CancelAsync();
+            }
+        }
+    }
+    catch (OperationCanceledException)
+    {
+        Console.WriteLine($"Stopped after {rows} rows.");
+    }
+
+    Console.WriteLine();
+}
+
+// Prints the first rows and the number of rows, instead of every row.
+static void PrintRows<T>(
+    IReadOnlyCollection<T> rows,
+    Func<T, string> describe)
+{
+    foreach (var row in rows.Take(3))
+    {
+        Console.WriteLine(describe(row));
+    }
+
+    Console.WriteLine($"... {rows.Count} rows");
+}
