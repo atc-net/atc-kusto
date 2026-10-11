@@ -12,4 +12,14 @@ namespace Atc.Kusto;
 /// </param>
 public record PagedResult<T>(
     IReadOnlyList<T> Items,
-    string? ContinuationToken);
+    string? ContinuationToken)
+{
+    /// <summary>
+    /// Gets the total number of items across all pages, or <see langword="null"/> when it wasn't requested with
+    /// <see cref="Options.AtcPagedQueryOptions.IncludeTotalCount"/>.
+    /// </summary>
+    /// <remarks>
+    /// When the stored query result had expired and the query ran again, this is the total of the new run.
+    /// </remarks>
+    public long? TotalCount { get; init; }
+}

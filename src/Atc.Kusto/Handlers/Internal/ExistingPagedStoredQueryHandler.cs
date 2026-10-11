@@ -94,6 +94,7 @@ internal sealed partial class ExistingPagedStoredQueryHandler<T> : IScriptHandle
                         return await ReadPage(
                             queryId,
                             token,
+                            token.TotalCount,
                             context);
                     }
                     catch (SemanticException) when (adminProvider is not null)
@@ -106,9 +107,18 @@ internal sealed partial class ExistingPagedStoredQueryHandler<T> : IScriptHandle
                             queryId,
                             context);
 
+                        // The new run can have another number of rows.
+                        var totalCount = token.TotalCount is null
+                            ? null
+                            : await ReadTotalCount(
+                                adminProvider,
+                                queryId,
+                                context);
+
                         return await ReadPage(
                             queryId,
                             token,
+                            totalCount,
                             context);
                     }
                 },
@@ -159,6 +169,7 @@ internal sealed partial class ExistingPagedStoredQueryHandler<T> : IScriptHandle
     private async Task<PagedResult<T>?> ReadPage(
         string queryId,
         PagedContinuationToken token,
+        long? totalCount,
         CancellationToken cancellationToken)
     {
         var clientRequestProperties = query.GetClientRequestProperties();
@@ -187,11 +198,17 @@ internal sealed partial class ExistingPagedStoredQueryHandler<T> : IScriptHandle
         }
 
         // A page past the last row is empty, which is a valid page and ends the paging.
-        var newContinuationToken = items.Count < pageSize
-            ? null
-            : new PagedContinuationToken(token.Nonce, token.ItemsReturned + items.Count).ToString();
+        var newContinuationToken = PagedContinuationToken.CreateNext(
+            token.Nonce,
+            itemsReturned: token.ItemsReturned + items.Count,
+            pageItemCount: items.Count,
+            pageSize,
+            totalCount);
 
-        return new PagedResult<T>(items, newContinuationToken);
+        return new PagedResult<T>(items, newContinuationToken?.ToString())
+        {
+            TotalCount = totalCount,
+        };
     }
 
     /// <summary>
@@ -216,5 +233,23 @@ internal sealed partial class ExistingPagedStoredQueryHandler<T> : IScriptHandle
                 pageSize,
                 expiration),
             query.GetClientRequestProperties());
+    }
+
+    /// <summary>
+    /// Reads the number of rows in the stored result from its metadata, without running the query again.
+    /// </summary>
+    private async Task<long?> ReadTotalCount(
+        ICslAdminProvider admin,
+        string queryId,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var reader = await admin.ExecuteControlCommandAsync(
+            databaseName: null,
+            StoredQueryResultCommands.CreateShowStoredQueryResult(queryId),
+            query.GetClientRequestProperties());
+
+        return StoredQueryResultCommands.ReadRowCount(reader);
     }
 }

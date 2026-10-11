@@ -405,6 +405,65 @@ public sealed class KustoProcessorTests
         factory.ReceivedCalls().Should().BeEmpty();
     }
 
+    [Theory, AutoNSubstituteData]
+    internal async Task ExecutePagedQuery_Passes_The_Options_To_The_Factory(
+        [Frozen] IScriptHandlerFactory factory,
+        IKustoQuery<IReadOnlyList<TestRecord>> query,
+        KustoProcessor sut)
+    {
+        // Arrange
+        var options = new AtcPagedQueryOptions
+        {
+            IncludeTotalCount = true,
+        };
+
+        // Act
+        await sut.ExecutePagedQuery(query, sessionId: null, pageSize: 10, continuationToken: null, options);
+
+        // Assert
+        factory
+            .Received(1)
+            .Create(
+                query,
+                sessionId: null,
+                pageSize: 10,
+                continuationToken: null,
+                sut.ConnectionName,
+                sut.DatabaseName,
+                options);
+    }
+
+    [Theory, AutoNSubstituteData]
+    internal async Task ExecutePagedQuery_Without_A_Page_Size_Returns_The_Item_Count_As_Total_Count_When_Asked(
+        [Frozen] IScriptHandlerFactory factory,
+        IKustoQuery<IReadOnlyList<TestRecord>> query,
+        IScriptHandler<IReadOnlyList<TestRecord>> scriptHandler,
+        KustoProcessor sut,
+        List<TestRecord> items)
+    {
+        // Arrange - without a page size, the query runs as a plain query
+        factory
+            .Create(query, sut.ConnectionName, sut.DatabaseName, Arg.Any<AtcQueryOptions?>())
+            .Returns(scriptHandler);
+
+        scriptHandler
+            .Execute(Arg.Any<CancellationToken>())
+            .Returns(items);
+
+        var options = new AtcPagedQueryOptions
+        {
+            IncludeTotalCount = true,
+        };
+
+        // Act
+        var result = await sut.ExecutePagedQuery(query, sessionId: null, pageSize: null, continuationToken: null, options);
+
+        // Assert
+        result!.Items.Should().BeEquivalentTo(items);
+        result.TotalCount.Should().Be(items.Count);
+        result.ContinuationToken.Should().BeNull();
+    }
+
     [Theory]
     [InlineAutoNSubstituteData(0)]
     [InlineAutoNSubstituteData(-1)]

@@ -69,7 +69,8 @@ internal sealed class ScriptHandlerFactory : IScriptHandlerFactory
         int pageSize,
         string? continuationToken,
         string? connectionName = null,
-        string? databaseName = null)
+        string? databaseName = null,
+        AtcPagedQueryOptions? options = null)
     {
         var expiration = GetPagedResultExpiration(connectionName);
 
@@ -83,7 +84,8 @@ internal sealed class ScriptHandlerFactory : IScriptHandlerFactory
                 query,
                 sessionId,
                 pageSize,
-                expiration)
+                expiration,
+                includeTotalCount: options?.IncludeTotalCount ?? false)
             : new ExistingPagedStoredQueryHandler<T>(
                 loggerFactory.CreateLogger<ExistingPagedStoredQueryHandler<T>>(),
                 resiliencePipeline,

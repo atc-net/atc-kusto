@@ -64,4 +64,41 @@ public sealed class StoredQueryResultCommandsTests
         // Assert
         actual.Should().Be($"stored_query_result('DevicesQueryabc') | where row_number {expectedRange}");
     }
+
+    [Fact]
+    public void CreateShowStoredQueryResult_Shows_The_Stored_Query_Result()
+        => StoredQueryResultCommands.CreateShowStoredQueryResult("DevicesQueryabc")
+            .Should().Be(".show stored_query_results ['DevicesQueryabc']");
+
+    [Fact]
+    public void ReadRowCount_Returns_The_RowCount_Column()
+    {
+        // Arrange
+        using var table = new DataTable();
+        table.Columns.Add("Name", typeof(string));
+        table.Columns.Add("RowCount", typeof(long));
+        table.Rows.Add("DevicesQueryabc", 4701L);
+        using var reader = table.CreateDataReader();
+
+        // Act & Assert
+        StoredQueryResultCommands.ReadRowCount(reader).Should().Be(4701);
+    }
+
+    [Fact]
+    public void ReadRowCount_Returns_Null_When_There_Is_No_Row_Or_No_Value()
+    {
+        // Arrange
+        using var empty = new DataTable();
+        empty.Columns.Add("RowCount", typeof(long));
+        using var emptyReader = empty.CreateDataReader();
+
+        using var withNull = new DataTable();
+        withNull.Columns.Add("RowCount", typeof(long));
+        withNull.Rows.Add(DBNull.Value);
+        using var nullReader = withNull.CreateDataReader();
+
+        // Act & Assert
+        StoredQueryResultCommands.ReadRowCount(emptyReader).Should().BeNull();
+        StoredQueryResultCommands.ReadRowCount(nullReader).Should().BeNull();
+    }
 }

@@ -27,7 +27,7 @@ public sealed class NewPagedStoredQueryHandlerTests
             .Create(query, sessionId, nonce: null)
             .ReturnsForAnyArgs(queryId);
 
-        sut = new NewPagedStoredQueryHandler<string>(ResiliencePipeline.Empty, queryIdProvider, adminProvider, query, sessionId, pageSize, Expiration);
+        sut = new NewPagedStoredQueryHandler<string>(ResiliencePipeline.Empty, queryIdProvider, adminProvider, query, sessionId, pageSize, Expiration, includeTotalCount: false);
     }
 
     [Theory, AutoNSubstituteData]
@@ -61,6 +61,7 @@ public sealed class NewPagedStoredQueryHandlerTests
 
         result!.Items.Should().BeEquivalentTo(items);
         result.ContinuationToken.Should().Be("v2;;3");
+        result.TotalCount.Should().BeNull();
 
         queryIdProvider
             .Received(1)
@@ -167,7 +168,7 @@ public sealed class NewPagedStoredQueryHandlerTests
             .ReadResult(reader)
             .Returns(["A", "B", "C"]);
 
-        var handler = new NewPagedStoredQueryHandler<string>(ResiliencePipeline.Empty, queryIdProvider, adminProvider, query, sessionId: null, pageSize, Expiration);
+        var handler = new NewPagedStoredQueryHandler<string>(ResiliencePipeline.Empty, queryIdProvider, adminProvider, query, sessionId: null, pageSize, Expiration, includeTotalCount: false);
 
         // Act
         var result = await handler.Execute(CancellationToken.None);
@@ -192,7 +193,7 @@ public sealed class NewPagedStoredQueryHandlerTests
             .ExecuteControlCommandAsync(Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<ClientRequestProperties>())
             .Returns(reader);
 
-        var handler = new NewPagedStoredQueryHandler<string>(ResiliencePipeline.Empty, queryIdProvider, adminProvider, query, sessionId: null, pageSize, Expiration);
+        var handler = new NewPagedStoredQueryHandler<string>(ResiliencePipeline.Empty, queryIdProvider, adminProvider, query, sessionId: null, pageSize, Expiration, includeTotalCount: false);
 
         // Act
         await handler.Execute(CancellationToken.None);
@@ -246,7 +247,8 @@ public sealed class NewPagedStoredQueryHandlerTests
             query,
             sessionId,
             pageSize,
-            Expiration);
+            Expiration,
+            includeTotalCount: false);
 
         // Act
         var result = await handler.Execute(CancellationToken.None);
@@ -291,7 +293,8 @@ public sealed class NewPagedStoredQueryHandlerTests
             query,
             sessionId,
             pageSize,
-            Expiration);
+            Expiration,
+            includeTotalCount: false);
 
         // Act
         var act = () => handler.Execute(cts.Token);
@@ -338,4 +341,125 @@ public sealed class NewPagedStoredQueryHandlerTests
                 Delay = TimeSpan.Zero,
             })
             .Build();
+
+    [Theory, AutoNSubstituteData]
+    internal async Task Execute_Reads_The_Total_Count_From_The_Stored_Result_When_The_First_Page_Is_Full(
+        IDataReader pageReader)
+    {
+        // Arrange
+        using var showReader = CreateShowStoredQueryResultReader(rowCount: 7);
+        ReturnFromControlCommands(pageReader, showReader);
+
+        query
+            .ReadResult(pageReader)
+            .Returns(["A", "B", "C"]);
+
+        var handler = CreateHandlerWithTotalCount();
+
+        // Act
+        var result = await handler.Execute(CancellationToken.None);
+
+        // Assert
+        result!.TotalCount.Should().Be(7);
+        result.ContinuationToken.Should().Be("v2;;3;7");
+
+        await adminProvider
+            .Received(1)
+            .ExecuteControlCommandAsync(
+                databaseName: null,
+                $".show stored_query_results ['{queryId}']",
+                Arg.Any<ClientRequestProperties>());
+    }
+
+    [Theory, AutoNSubstituteData]
+    internal async Task Execute_Uses_The_Item_Count_As_Total_Count_When_The_First_Page_Is_Not_Full(
+        IDataReader pageReader)
+    {
+        // Arrange
+        using var showReader = CreateShowStoredQueryResultReader(rowCount: 99);
+        ReturnFromControlCommands(pageReader, showReader);
+
+        query
+            .ReadResult(pageReader)
+            .Returns(["A", "B"]);
+
+        var handler = CreateHandlerWithTotalCount();
+
+        // Act
+        var result = await handler.Execute(CancellationToken.None);
+
+        // Assert - no metadata call is needed
+        result!.TotalCount.Should().Be(2);
+        result.ContinuationToken.Should().BeNull();
+
+        await adminProvider
+            .DidNotReceive()
+            .ExecuteControlCommandAsync(
+                Arg.Any<string?>(),
+                Arg.Is<string>(command => command.StartsWith(".show", StringComparison.Ordinal)),
+                Arg.Any<ClientRequestProperties>());
+    }
+
+    [Theory, AutoNSubstituteData]
+    internal async Task Execute_Returns_No_Continuation_Token_When_The_First_Page_Holds_The_Total_Count(
+        IDataReader pageReader)
+    {
+        // Arrange - a full page of 3 that is also all there is
+        using var showReader = CreateShowStoredQueryResultReader(rowCount: 3);
+        ReturnFromControlCommands(pageReader, showReader);
+
+        query
+            .ReadResult(pageReader)
+            .Returns(["A", "B", "C"]);
+
+        var handler = CreateHandlerWithTotalCount();
+
+        // Act
+        var result = await handler.Execute(CancellationToken.None);
+
+        // Assert
+        result!.TotalCount.Should().Be(3);
+        result.ContinuationToken.Should().BeNull();
+    }
+
+    private NewPagedStoredQueryHandler<string> CreateHandlerWithTotalCount()
+        => new(
+            ResiliencePipeline.Empty,
+            queryIdProvider,
+            adminProvider,
+            query,
+            sessionId,
+            pageSize,
+            Expiration,
+            includeTotalCount: true);
+
+    private void ReturnFromControlCommands(
+        IDataReader pageReader,
+        IDataReader showReader)
+    {
+        adminProvider
+            .ExecuteControlCommandAsync(
+                Arg.Any<string?>(),
+                Arg.Is<string>(command => command.StartsWith(".set-or-replace", StringComparison.Ordinal)),
+                Arg.Any<ClientRequestProperties>())
+            .Returns(pageReader);
+
+        adminProvider
+            .ExecuteControlCommandAsync(
+                Arg.Any<string?>(),
+                Arg.Is<string>(command => command.StartsWith(".show", StringComparison.Ordinal)),
+                Arg.Any<ClientRequestProperties>())
+            .Returns(showReader);
+    }
+
+    // The result of ".show stored_query_results", reduced to the column that is read.
+    private static DataTableReader CreateShowStoredQueryResultReader(
+        long rowCount)
+    {
+        using var table = new DataTable();
+        table.Columns.Add("RowCount", typeof(long));
+        table.Rows.Add(rowCount);
+
+        return table.CreateDataReader();
+    }
 }
