@@ -398,6 +398,7 @@ internal sealed partial class BufferedStreamingQueryHandler<T> : IScriptHandler<
     /// It provides information on the overall success of the query:
     /// Whether there were any errors, whether it got cancelled mid-stream,
     /// and what exceptions were raised if either is true.
+    /// The table completions collected before are kept.
     /// </summary>
     private void HandleDataSetCompletion(
         ProgressiveDataSetFrame frame,
@@ -420,11 +421,9 @@ internal sealed partial class BufferedStreamingQueryHandler<T> : IScriptHandler<
             errorMessage = ExtendedString.SafeToString(dataSetCompletionFrame.Exception);
         }
 
-        result.Completion = new KustoResultCompletion
-        {
-            HasErrors = dataSetCompletionFrame.HasErrors,
-            ErrorMessage = errorMessage,
-        };
+        result.Completion ??= new KustoResultCompletion();
+        result.Completion.HasErrors = dataSetCompletionFrame.HasErrors;
+        result.Completion.ErrorMessage = errorMessage;
     }
 
     /// <summary>

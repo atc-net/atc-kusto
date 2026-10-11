@@ -306,6 +306,26 @@ public sealed class BufferedStreamingQueryHandlerTests
     }
 
     [Fact]
+    public async Task Execute_Keeps_The_Table_Completions_When_The_Data_Set_Completes()
+    {
+        // Arrange - in progressive mode Kusto sends a completion per table before the data-set completion
+        var frames = ProgressiveDataSetBuilder.BuildProgressiveFrames(
+            new FragmentFrameStub(1, ["A"]));
+
+        using var result = ReturnFrames([.. frames[..^1], new TableCompletionFrameStub(1, rowCount: 1), frames[^1]]);
+        MapFirstColumn();
+
+        // Act
+        var queryResult = await sut.Execute(CancellationToken.None);
+
+        // Assert
+        queryResult!.Completion!.HasErrors.Should().BeFalse();
+        var tableCompletion = queryResult.Completion.TableCompletions.Should().ContainSingle().Subject;
+        tableCompletion.TableName.Should().Be(nameof(WellKnownDataSet.PrimaryResult));
+        tableCompletion.RowCount.Should().Be(1);
+    }
+
+    [Fact]
     public async Task Execute_Reports_A_DataRemove_Fragment_As_An_Error()
     {
         // Arrange
@@ -659,6 +679,26 @@ internal sealed class FragmentFrameStub : ProgressiveDataSetDataTableFragmentFra
         Array.Copy(row, values, row.Length);
         return true;
     }
+}
+
+internal sealed class TableCompletionFrameStub : ProgressiveDataSetTableCompletionFrame
+{
+    public TableCompletionFrameStub(
+        int id,
+        long rowCount)
+    {
+        FrameType = FrameType.TableCompletion;
+        TableId = id;
+        RowCount = rowCount;
+    }
+
+    public FrameType FrameType { get; }
+
+    public int TableId { get; }
+
+    public long RowCount { get; }
+
+    public Exception? Exception => null;
 }
 
 internal sealed class CompletionFrameStub : ProgressiveDataSetCompletionFrame
