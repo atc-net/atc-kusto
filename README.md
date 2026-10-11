@@ -4,6 +4,8 @@ Atc.Kusto is a .NET library designed to facilitate the execution of Kusto querie
 
 The library provides a streamlined interface for handling Kusto operations, making it easier to retrieve and process data efficiently.
 
+> Upgrading from 3.x? See [Upgrading to 4.0](#upgrading-to-40).
+
 ## Table of contents
 
 - [Features](#features)
@@ -61,6 +63,9 @@ The library provides a streamlined interface for handling Kusto operations, maki
   - [Activity Spans](#activity-spans)
   - [Span Attributes](#span-attributes)
   - [Zero Overhead When Disabled](#zero-overhead-when-disabled)
+- [Upgrading to 4.0](#upgrading-to-40)
+  - [Changes that need code changes](#changes-that-need-code-changes)
+  - [Changes in behaviour](#changes-in-behaviour)
 - [CLI Tool](#cli-tool)
   - [Installation](#installation)
   - [Quick Start](#quick-start)
@@ -297,8 +302,6 @@ public record GetTeamQuery(long TeamId)
 
 Often it's simpler to keep `KustoQuery<Team>` and pick the row where the query is executed: `(await processor.ExecuteQuery(new GetTeamQuery(teamId), cancellationToken))?.FirstOrDefault()`. A `KustoQuery<T>` is also checked by the [analyzer](#analyzer) against its result type, which a custom `IKustoQuery<T>` is not.
 
-> Before 4.0 `ReadResult` had only the `reader` parameter, and `ReadObjects<T>()` could be called without settings. Add the `JsonSerializerOptions serializerOptions` parameter and pass it on: `reader.ReadObjects<Team>(serializerOptions)`.
-
 ### Kusto query examples
 
 The following examples demonstrate different types of queries: a query by id, a list query, and a more complex query with multiple result sets.
@@ -454,8 +457,6 @@ catch (KustoException ex)
 }
 ```
 
-> Before 4.0 `ExecuteQuery` logged the error and returned `null`, so a failing query looked like a query without rows.
-
 #### Paged queries
 
 `ExecutePagedQuery` returns one page at a time. The first call runs the query once and saves the whole result in the cluster as a *stored query result*, then returns the first page and a `ContinuationToken`. Pass the token back to get the next page: it is read from the saved result, without running the query again. When `ContinuationToken` is `null`, there are no more pages.
@@ -492,8 +493,6 @@ The token doesn't contain the name of the stored result. The name is calculated 
 
 - a token only reads the stored result of the exact query it was created for. Used with other parameter values (for example another customer), it finds no stored result, so it is handled like an [expired one](#when-the-stored-result-has-expired): the query runs again with the new values, and you get the rows at the token's position in that new result. Never the rows of the first query;
 - a token that was edited can't point at another stored result. At most it makes the query run again.
-
-> Before 4.0 the token contained the name of the stored result. Tokens from earlier versions are not accepted: `ExecutePagedQuery` returns `null` for them, so a client that is paging during the upgrade starts again from page 1.
 
 ##### When the stored result has expired
 
@@ -544,8 +543,6 @@ The total count is opt-in: without it, `TotalCount` is `null` and nothing else c
 Temporary errors are retried on every page (see [Retries](#retries)). An error that remains is thrown, on every page, just like [`ExecuteQuery`](#when-a-query-fails). A client can then ask for the same page again with the same continuation token.
 
 `ExecutePagedQuery` returns `null` only for a continuation token it can't read: one that isn't in the format above, such as a token from before 4.0.
-
-> Before 4.0 an error on page 2 or later was logged, and `ExecutePagedQuery` returned `null`.
 
 #### Choosing the connection and database per call
 
@@ -674,8 +671,6 @@ public record CustomerNamesStreamingQuery()
 }
 ```
 
-> Before 4.0 this hook was `MapDataRow(DataRow row)`. Rename the override to `MapRecord(IDataRecord record, JsonSerializerOptions serializerOptions)`; `row["Name"]` becomes `record["Name"]`, and `row.Field<T>("Name")` becomes `(T)record["Name"]` (or one of the typed getters, such as `record.GetString(...)`). A null value is `DBNull.Value`, so check `record.IsDBNull(...)` first.
-
 ### Progressive mode
 
 `AtcStreamingQueryOptions.ProgressiveEnabled` controls how Kusto packages the result. It is **off by default**.
@@ -702,8 +697,6 @@ var result = await kustoProcessor.ExecuteBufferedStreamingQuery(
     new AtcStreamingQueryOptions { ProgressiveEnabled = true },
     cancellationToken);
 ```
-
-> Before 4.0 progressive mode was on by default, and replaced rows were added to the earlier ones (duplicate and partial rows for aggregations).
 
 ## Ingesting data
 
@@ -1115,7 +1108,7 @@ When **your** `CancellationToken` is cancelled, the query methods of `IKustoProc
 
 - The Kusto SDK often reports a cancelled request with its own exceptions, such as `KustoClientRequestCanceledByUserException`, or with a service error once the server-side cancel has stopped the query. These are translated into an `OperationCanceledException` that carries your token and keeps the SDK's exception as `InnerException`.
 - An `OperationCanceledException` that was already thrown is rethrown unchanged. That's also the case when your token was not cancelled, for example when the SDK reports an HTTP timeout as a `TaskCanceledException`.
-- Hosts like ASP.NET Core recognise `OperationCanceledException` as cancellation, so a client that disconnects mid-query no longer produces an error log or a 500 response.
+- Hosts like ASP.NET Core recognise `OperationCanceledException` as cancellation, so a client that disconnects mid-query doesn't produce an error log or a 500 response.
 
 This applies to queries, paged queries, streaming and buffered streaming queries, and commands. For a streaming query it also covers the token you pass through `.WithCancellation(token)`, which is how ASP.NET Core passes `RequestAborted` when an endpoint returns the stream.
 
@@ -1261,6 +1254,67 @@ Paged queries (`ExecutePagedQuery`) don't create spans. A span's status is `Erro
 ### Zero Overhead When Disabled
 
 If you don't add `KustoDiagnostics.SourceName` to your OpenTelemetry configuration, no activities are created and there is zero performance overhead.
+
+## Upgrading to 4.0
+
+4.0 changes a few extension points, and how failures and cancellation are reported. Go through this list when you upgrade from 3.x.
+
+### Changes that need code changes
+
+**Custom `ReadResult` implementations.** `IKustoQuery<T>.ReadResult` gets the connection's [JSON serializer settings](#json-serializer-settings) as a second parameter, and `ReadObjects<T>` and `ReadObjectsFromNextResult<T>` (like the new `ReadObject<T>`) require them. Queries that inherit `KustoQuery<T>` need no change.
+
+```csharp
+// 3.x
+public Team? ReadResult(IDataReader reader)
+    => reader.ReadObjects<Team>().FirstOrDefault();
+
+// 4.0
+public Team? ReadResult(
+    IDataReader reader,
+    JsonSerializerOptions serializerOptions)
+    => reader
+        .ReadObjects<Team>(serializerOptions)
+        .FirstOrDefault();
+```
+
+**Custom row mapping in streaming queries.** `MapDataRow(DataRow row)` is now `MapRecord(IDataRecord record, JsonSerializerOptions serializerOptions)` (see [Custom row mapping](#custom-row-mapping)):
+
+- `row["Name"]` becomes `record["Name"]`;
+- `row.Field<T>("Name")` becomes `(T)record["Name"]`, or one of the typed getters, such as `record.GetString(...)`;
+- a null value is `DBNull.Value`, so check `record.IsDBNull(...)` first;
+- the record is only valid during the call, so read the values you need inside the method.
+
+```csharp
+// 3.x
+public override string? MapDataRow(DataRow row)
+    => $"{row["FirstName"]} {row["LastName"]}";
+
+// 4.0
+public override string? MapRecord(
+    IDataRecord record,
+    JsonSerializerOptions serializerOptions)
+    => $"{record["FirstName"]} {record["LastName"]}";
+```
+
+**Your own implementations of `IKustoProcessor` or `IScriptHandlerFactory`.** `IKustoProcessor` has a new `ExecutePagedQuery` overload with `AtcPagedQueryOptions`, and the paged `IScriptHandlerFactory.Create` has a new optional `options` parameter. Add them to your implementation. Mocks, for example with NSubstitute, need no change.
+
+### Changes in behaviour
+
+**Failing queries throw.** In 3.x, `ExecuteQuery` and page 2 or later of `ExecutePagedQuery` logged the error and returned `null`, so a failing query looked like a query without rows. In 4.0 they throw the Kusto SDK's exception once the retries are used up, on every page and also without a page size. Check code that treats `null` as "no data": `null` now only means that your own `ReadResult` returned `null`, or (paged) that the continuation token can't be read. See [When a query fails](#when-a-query-fails).
+
+**Cancellation throws `OperationCanceledException`.** In 3.x, when your token was cancelled, the Kusto SDK's cancel errors were logged and the query returned `null`. In 4.0 queries, paged queries and streaming queries end with an `OperationCanceledException`, with the SDK's error as `InnerException`. See [Cancellation](#cancellation).
+
+**The health check throws when its token is cancelled.** In 3.x, `IKustoClusterDiagnosticsHealthCheck.CheckHealthAsync` and the registered health check reported a cancelled check as an unhealthy cluster. In 4.0 they throw `OperationCanceledException`, so ASP.NET Core reports a timeout as a timeout and stops quietly on shutdown. See [Health checks](#health-checks).
+
+**Progressive mode is off by default.** In 3.x, `AtcStreamingQueryOptions.ProgressiveEnabled` was on, and rows that Kusto replaced were added to the earlier ones, which gave duplicate and partial rows for aggregations. In 4.0 it is off. To turn it on, set `ProgressiveEnabled = true`; see [Progressive mode](#progressive-mode) for how replaced rows are handled.
+
+**Continuation tokens have a new format.** In 3.x the token contained the name of the stored result. In 4.0 it looks like `v2;{nonce};{itemsReturned}`, and the name is calculated on the server (see [Continuation tokens](#continuation-tokens)). `ExecutePagedQuery` returns `null` for a token from 3.x, so a client that is paging during the upgrade starts again from page 1.
+
+**Other changes you may notice:**
+
+- `ExecutePagedQuery` throws `ArgumentOutOfRangeException` for a page size below 1.
+- A page requested after the stored result has expired runs the query again, instead of failing. Sort paged queries with an `order by` (see [When the stored result has expired](#when-the-stored-result-has-expired)).
+- Page 1 of a paged query is also retried on temporary errors.
 
 ## CLI Tool
 
