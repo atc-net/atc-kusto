@@ -33,10 +33,10 @@ public sealed class NewPagedStoredQueryHandlerTests
         [Frozen] IDataReader reader,
         string queryText,
         Dictionary<string, object> parameters,
-        List<string> items,
         CancellationToken cancellationToken)
     {
-        // Arrange
+        // Arrange - a full page, so there is a next page
+        IReadOnlyList<string> items = ["A", "B", "C"];
         query.GetQueryText().Returns(queryText);
         query.GetParameters().Returns(parameters);
 
@@ -58,15 +58,7 @@ public sealed class NewPagedStoredQueryHandlerTests
         result.Should().NotBeNull();
 
         result!.Items.Should().BeEquivalentTo(items);
-
-        if (items.Count < pageSize)
-        {
-            result.ContinuationToken.Should().BeNull();
-        }
-        else
-        {
-            result.ContinuationToken.Should().Be($"v2;;{items.Count}");
-        }
+        result.ContinuationToken.Should().Be("v2;;3");
 
         queryIdProvider
             .Received(1)
@@ -86,6 +78,27 @@ public sealed class NewPagedStoredQueryHandlerTests
                   | serialize row_number = row_number()
                   """.Replace("\r\n", "\n", StringComparison.Ordinal),
                 Arg.Is<ClientRequestProperties>(p => p.ClientRequestId != null));
+    }
+
+    [Theory, AutoNSubstituteData]
+    internal async Task Execute_ShouldReturnNoContinuationToken_WhenThePageIsNotFull(
+        IDataReader reader)
+    {
+        // Arrange
+        query
+            .ReadResult(reader)
+            .Returns(["A", "B"]);
+
+        adminProvider
+            .ExecuteControlCommandAsync(Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<ClientRequestProperties>())
+            .Returns(reader);
+
+        // Act
+        var result = await sut.Execute(CancellationToken.None);
+
+        // Assert
+        result!.Items.Should().Equal("A", "B");
+        result.ContinuationToken.Should().BeNull();
     }
 
     [Theory, AutoNSubstituteData]
