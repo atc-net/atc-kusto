@@ -56,12 +56,16 @@ internal sealed partial class ExistingPagedStoredQueryHandler<T> : IScriptHandle
     /// <summary>
     /// Executes the stored Kusto query asynchronously and returns a paginated result set.
     /// </summary>
+    /// <remarks>
+    /// When the stored query result no longer exists (it expires after an hour), the query runs again into the
+    /// same queryId and the requested page is read from the new result. The data may have changed in between,
+    /// so rows can shift between pages; a query without <c>order by</c> can even return its rows in another order.
+    /// </remarks>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>
     /// A task that represents the asynchronous operation. The task result contains a <see cref="PagedResult{T}"/>
     /// if the query succeeds, or null if the continuation token is invalid or the query fails.
     /// </returns>
-    [SuppressMessage("Design", "MA0076:Do not use implicit culture-sensitive ToString in interpolated strings", Justification = "OK - Not needed for long")]
     public async Task<PagedResult<T>?> Execute(
         CancellationToken cancellationToken)
     {
@@ -76,44 +80,33 @@ internal sealed partial class ExistingPagedStoredQueryHandler<T> : IScriptHandle
             sessionId,
             token.Nonce);
 
-        var itemsReturned = token.ItemsReturned;
-        var firstRowNum = itemsReturned + 1;
-        var lastRowNum = itemsReturned + pageSize;
-
-        var queryText = $"stored_query_result('{queryId}') | where row_number between({firstRowNum} .. {lastRowNum})";
-
         try
         {
             return await resiliencePipeline.ExecuteAsync(
                 async context =>
                 {
-                    var clientRequestProperties = query.GetClientRequestProperties();
+                    try
+                    {
+                        return await ReadPage(
+                            queryId,
+                            token,
+                            context);
+                    }
+                    catch (SemanticException) when (adminProvider is not null)
+                    {
+                        // Kusto reports a stored query result that doesn't exist (anymore) as a semantic error.
+                        LogStoredQueryResultNotFound(queryId);
 
-                    // No specific AtcQueryOptions available here; default to enabling server-side cancel when adminProvider is present.
-                    using var serverSideCancellationRegistration = adminProvider?.RegisterKustoServerSideCancellation(
-                        logger,
-                        databaseName: null,
-                        clientRequestProperties,
-                        context);
-
-                    using var reader = await queryProvider
-                        .ExecuteQueryAsync(
-                            databaseName: null,
-                            queryText,
-                            clientRequestProperties,
+                        await RecreateStoredQueryResult(
+                            adminProvider,
+                            queryId,
                             context);
 
-                    var items = query.ReadResult(reader);
-                    if (items is null)
-                    {
-                        return null;
+                        return await ReadPage(
+                            queryId,
+                            token,
+                            context);
                     }
-
-                    var newContinuationToken = items.Count < pageSize
-                        ? null
-                        : new PagedContinuationToken(token.Nonce, itemsReturned + items.Count).ToString();
-
-                    return new PagedResult<T>(items, newContinuationToken);
                 },
                 cancellationToken);
         }
@@ -153,5 +146,70 @@ internal sealed partial class ExistingPagedStoredQueryHandler<T> : IScriptHandle
             LogUnhandledException(ex);
             return null;
         }
+    }
+
+    /// <summary>
+    /// Reads the page after <see cref="PagedContinuationToken.ItemsReturned"/> from the stored query result.
+    /// </summary>
+    /// <exception cref="SemanticException">Thrown when the stored query result doesn't exist.</exception>
+    private async Task<PagedResult<T>?> ReadPage(
+        string queryId,
+        PagedContinuationToken token,
+        CancellationToken cancellationToken)
+    {
+        var clientRequestProperties = query.GetClientRequestProperties();
+
+        // No specific AtcQueryOptions available here; default to enabling server-side cancel when adminProvider is present.
+        using var serverSideCancellationRegistration = adminProvider?.RegisterKustoServerSideCancellation(
+            logger,
+            databaseName: null,
+            clientRequestProperties,
+            cancellationToken);
+
+        using var reader = await queryProvider
+            .ExecuteQueryAsync(
+                databaseName: null,
+                StoredQueryResultCommands.CreatePageQuery(
+                    queryId,
+                    token.ItemsReturned,
+                    pageSize),
+                clientRequestProperties,
+                cancellationToken);
+
+        var items = query.ReadResult(reader);
+        if (items is null)
+        {
+            return null;
+        }
+
+        // A page past the last row is empty, which is a valid page and ends the paging.
+        var newContinuationToken = items.Count < pageSize
+            ? null
+            : new PagedContinuationToken(token.Nonce, token.ItemsReturned + items.Count).ToString();
+
+        return new PagedResult<T>(items, newContinuationToken);
+    }
+
+    /// <summary>
+    /// Runs the query again and stores its result under <paramref name="queryId"/>.
+    /// </summary>
+    /// <remarks>
+    /// The control command can't be cancelled by the Kusto SDK, so <paramref name="cancellationToken"/> is checked
+    /// before it is sent.
+    /// </remarks>
+    private async Task RecreateStoredQueryResult(
+        ICslAdminProvider admin,
+        string queryId,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var reader = await admin.ExecuteControlCommandAsync(
+            databaseName: null,
+            StoredQueryResultCommands.CreateSetOrReplace(
+                query,
+                queryId,
+                pageSize),
+            query.GetClientRequestProperties());
     }
 }
