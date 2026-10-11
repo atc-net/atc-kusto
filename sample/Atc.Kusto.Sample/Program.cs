@@ -19,15 +19,6 @@ serviceCollection.ConfigureAzureDataExplorer(
     },
     "ContosoSales");
 
-serviceCollection.ConfigureAzureDataExplorer(
-    o =>
-    {
-        o.HostAddress = new Uri("https://help.kusto.windows.net/");
-        o.DatabaseName = "Samples";
-        o.Credential = new DefaultAzureCredential();
-    },
-    "Samples");
-
 var serviceProvider = serviceCollection.BuildServiceProvider();
 
 var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
@@ -35,21 +26,21 @@ var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
 var kustoProcessorFactory = serviceProvider.GetRequiredService<IKustoProcessorFactory>();
 
 var contosoSalesKustoProcessor = kustoProcessorFactory.Create("ContosoSales");
-var samplesKustoProcessor = kustoProcessorFactory.Create("Samples");
+
+// Another database on the same cluster: the same connection, with the database chosen per processor.
+var samplesKustoProcessor = kustoProcessorFactory.Create("ContosoSales", databaseName: "Samples");
 
 logger.LogInformation("Querying by existing customer");
-var customerByIdQueryExisting = new CustomerByIdQuery(145);
-var customerByIdQueryResult = await contosoSalesKustoProcessor.ExecuteQuery(customerByIdQueryExisting, cancellationToken: CancellationToken.None);
+var customerByIdQueryResult = await contosoSalesKustoProcessor.ExecuteQuery(new CustomerByIdQuery(145), cancellationToken: CancellationToken.None);
 logger.LogInformation("\tCustomer Name for Id 145: {CustomerName}", customerByIdQueryResult?.FirstOrDefault()?.FirstName ?? "Unknown");
 
 logger.LogInformation("Querying by non-existing customer");
-var customerByIdQueryNonExisting = new CustomerByIdQuery(long.MaxValue);
-var customerByIdQueryNonExistingResult = await contosoSalesKustoProcessor.ExecuteQuery(customerByIdQueryNonExisting, cancellationToken: CancellationToken.None);
-logger.LogInformation(customerByIdQueryNonExistingResult?.Length > 1
+var customerByIdQueryNonExistingResult = await contosoSalesKustoProcessor.ExecuteQuery(new CustomerByIdQuery(long.MaxValue), cancellationToken: CancellationToken.None);
+logger.LogInformation(customerByIdQueryNonExistingResult?.Length > 0
     ? "\tIncorrectly found non-existing customer"
     : "\tDid not find non-existing customer as expected");
 
-logger.LogInformation("Querying for customer genders and counts");
+logger.LogInformation("Querying for customer genders and counts (a query with several result sets)");
 var customersSplitByGenderQueryResult = await contosoSalesKustoProcessor.ExecuteQuery(new CustomersSplitByGenderQuery(), cancellationToken: CancellationToken.None);
 foreach (var customerGenderCount in customersSplitByGenderQueryResult!.Counts)
 {
@@ -75,7 +66,7 @@ using (var queryCts1 = new CancellationTokenSource(TimeSpan.FromMilliseconds(100
     }
     catch (OperationCanceledException ex)
     {
-        logger.LogInformation(ex, "\tQuery was canceled as expected (server received cancel command).");
+        logger.LogInformation(ex, "\tQuery was canceled as expected (the query was also cancelled on the cluster).");
     }
 }
 
@@ -92,194 +83,156 @@ using (var queryCts2 = new CancellationTokenSource(TimeSpan.FromMilliseconds(100
     }
     catch (OperationCanceledException ex)
     {
-        logger.LogInformation(ex, "\tQuery was canceled (server did NOT receive cancel command, continues running).");
+        logger.LogInformation(ex, "\tQuery was canceled (the query keeps running on the cluster until it completes).");
     }
 }
 
-logger.LogInformation("Querying storm events");
+logger.LogInformation("Querying storm events (in the Samples database)");
 var stormEventsResult = await samplesKustoProcessor.ExecuteQuery(new StormEventsQuery(), cancellationToken: CancellationToken.None);
-if (stormEventsResult is not null)
+logger.LogInformation("\tFound {Count} storm events.", stormEventsResult!.Length);
+foreach (var stormEvent in stormEventsResult)
 {
-    logger.LogInformation("\tFound {Count} storm events.", stormEventsResult.Length);
-
-    foreach (var stormEvent in stormEventsResult)
-    {
-        logger.LogInformation(
-            "\t{StartTime}\t{EventType,-20}\t{State}",
-            stormEvent.StartTime.ToString(CultureInfo.InvariantCulture),
-            stormEvent.EventType,
-            stormEvent.State);
-    }
+    logger.LogInformation(
+        "\t{StartTime}\t{EventType,-20}\t{State}",
+        stormEvent.StartTime.ToString(CultureInfo.InvariantCulture),
+        stormEvent.EventType,
+        stormEvent.State);
 }
 
 var streamingQuery = new CustomersStreamingQuery();
 
-logger.LogInformation("Streaming customers without streaming query result..");
-
-var countWithoutStreamingQueryResult = 0;
+logger.LogInformation("Direct streaming of customers...");
+var directCount = 0;
 await foreach (var customer in contosoSalesKustoProcessor.ExecuteStreamingQuery(streamingQuery, CancellationToken.None))
 {
-    logger.LogInformation("\t {FirstName} {LastName}", customer.FirstName, customer.LastName);
-    countWithoutStreamingQueryResult++;
+    if (directCount < 3)
+    {
+        logger.LogInformation("\t{FirstName} {LastName}", customer.FirstName, customer.LastName);
+    }
+
+    directCount++;
 }
 
-logger.LogInformation("Streamed {CountWithoutStreamingQueryResult} customers without streaming query result", countWithoutStreamingQueryResult);
-logger.LogInformation("Streaming without streaming query result complete.");
+logger.LogInformation("\tStreamed {Count} customers.", directCount);
 
-logger.LogInformation("Executing streaming query with streaming query result");
-
+logger.LogInformation("Buffered streaming of customers (with header, schemas and completion)...");
 var streamingResult = await contosoSalesKustoProcessor.ExecuteBufferedStreamingQuery(
     streamingQuery,
     CancellationToken.None);
 
-if (streamingResult is null)
+if (streamingResult?.Completion?.HasErrors == true)
 {
-    logger.LogInformation("No streaming result received.");
-    return;
+    logger.LogWarning("\tThe query failed: {ErrorMessage}", streamingResult.Completion.ErrorMessage);
 }
-
-var countWithStreamingQueryResult = 0;
-await foreach (var customer in streamingResult.Rows.WithCancellation(CancellationToken.None))
+else if (streamingResult is not null)
 {
-    logger.LogInformation("\t {FirstName} {LastName}", customer.FirstName, customer.LastName);
-    countWithStreamingQueryResult++;
-}
-
-logger.LogInformation("Streamed {CountWithStreamingQueryResult} customers with frames.", countWithStreamingQueryResult);
-
-logger.LogInformation(streamingResult.Header is not null
-    ? $"Header: Version={streamingResult.Header.Version}, Progressive={streamingResult.Header.IsProgressive}"
-    : "No header received.");
-
-if (streamingResult.TableSchemas is not null && streamingResult.TableSchemas.Count > 0)
-{
-    foreach (var schema in streamingResult.TableSchemas)
+    var bufferedCount = 0;
+    await foreach (var customer in streamingResult.Rows.WithCancellation(CancellationToken.None))
     {
-        logger.LogInformation($"Schema for table '{schema.TableName}':");
-        foreach (var col in schema.Columns)
-        {
-            logger.LogInformation($"\tColumn: {col.Name} (Type: {col.Type})");
-        }
+        bufferedCount++;
+    }
+
+    logger.LogInformation(
+        "\tRead {Count} customers. Header: Version={Version}, Progressive={IsProgressive}",
+        bufferedCount,
+        streamingResult.Header?.Version,
+        streamingResult.Header?.IsProgressive);
+
+    foreach (var schema in streamingResult.TableSchemas ?? [])
+    {
+        logger.LogInformation(
+            "\tSchema for table {TableName}: {Columns}",
+            schema.TableName,
+            string.Join(", ", schema.Columns.Select(c => $"{c.Name} ({c.Type})")));
     }
 }
-else
+
+logger.LogInformation("Streaming customer names, mapped by the query's own MapRecord...");
+var nameCount = 0;
+await foreach (var name in contosoSalesKustoProcessor.ExecuteStreamingQuery(new CustomerNamesStreamingQuery(), CancellationToken.None))
 {
-    logger.LogInformation("No table schema information received.");
+    if (nameCount < 3)
+    {
+        logger.LogInformation("\t{Name}", name);
+    }
+
+    nameCount++;
 }
 
-logger.LogInformation(streamingResult.Completion is not null
-    ? $"Completion: HasErrors={streamingResult.Completion.HasErrors}" +
-      (!string.IsNullOrEmpty(streamingResult.Completion.ErrorMessage)
-          ? $", Error Message: {streamingResult.Completion.ErrorMessage}"
-          : string.Empty)
-    : "No completion summary received.");
+logger.LogInformation("\tStreamed {Count} names.", nameCount);
 
-logger.LogInformation("Streaming with streaming query result complete.");
-
-// Warm up connection by fetching first row to establish connection and authenticate
-logger.LogInformation("Warming up Kusto connection...");
-var warmupEnumerator = contosoSalesKustoProcessor.ExecuteStreamingQuery(streamingQuery, CancellationToken.None).GetAsyncEnumerator();
-
-try
-{
-    await warmupEnumerator.MoveNextAsync();
-    logger.LogInformation("Connection established.");
-}
-finally
-{
-    await warmupEnumerator.DisposeAsync();
-}
-
-// Demonstrate streaming with decimal conversion (CustomerSales has decimal fields)
-logger.LogInformation("Streaming customer sales (testing SqlDecimal to decimal conversion)...");
+// Kusto decimals arrive as SqlDecimal and are mapped to decimal properties.
+logger.LogInformation("Direct streaming of customer sales (decimal values)...");
 var salesStreamingQuery = new CustomerSalesStreamingQuery();
 var salesCount = 0;
-
 await foreach (var sale in contosoSalesKustoProcessor.ExecuteStreamingQuery(salesStreamingQuery, CancellationToken.None))
 {
     if (salesCount < 3)
     {
-        // Log first 3 to verify decimal conversion works
         logger.LogInformation(
             "\tCustomer {CustomerName}: SalesAmount={SalesAmount:C}, TotalCost={TotalCost:C}",
             sale.CustomerName,
-            sale.SalesAmount,  // SqlDecimal → decimal conversion via DataReaderExtensions!
+            sale.SalesAmount,
             sale.TotalCost);
     }
 
     salesCount++;
 }
 
-logger.LogInformation("Streamed {SalesCount} customer sales records with decimal values", salesCount);
+logger.LogInformation("\tStreamed {SalesCount} customer sales.", salesCount);
 
-// Demonstrate buffered streaming with decimal conversion
-logger.LogInformation("Executing buffered streaming query for customer sales (testing SqlDecimal to decimal conversion)...");
-
-var salesBufferedResult = await contosoSalesKustoProcessor.ExecuteBufferedStreamingQuery(
+// Progressive mode: Kusto may send a preview of a summarize and replace it later. Buffered streaming
+// applies the replace before handing out rows, so it's the safe way to use progressive mode.
+logger.LogInformation("Buffered streaming of customer sales with progressive mode...");
+var progressiveResult = await contosoSalesKustoProcessor.ExecuteBufferedStreamingQuery(
     salesStreamingQuery,
+    new AtcStreamingQueryOptions { ProgressiveEnabled = true },
     CancellationToken.None);
 
-if (salesBufferedResult is not null)
+if (progressiveResult is not null)
 {
-    var bufferedSalesCount = 0;
-    await foreach (var sale in salesBufferedResult.Rows.WithCancellation(CancellationToken.None))
+    var progressiveCount = 0;
+    await foreach (var sale in progressiveResult.Rows.WithCancellation(CancellationToken.None))
     {
-        if (bufferedSalesCount < 3)
-        {
-            // Log first 3 to verify decimal conversion works
-            logger.LogInformation(
-                "\tCustomer {CustomerName}: SalesAmount={SalesAmount:C}, TotalCost={TotalCost:C}",
-                sale.CustomerName,
-                sale.SalesAmount,  // SqlDecimal → decimal conversion via DataRowExtensions!
-                sale.TotalCost);
-        }
-
-        bufferedSalesCount++;
+        progressiveCount++;
     }
 
-    logger.LogInformation("Buffered streaming processed {BufferedSalesCount} records with decimals", bufferedSalesCount);
-
-    if (salesBufferedResult.Completion is not null)
-    {
-        logger.LogInformation(
-            "Sales streaming completion: HasErrors={HasErrors}",
-            salesBufferedResult.Completion.HasErrors);
-    }
+    logger.LogInformation(
+        "\tRead {Count} customer sales. Progressive={IsProgressive}, table completions={TableCompletions}, HasErrors={HasErrors}",
+        progressiveCount,
+        progressiveResult.Header?.IsProgressive,
+        progressiveResult.Completion?.TableCompletions?.Count,
+        progressiveResult.Completion?.HasErrors);
 }
 
 // Demonstrate cancellation with server-side cancel enabled (default)
-logger.LogInformation("Demonstrating cancellation of a long-running streaming query (server-side cancel enabled)...");
+logger.LogInformation("Demonstrating cancellation of a streaming query (server-side cancel enabled)...");
 var rowCount = 0;
-using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1)))
+using (var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100)))
 {
     try
     {
-        await foreach (var x in contosoSalesKustoProcessor.ExecuteStreamingQuery(streamingQuery, cts.Token))
+        await foreach (var customer in contosoSalesKustoProcessor.ExecuteStreamingQuery(streamingQuery, cts.Token))
         {
-            if (rowCount == 0)
-            {
-                logger.LogInformation("Received first row at {Time}", DateTime.Now);
-            }
-
             rowCount++;
         }
 
-        logger.LogInformation("Streaming query completed successfully after receiving {RowCount} rows.", rowCount);
+        logger.LogInformation("\tStreaming query completed after {RowCount} rows, before it was cancelled.", rowCount);
     }
     catch (OperationCanceledException ex)
     {
-        logger.LogInformation(ex, "Streaming query was canceled as expected after receiving {RowCount} rows. (server - side cancel ENABLED)", rowCount);
+        logger.LogInformation(ex, "\tStreaming query was canceled after {RowCount} rows; it was also cancelled on the cluster.", rowCount);
     }
 }
 
 // Demonstrate cancellation with server-side cancel disabled
-logger.LogInformation("Demonstrating cancellation with server-side cancel disabled...");
+logger.LogInformation("Demonstrating cancellation of a streaming query (server-side cancel disabled)...");
 var rowCount2 = 0;
-using (var cts2 = new CancellationTokenSource(TimeSpan.FromSeconds(1)))
+using (var cts2 = new CancellationTokenSource(TimeSpan.FromMilliseconds(100)))
 {
     try
     {
-        await foreach (var x in contosoSalesKustoProcessor.ExecuteStreamingQuery(
+        await foreach (var customer in contosoSalesKustoProcessor.ExecuteStreamingQuery(
                            streamingQuery,
                            new AtcStreamingQueryOptions { EnableServerSideCancellation = false },
                            cts2.Token))
@@ -287,13 +240,13 @@ using (var cts2 = new CancellationTokenSource(TimeSpan.FromSeconds(1)))
             rowCount2++;
         }
 
-        logger.LogInformation("Streaming query completed successfully after receiving {RowCount} rows.", rowCount2);
+        logger.LogInformation("\tStreaming query completed after {RowCount} rows, before it was cancelled.", rowCount2);
     }
     catch (OperationCanceledException ex)
     {
-        logger.LogInformation(ex, "Streaming query was canceled after receiving {RowCount} rows. (server - side cancel DISABLED)", rowCount2);
+        logger.LogInformation(ex, "\tStreaming query was canceled after {RowCount} rows; it keeps running on the cluster.", rowCount2);
     }
 }
 
-logger.LogInformation("Press any key to exit");
+logger.LogInformation("Press Enter to exit");
 Console.ReadLine();

@@ -7,21 +7,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Queries\CustomerByIdQuery.kusto" />
-    <None Remove="Queries\CustomerSalesQuery.kusto" />
-    <None Remove="Queries\CustomersSplitByGenderQuery.kusto" />
-    <None Remove="Queries\StormEventsQuery.kusto" />
-    <None Remove="Queries\CustomersStreamingQuery.kusto" />
-    <None Remove="Queries\CustomerSalesStreamingQuery.kusto" />
-  </ItemGroup>
+    <!-- Embeds the .kusto files, which the queries load at runtime -->
+    <EmbeddedResource Include="**/*.kusto" />
 
-  <ItemGroup>
-    <EmbeddedResource Include="Queries\CustomerByIdQuery.kusto" />
-    <EmbeddedResource Include="Queries\CustomerSalesQuery.kusto" />
-    <EmbeddedResource Include="Queries\CustomersSplitByGenderQuery.kusto" />
-    <EmbeddedResource Include="Queries\StormEventsQuery.kusto" />
-    <EmbeddedResource Include="Queries\CustomersStreamingQuery.kusto" />
-    <EmbeddedResource Include="Queries\CustomerSalesStreamingQuery.kusto" />
+    <!-- Lets the Atc.Kusto analyzer read the .kusto files (it runs when Atc.Kusto comes from the NuGet package) -->
+    <AdditionalFiles Include="**/*.kusto" />
   </ItemGroup>
 
   <ItemGroup>

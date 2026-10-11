@@ -1,0 +1,4 @@
+Customers
+| project
+    FirstName,
+    LastName
