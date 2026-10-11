@@ -6,18 +6,24 @@ namespace Atc.Kusto.HealthChecks;
 public sealed partial class KustoClusterDiagnosticsHealthCheck : IKustoClusterDiagnosticsHealthCheck
 {
     private readonly IKustoProcessorFactory processorFactory;
+    private readonly TimeProvider timeProvider;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="KustoClusterDiagnosticsHealthCheck"/> class.
     /// </summary>
-    /// <param name="processorFactory">The factory used to create Kusto processor instances.</param>
     /// <param name="logger">The logger instance.</param>
+    /// <param name="processorFactory">The factory used to create Kusto processor instances.</param>
+    /// <param name="timeProvider">
+    /// The time provider that measures the duration of the check. Default is <see cref="TimeProvider.System"/>.
+    /// </param>
     public KustoClusterDiagnosticsHealthCheck(
         ILogger<KustoClusterDiagnosticsHealthCheck> logger,
-        IKustoProcessorFactory processorFactory)
+        IKustoProcessorFactory processorFactory,
+        TimeProvider? timeProvider = null)
     {
         this.logger = logger;
         this.processorFactory = processorFactory;
+        this.timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     /// <inheritdoc />
@@ -26,7 +32,7 @@ public sealed partial class KustoClusterDiagnosticsHealthCheck : IKustoClusterDi
         string? databaseName = null,
         CancellationToken cancellationToken = default)
     {
-        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var startTimestamp = timeProvider.GetTimestamp();
 
         try
         {
@@ -36,7 +42,7 @@ public sealed partial class KustoClusterDiagnosticsHealthCheck : IKustoClusterDi
                 new KustoHealthCheckQuery(),
                 cancellationToken: cancellationToken);
 
-            stopwatch.Stop();
+            var duration = timeProvider.GetElapsedTime(startTimestamp);
 
             if (clusterDiagnostics is null ||
                 clusterDiagnostics.Length == 0)
@@ -48,7 +54,7 @@ public sealed partial class KustoClusterDiagnosticsHealthCheck : IKustoClusterDi
                     isAttentionRequired: true,
                     attentionRequiredReason: "No diagnostic data returned from cluster",
                     isScaleOutRequired: false,
-                    duration: stopwatch.Elapsed);
+                    duration: duration);
             }
 
             var result = new KustoHealthCheckResult(
@@ -57,7 +63,7 @@ public sealed partial class KustoClusterDiagnosticsHealthCheck : IKustoClusterDi
                 isAttentionRequired: clusterDiagnostics[0].IsAttentionRequired == 1,
                 attentionRequiredReason: clusterDiagnostics[0].AttentionRequiredReason,
                 isScaleOutRequired: clusterDiagnostics[0].IsScaleOutRequired == 1,
-                duration: stopwatch.Elapsed);
+                duration: duration);
 
             if (!result.IsHealthy)
             {
@@ -73,7 +79,7 @@ public sealed partial class KustoClusterDiagnosticsHealthCheck : IKustoClusterDi
             }
             else
             {
-                LogHealthCheckSucceeded(stopwatch.ElapsedMilliseconds);
+                LogHealthCheckSucceeded((long)duration.TotalMilliseconds);
             }
 
             return result;
@@ -84,7 +90,7 @@ public sealed partial class KustoClusterDiagnosticsHealthCheck : IKustoClusterDi
         }
         catch (Exception ex)
         {
-            stopwatch.Stop();
+            var duration = timeProvider.GetElapsedTime(startTimestamp);
             LogHealthCheckException(ex, ex.Message);
 
             return new KustoHealthCheckResult(
@@ -93,7 +99,7 @@ public sealed partial class KustoClusterDiagnosticsHealthCheck : IKustoClusterDi
                 isAttentionRequired: true,
                 attentionRequiredReason: "Health check failed with exception",
                 isScaleOutRequired: false,
-                duration: stopwatch.Elapsed);
+                duration: duration);
         }
     }
 }

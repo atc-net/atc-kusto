@@ -24,7 +24,7 @@ public sealed class KustoIngestorTests
 
         ReturnsFromClient(KustoIngestionStatus.Succeeded);
 
-        sut = new KustoIngestor(NullLogger<KustoIngestor>.Instance, provider, monitor);
+        sut = new KustoIngestor(NullLogger<KustoIngestor>.Instance, provider, monitor, TimeProvider.System);
     }
 
     [Fact]

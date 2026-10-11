@@ -71,6 +71,39 @@ public sealed class ServiceCollectionExtensionsTests
         services.Count(d => d.ServiceType == typeof(IKustoClusterDiagnosticsHealthCheck)).Should().Be(1);
         services.Count(d => d.ServiceType == typeof(IKustoProcessor)).Should().Be(1);
         services.Count(d => d.ServiceType == typeof(ResiliencePipeline)).Should().Be(1);
+        services.Count(d => d.ServiceType == typeof(TimeProvider)).Should().Be(1);
+    }
+
+    [Theory, AutoNSubstituteData]
+    public void TimeProvider_Defaults_To_The_System_Clock(
+        Azure.Core.TokenCredential credential)
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        services.ConfigureAzureDataExplorer(HostAddress, "Db", credential);
+
+        // Act
+        using var provider = services.BuildServiceProvider();
+
+        // Assert
+        provider.GetRequiredService<TimeProvider>().Should().BeSameAs(TimeProvider.System);
+    }
+
+    [Theory, AutoNSubstituteData]
+    public void A_TimeProvider_Registered_By_The_Consumer_Beforehand_Is_Kept(
+        Azure.Core.TokenCredential credential)
+    {
+        // Arrange
+        var timeProvider = new FakeTimeProvider();
+        var services = new ServiceCollection();
+        services.AddSingleton<TimeProvider>(timeProvider);
+
+        // Act
+        services.ConfigureAzureDataExplorer(HostAddress, "Db", credential);
+        using var provider = services.BuildServiceProvider();
+
+        // Assert
+        provider.GetRequiredService<TimeProvider>().Should().BeSameAs(timeProvider);
     }
 
     [Theory, AutoNSubstituteData]
