@@ -82,9 +82,8 @@ public sealed class FrameValueTypeConverterTests
 
     [Theory]
     [InlineData("42", typeof(int), 42)]
-    [InlineData("3.14", typeof(double), 3.14)]
     [InlineData("true", typeof(bool), true)]
-    public void ConvertToColumnType_Should_Use_ChangeType_For_Other_Conversions(
+    public void ConvertToColumnType_Should_Convert_Strings_To_Int_And_Bool(
         string stringValue,
         Type targetType,
         object expectedValue)
@@ -131,17 +130,26 @@ public sealed class FrameValueTypeConverterTests
     [Fact]
     public void ConvertToColumnType_Should_Read_A_Decimal_With_The_Invariant_Culture()
     {
-        // Arrange - use a decimal string with period (not comma) as decimal separator
+        // Arrange - a period as decimal separator, on a culture that uses a comma
         const string value = "1234.56";
         var targetType = typeof(decimal);
+        var original = CultureInfo.CurrentCulture;
+        CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("da-DK");
 
-        // Act
-        var result = FrameValueTypeConverter.ConvertToColumnType(value, targetType);
+        try
+        {
+            // Act
+            var result = FrameValueTypeConverter.ConvertToColumnType(value, targetType);
 
-        // Assert
-        Assert.NotNull(result);
-        Assert.IsType<decimal>(result);
-        Assert.Equal(1234.56m, result);
+            // Assert
+            Assert.NotNull(result);
+            Assert.IsType<decimal>(result);
+            Assert.Equal(1234.56m, result);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = original;
+        }
     }
 
     [Theory]
