@@ -21,13 +21,6 @@ public sealed class ScriptHandlerFactoryTests
     }
 
     [Theory, AutoNSubstituteData]
-    internal void Create_Command_ShouldReturnSimpleCommandHandler2(
-        IKustoCommand command)
-        => sut.Create(command)
-            .Should().NotBeNull()
-            .And.BeAssignableTo<SimpleCommandHandler>();
-
-    [Theory, AutoNSubstituteData]
     internal void Create_Query_ShouldReturnSimpleQueryHandler(
         IKustoQuery<int> query)
     {

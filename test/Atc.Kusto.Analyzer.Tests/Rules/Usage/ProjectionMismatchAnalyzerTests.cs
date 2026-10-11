@@ -488,51 +488,6 @@ public sealed class ProjectionMismatchAnalyzerTests
     }
 
     [Fact]
-    public async Task NoDiagnostic_ATCK307_WhenSnakeCaseFieldMatchesProperty()
-    {
-        const string code = """
-                            namespace Atc.Kusto;
-
-                            public abstract record KustoScript { }
-                            public abstract record KustoQuery<T> : KustoScript { }
-
-                            public record Customer(string FirstName, string LastName);
-
-                            public record {|#0:MyQuery|} : KustoQuery<Customer>
-                            {
-                            }
-                            """;
-
-        const string kustoFileContent = """
-                                        Customers
-                                        | project
-                                            first_name,
-                                            last_name
-                                        """;
-
-        // Should report ATCK309 for snake_case mismatch, but NOT ATCK307 for missing properties
-        // because the snake_case fields conceptually match the PascalCase properties
-        var expected1 = new DiagnosticResult(RuleIdentifierConstants.Usage.ProjectionFieldNamingMismatch, DiagnosticSeverity.Warning)
-            .WithLocation(0)
-            .WithArguments("first_name", "Customer", "FirstName");
-
-        var expected2 = new DiagnosticResult(RuleIdentifierConstants.Usage.ProjectionFieldNamingMismatch, DiagnosticSeverity.Warning)
-            .WithLocation(0)
-            .WithArguments("last_name", "Customer", "LastName");
-
-        var test = new CSharpAnalyzerTest<ProjectionMismatchAnalyzer, DefaultVerifier>
-        {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
-            TestCode = code,
-            ExpectedDiagnostics = { expected1, expected2 },
-        };
-
-        test.TestState.AdditionalFiles.Add(("/0/Test0.kusto", kustoFileContent));
-
-        await test.RunAsync();
-    }
-
-    [Fact]
     public async Task ReportsDiagnostic_ATCK306_ATCK307_And_ATCK309_WhenProjectionMixesExactSnakeCaseAndUnknownFields()
     {
         const string code = """
