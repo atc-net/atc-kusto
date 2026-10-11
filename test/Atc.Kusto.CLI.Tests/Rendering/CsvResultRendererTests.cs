@@ -28,7 +28,7 @@ public sealed class CsvResultRendererTests
     }
 
     [Fact]
-    public void Render_EscapesSpecialCharacters()
+    public void Render_QuotesFieldsWithCommasLineBreaksOrQuotes_AndDoublesEmbeddedQuotes()
     {
         // Arrange
         var renderer = new CsvResultRenderer();
@@ -47,6 +47,7 @@ public sealed class CsvResultRendererTests
         // Assert
         var output = writer.ToString();
         output.Should().Contain("\"alpha,beta\"");
+        output.Should().Contain($"\"line1{Environment.NewLine}line2\"");
         output.Should().Contain("\"he said \"\"hi\"\"\"");
     }
 
