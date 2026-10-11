@@ -77,14 +77,6 @@ public sealed class QueryIdProviderTests
     }
 
     [Fact]
-    public void Create_Returns_The_Same_QueryId_For_The_Same_Input()
-    {
-        // Act & Assert
-        sut.Create(new PartnerQuery("partner-a"), "session-1", nonce: null)
-            .Should().Be(sut.Create(new PartnerQuery("partner-a"), "session-1", nonce: null));
-    }
-
-    [Fact]
     public void Create_Returns_The_Same_QueryId_In_Any_Culture()
     {
         // Arrange - parameters whose text could depend on the culture

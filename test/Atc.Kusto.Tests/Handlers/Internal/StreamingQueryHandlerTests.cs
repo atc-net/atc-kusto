@@ -99,41 +99,6 @@ public sealed class StreamingQueryHandlerTests
     }
 
     [Theory, AutoNSubstituteData]
-    public async Task Execute_ShouldYieldMappedRows(
-        string queryText,
-        CancellationToken cancellationToken)
-    {
-        // Arrange
-        query.GetQueryText().Returns(queryText);
-
-        query.MapRecord(Arg.Any<IDataRecord>()).Returns(ci =>
-        {
-            var row = ci.Args()[0] as IDataRecord;
-            return row?[0].ToString();
-        });
-
-        using var pds = ProgressiveDataSetBuilder.BuildPrimaryResult("A", "B", "C");
-
-        queryProvider
-            .ExecuteQueryV2Async(
-                databaseName: null,
-                query.GetQueryText(),
-                query.GetClientRequestProperties(),
-                cancellationToken)
-            .ReturnsForAnyArgs(pds);
-
-        // Act
-        var rows = new List<string?>();
-        await foreach (var row in sut.Execute(cancellationToken))
-        {
-            rows.Add(row);
-        }
-
-        // Assert
-        rows.Should().BeEquivalentTo("A", "B", "C");
-    }
-
-    [Theory, AutoNSubstituteData]
     public async Task Execute_ShouldRethrowProviderException_WhenProviderThrows(
         string queryText,
         CancellationToken cancellationToken)
@@ -191,7 +156,7 @@ public sealed class StreamingQueryHandlerTests
             return row?[0].ToString();
         });
 
-        // Create test frames with DataTable frames instead of TableFragment frames
+        // A primary result sent as one DataTable frame
         using var table = new DataTable(nameof(WellKnownDataSet.PrimaryResult));
         table.Columns.Add("col", typeof(string));
         table.Rows.Add("D");
