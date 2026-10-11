@@ -30,6 +30,34 @@ internal static class StoredQueryResultCommands
     }
 
     /// <summary>
+    /// Creates the command that shows the stored query result's metadata, including its <c>RowCount</c>.
+    /// It doesn't run the query again.
+    /// </summary>
+    /// <param name="queryId">The queryId (the stored query result name).</param>
+    /// <returns>The <c>.show stored_query_results</c> command.</returns>
+    public static string CreateShowStoredQueryResult(string queryId)
+        => $".show stored_query_results ['{queryId}']";
+
+    /// <summary>
+    /// Reads the <c>RowCount</c> from the result of <see cref="CreateShowStoredQueryResult"/>.
+    /// </summary>
+    /// <param name="reader">The result of the command.</param>
+    /// <returns>The number of rows, or <see langword="null"/> when the result has no row count.</returns>
+    public static long? ReadRowCount(IDataReader reader)
+    {
+        if (!reader.Read())
+        {
+            return null;
+        }
+
+        var value = reader.GetValue(reader.GetOrdinal("RowCount"));
+
+        return value is null or DBNull
+            ? null
+            : Convert.ToInt64(value, CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>
     /// Creates the query that reads the page after the first <paramref name="itemsReturned"/> rows.
     /// </summary>
     /// <param name="queryId">The queryId (the stored query result name).</param>

@@ -9,6 +9,7 @@ internal sealed class NewPagedStoredQueryHandler<T> : IScriptHandler<PagedResult
     private readonly string? sessionId;
     private readonly int pageSize;
     private readonly TimeSpan expiration;
+    private readonly bool includeTotalCount;
 
     public NewPagedStoredQueryHandler(
         [FromKeyedServices(Constants.ResiliencePipelineKey)] ResiliencePipeline resiliencePipeline,
@@ -17,7 +18,8 @@ internal sealed class NewPagedStoredQueryHandler<T> : IScriptHandler<PagedResult
         IKustoQuery<IReadOnlyList<T>> query,
         string? sessionId,
         int pageSize,
-        TimeSpan expiration)
+        TimeSpan expiration,
+        bool includeTotalCount)
     {
         this.resiliencePipeline = resiliencePipeline;
         this.queryIdProvider = queryIdProvider;
@@ -26,6 +28,7 @@ internal sealed class NewPagedStoredQueryHandler<T> : IScriptHandler<PagedResult
         this.sessionId = sessionId;
         this.pageSize = pageSize;
         this.expiration = expiration;
+        this.includeTotalCount = includeTotalCount;
     }
 
     /// <summary>
@@ -76,11 +79,61 @@ internal sealed class NewPagedStoredQueryHandler<T> : IScriptHandler<PagedResult
             return null;
         }
 
-        var continuationToken = items.Count < pageSize
-            ? null
-            : new PagedContinuationToken(nonce, items.Count).ToString();
+        if (items.Count < pageSize)
+        {
+            // Not a full page, so these items are all there is.
+            return new PagedResult<T>(items, ContinuationToken: null)
+            {
+                TotalCount = includeTotalCount ? items.Count : null,
+            };
+        }
 
-        return new PagedResult<T>(items, continuationToken);
+        var totalCount = includeTotalCount
+            ? await ReadTotalCount(queryId, cancellationToken)
+            : null;
+
+        var continuationToken = PagedContinuationToken.CreateNext(
+            nonce,
+            itemsReturned: items.Count,
+            pageItemCount: items.Count,
+            pageSize,
+            totalCount);
+
+        return new PagedResult<T>(items, continuationToken?.ToString())
+        {
+            TotalCount = totalCount,
+        };
+    }
+
+    /// <summary>
+    /// Reads the number of rows in the stored result from its metadata, without running the query again.
+    /// </summary>
+    private async Task<long?> ReadTotalCount(
+        string queryId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await resiliencePipeline.ExecuteAsync(
+                async context =>
+                {
+                    // The command can't be cancelled, so it isn't sent once the caller has cancelled.
+                    context.ThrowIfCancellationRequested();
+
+                    using var reader = await adminProvider
+                        .ExecuteControlCommandAsync(
+                            databaseName: null,
+                            StoredQueryResultCommands.CreateShowStoredQueryResult(queryId),
+                            query.GetClientRequestProperties());
+
+                    return StoredQueryResultCommands.ReadRowCount(reader);
+                },
+                cancellationToken);
+        }
+        catch (Exception ex) when (CancellationExceptionUtilities.IsCancellation(ex, cancellationToken))
+        {
+            throw CancellationExceptionUtilities.NormalizeCancellationException(ex, cancellationToken);
+        }
     }
 
     /// <summary>

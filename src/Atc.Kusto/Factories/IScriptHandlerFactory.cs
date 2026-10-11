@@ -57,6 +57,7 @@ public interface IScriptHandlerFactory
     /// <param name="databaseName">
     /// Optional database name; the default database is used when <see langword="null"/>.
     /// </param>
+    /// <param name="options">The paged query options, or <see langword="null"/> to use the defaults.</param>
     /// <returns>
     /// An instance of <see cref="IScriptHandler{T}"/> capable of executing the paged query and returning a paged result
     /// of type <see cref="PagedResult{T}"/>.
@@ -67,7 +68,8 @@ public interface IScriptHandlerFactory
         int pageSize,
         string? continuationToken,
         string? connectionName = null,
-        string? databaseName = null);
+        string? databaseName = null,
+        AtcPagedQueryOptions? options = null);
 
     /// <summary>
     /// Creates an <see cref="IScriptHandler{T}"/> that executes a streaming Kusto query

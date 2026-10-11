@@ -445,6 +445,10 @@ public sealed class ExistingPagedStoredQueryHandlerTests
             continuationToken);
 
     private ExistingPagedStoredQueryHandler<string> CreateHandlerWithAdminProvider()
+        => CreateHandlerWithAdminProvider($"v2;{Nonce};{itemsReturned}");
+
+    private ExistingPagedStoredQueryHandler<string> CreateHandlerWithAdminProvider(
+        string continuationToken)
         => new(
             new NullLogger<ExistingPagedStoredQueryHandler<string>>(),
             ResiliencePipeline.Empty,
@@ -455,5 +459,101 @@ public sealed class ExistingPagedStoredQueryHandlerTests
             sessionId: null,
             pageSize,
             Expiration,
-            $"v2;{Nonce};{itemsReturned}");
+            continuationToken);
+
+    [Theory, AutoNSubstituteData]
+    internal async Task Execute_Carries_The_Total_Count_Of_The_Token_To_The_Next_Page(
+        IDataReader reader)
+    {
+        // Arrange
+        ReturnPage(reader, "A", "B", "C");
+        var handler = CreateHandler($"v2;{Nonce};{itemsReturned};{itemsReturned + 10}");
+
+        // Act
+        var result = await handler.Execute(CancellationToken.None);
+
+        // Assert
+        result!.TotalCount.Should().Be(itemsReturned + 10);
+        result.ContinuationToken.Should().Be($"v2;{Nonce};{itemsReturned + 3};{itemsReturned + 10}");
+    }
+
+    [Theory, AutoNSubstituteData]
+    internal async Task Execute_Returns_No_Continuation_Token_When_The_Total_Count_Is_Reached(
+        IDataReader reader)
+    {
+        // Arrange - a full page that reaches the total
+        ReturnPage(reader, "A", "B", "C");
+        var handler = CreateHandler($"v2;{Nonce};{itemsReturned};{itemsReturned + 3}");
+
+        // Act
+        var result = await handler.Execute(CancellationToken.None);
+
+        // Assert
+        result!.ContinuationToken.Should().BeNull();
+    }
+
+    [Theory, AutoNSubstituteData]
+    internal async Task Execute_Reads_The_Total_Count_Again_After_Running_The_Query_Again(
+        IDataReader reader)
+    {
+        // Arrange - the stored result has expired, and the new run has 50 rows instead of 10
+        queryProvider
+            .ExecuteQueryAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<ClientRequestProperties>(),
+                Arg.Any<CancellationToken>())
+            .Returns(
+                _ => Task.FromException<IDataReader>(new SemanticException()),
+                _ => Task.FromResult(reader));
+
+        query
+            .ReadResult(reader)
+            .Returns(["A", "B", "C"]);
+
+        using var showReader = CreateShowStoredQueryResultReader(rowCount: itemsReturned + 50);
+        adminProvider
+            .ExecuteControlCommandAsync(
+                Arg.Any<string?>(),
+                Arg.Is<string>(command => command.StartsWith(".show", StringComparison.Ordinal)),
+                Arg.Any<ClientRequestProperties>())
+            .Returns(showReader);
+
+        var handler = CreateHandlerWithAdminProvider($"v2;{Nonce};{itemsReturned};{itemsReturned + 10}");
+
+        // Act
+        var result = await handler.Execute(CancellationToken.None);
+
+        // Assert
+        result!.TotalCount.Should().Be(itemsReturned + 50);
+        result.ContinuationToken.Should().Be($"v2;{Nonce};{itemsReturned + 3};{itemsReturned + 50}");
+    }
+
+    private void ReturnPage(
+        IDataReader reader,
+        params string[] items)
+    {
+        queryProvider
+            .ExecuteQueryAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<ClientRequestProperties>(),
+                Arg.Any<CancellationToken>())
+            .Returns(reader);
+
+        query
+            .ReadResult(reader)
+            .Returns(items);
+    }
+
+    // The result of ".show stored_query_results", reduced to the column that is read.
+    private static DataTableReader CreateShowStoredQueryResultReader(
+        long rowCount)
+    {
+        using var table = new DataTable();
+        table.Columns.Add("RowCount", typeof(long));
+        table.Rows.Add(rowCount);
+
+        return table.CreateDataReader();
+    }
 }

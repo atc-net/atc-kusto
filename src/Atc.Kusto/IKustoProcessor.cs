@@ -79,6 +79,27 @@ public interface IKustoProcessor
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Executes a Kusto query asynchronously using a script handler created by the factory, and returns a paginated result set.
+    /// </summary>
+    /// <typeparam name="T">The type of items in the result set.</typeparam>
+    /// <param name="query">The Kusto query to be executed.</param>
+    /// <param name="sessionId">An optional session ID for tracking the query execution.</param>
+    /// <param name="pageSize">The number of items per page in the result set.</param>
+    /// <param name="continuationToken">An optional token to continue fetching results from a previous query execution.</param>
+    /// <param name="options">The paged query options, e.g. to include the total count, or <see langword="null"/> to use the defaults.</param>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A task representing the asynchronous operation. The task result contains the paginated result set.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="pageSize"/> is zero or negative.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is cancelled.</exception>
+    Task<PagedResult<T>?> ExecutePagedQuery<T>(
+        IKustoQuery<IReadOnlyList<T>> query,
+        string? sessionId,
+        int? pageSize,
+        string? continuationToken,
+        AtcPagedQueryOptions? options,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Executes a streaming query and returns a result containing both the rows and optional frame data
     /// (e.g. header, table schema, and completion summary).
     /// </summary>

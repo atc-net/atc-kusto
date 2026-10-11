@@ -62,11 +62,27 @@ public sealed class KustoProcessor : IKustoProcessor
     }
 
     /// <inheritdoc />
+    public Task<PagedResult<T>?> ExecutePagedQuery<T>(
+        IKustoQuery<IReadOnlyList<T>> query,
+        string? sessionId,
+        int? pageSize,
+        string? continuationToken,
+        CancellationToken cancellationToken = default)
+        => ExecutePagedQuery(
+            query,
+            sessionId,
+            pageSize,
+            continuationToken,
+            options: null,
+            cancellationToken);
+
+    /// <inheritdoc />
     public async Task<PagedResult<T>?> ExecutePagedQuery<T>(
         IKustoQuery<IReadOnlyList<T>> query,
         string? sessionId,
         int? pageSize,
         string? continuationToken,
+        AtcPagedQueryOptions? options,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -77,19 +93,27 @@ public sealed class KustoProcessor : IKustoProcessor
             throw new ArgumentOutOfRangeException(nameof(pageSize), pageSize, "The page size must be at least 1.");
         }
 
-        return pageSize is { } pageSizeValue
-            ? await factory
+        if (pageSize is { } pageSizeValue)
+        {
+            return await factory
                 .Create(
                     query,
                     sessionId,
                     pageSizeValue,
                     continuationToken,
                     ConnectionName,
-                    DatabaseName)
-                .Execute(cancellationToken)
-            : new PagedResult<T>(
-                Items: await ExecuteQuery(query, options: null, cancellationToken) ?? [],
-                ContinuationToken: null);
+                    DatabaseName,
+                    options)
+                .Execute(cancellationToken);
+        }
+
+        // No page size: one page with every item.
+        var items = await ExecuteQuery(query, options: null, cancellationToken) ?? [];
+
+        return new PagedResult<T>(items, ContinuationToken: null)
+        {
+            TotalCount = options?.IncludeTotalCount == true ? items.Count : null,
+        };
     }
 
     /// <inheritdoc />
