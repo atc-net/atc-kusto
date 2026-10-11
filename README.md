@@ -38,6 +38,7 @@ The library provides a streamlined interface for handling Kusto operations, maki
       - [List](#list)
       - [Complex with multiple result sets](#complex-with-multiple-result-sets)
     - [Executing a Kusto query](#executing-a-kusto-query)
+      - [Paged queries](#paged-queries)
       - [Choosing the connection and database per call](#choosing-the-connection-and-database-per-call)
     - [Executing streaming queries](#executing-streaming-queries)
       - [Direct streaming](#direct-streaming)
@@ -619,7 +620,9 @@ app.MapGet(
     .WithOpenApi();
 ```
 
-The processor can also perform pagination by using the `ExecutePagedQuery` overload, taking in a session id, a continuation token and a max item count, like this:
+#### Paged queries
+
+`ExecutePagedQuery` returns one page at a time. The first call runs the query once and saves the whole result in the cluster as a *stored query result*, then returns the first page and a `ContinuationToken`. Pass the token back to get the next page: it is read from the saved result, without running the query again. When `ContinuationToken` is `null`, there are no more pages.
 
 ```csharp
 app.MapGet(
@@ -640,9 +643,67 @@ app.MapGet(
     .WithOpenApi();
 ```
 
-The `pageSize` specifies how many items to return for each page. Each page is returned with a `continuationToken` that can be specified to fetch the next page.
+- `pageSize` is the number of items per page, and must be at least 1 (otherwise `ArgumentOutOfRangeException`). `null` runs the query once and returns every item in one page.
+- `sessionId` is optional. Without it, every call for page 1 saves a new stored result, so two users never share one. With it, starting again from page 1 with the same query and parameter values replaces that session's stored result instead of adding another one.
 
-The optional `sessionId` can be provided to optimize the use of storage on the ADX. If the same `sessionId` is specified for two calls they will share the underlying storage for pagination results.
+##### Continuation tokens
+
+A token looks like `v2;{nonce};{itemsReturned}`, followed by `;{totalCount}` when the [total count](#total-count) was requested. The nonce is a random value created on page 1 when there is no session id.
+
+The token doesn't contain the name of the stored result. The name is calculated on the server, on every page, from the query type, the query text, the parameter values, the session id and the nonce. So:
+
+- a token only continues the exact query it was created for. The same query with other parameter values (for example another customer) finds no stored result and returns `null`, never the rows of the first query;
+- a token that was edited can't point at another stored result.
+
+> Before 4.0 the token contained the name of the stored result. Tokens from earlier versions are not accepted: `ExecutePagedQuery` returns `null` for them, so a client that is paging during the upgrade starts again from page 1.
+
+##### When the stored result has expired
+
+The cluster deletes a stored result after `AtcKustoOptions.PagedResultExpiration`: 1 hour by default, and anything from 1 second to 24 hours (whole seconds). A page requested after that runs the query again, saves the new result under the same name, and returns the requested page.
+
+The new run uses the data as it is now, so rows that were added or removed in the meantime can shift between pages: a page can repeat rows or skip some. **End a paged query with an `order by` that includes a unique column**, such as `| order by Name asc, Id asc`, so a new run numbers the rows the same way. Without a sort order, the rows can come back in a completely different order. Sorting is cheap for lists that are paged through, and only page 1 (or a new run) runs the query.
+
+A longer expiration means fewer new runs, while the cluster keeps each result for longer:
+
+```csharp
+services.ConfigureAzureDataExplorer(options =>
+{
+    options.HostAddress = new Uri("https://mycluster.westeurope.kusto.windows.net");
+    options.DatabaseName = "MyDatabase";
+    options.Credential = new DefaultAzureCredential();
+    options.PagedResultExpiration = TimeSpan.FromHours(4);
+});
+```
+
+##### Total count
+
+To also get the total number of items across all pages, pass `AtcPagedQueryOptions`:
+
+```csharp
+var result = await processor.ExecutePagedQuery(
+    new CustomersQuery(),
+    sessionId,
+    pageSize: 100,
+    continuationToken,
+    new AtcPagedQueryOptions
+    {
+        IncludeTotalCount = true,
+    },
+    cancellationToken);
+
+long? total = result?.TotalCount;
+```
+
+The total count is opt-in: without it, `TotalCount` is `null` and nothing else changes. When it is requested:
+
+- when page 1 isn't full, its item count is the total;
+- when page 1 is full, the total is read once from the stored result's metadata (`.show stored_query_results`), which doesn't run the query again;
+- the total travels in the continuation token, so later pages need no extra call, and paging stops as soon as the total is reached;
+- after a new run of an expired result, the total is read again.
+
+##### Errors
+
+Temporary errors are retried on every page (see [Retries](#retries)). After that, an error on page 1 is thrown, while an error on a later page is logged and `ExecutePagedQuery` returns `null`.
 
 #### Choosing the connection and database per call
 
@@ -1130,7 +1191,7 @@ Both samples are querying the "ContosoSales" database of the Microsoft ADX sampl
 
 ## Retries
 
-Queries (`ExecuteQuery`, and the follow-up pages of `ExecutePagedQuery`) are retried automatically: up to **3 retries**, waiting 3, 6 and 12 seconds. Each retry is logged as a warning.
+Queries (`ExecuteQuery`, and every page of `ExecutePagedQuery`) are retried automatically: up to **3 retries**, waiting 3, 6 and 12 seconds. Each retry is logged as a warning. Page 1 of a paged query is created with a control command, which is safe to retry because it replaces the stored result.
 
 Only failures that can succeed on a later attempt are retried:
 
