@@ -2,6 +2,7 @@ namespace Atc.Kusto.Handlers.Internal;
 
 internal sealed class NewPagedStoredQueryHandler<T> : IScriptHandler<PagedResult<T>>
 {
+    private readonly ResiliencePipeline resiliencePipeline;
     private readonly IQueryIdProvider queryIdProvider;
     private readonly ICslAdminProvider adminProvider;
     private readonly IKustoQuery<IReadOnlyList<T>> query;
@@ -9,12 +10,14 @@ internal sealed class NewPagedStoredQueryHandler<T> : IScriptHandler<PagedResult
     private readonly int pageSize;
 
     public NewPagedStoredQueryHandler(
+        [FromKeyedServices(Constants.ResiliencePipelineKey)] ResiliencePipeline resiliencePipeline,
         IQueryIdProvider queryIdProvider,
         ICslAdminProvider adminProvider,
         IKustoQuery<IReadOnlyList<T>> query,
         string? sessionId,
         int pageSize)
     {
+        this.resiliencePipeline = resiliencePipeline;
         this.queryIdProvider = queryIdProvider;
         this.adminProvider = adminProvider;
         this.query = query;
@@ -26,9 +29,15 @@ internal sealed class NewPagedStoredQueryHandler<T> : IScriptHandler<PagedResult
     /// Creates the stored query result and returns its first page.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The stored result is created with a control command, which the Kusto SDK cannot cancel, so
     /// <paramref name="cancellationToken"/> is checked before the command is sent, and a command that
     /// has started always runs to completion.
+    /// </para>
+    /// <para>
+    /// Temporary errors (e.g. throttling) are retried by the resilience pipeline; creating the stored result again
+    /// is safe, as the command replaces it. Other errors are thrown to the caller.
+    /// </para>
     /// </remarks>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>The first page, or <see langword="null"/> when the query returns no result.</returns>
@@ -57,9 +66,7 @@ internal sealed class NewPagedStoredQueryHandler<T> : IScriptHandler<PagedResult
             queryId,
             pageSize);
 
-        using var reader = await ExecuteControlCommand(queryText, cancellationToken);
-
-        var items = query.ReadResult(reader);
+        var items = await ExecuteControlCommand(queryText, cancellationToken);
         if (items is null)
         {
             return null;
@@ -72,17 +79,30 @@ internal sealed class NewPagedStoredQueryHandler<T> : IScriptHandler<PagedResult
         return new PagedResult<T>(items, continuationToken);
     }
 
-    private async Task<IDataReader> ExecuteControlCommand(
+    /// <summary>
+    /// Runs the command that creates the stored result, and reads the first page it returns.
+    /// </summary>
+    private async Task<IReadOnlyList<T>?> ExecuteControlCommand(
         string queryText,
         CancellationToken cancellationToken)
     {
         try
         {
-            return await adminProvider
-                .ExecuteControlCommandAsync(
-                    databaseName: null,
-                    queryText,
-                    query.GetClientRequestProperties());
+            return await resiliencePipeline.ExecuteAsync(
+                async context =>
+                {
+                    // Also checked before a retry: the command itself can't be cancelled.
+                    context.ThrowIfCancellationRequested();
+
+                    using var reader = await adminProvider
+                        .ExecuteControlCommandAsync(
+                            databaseName: null,
+                            queryText,
+                            query.GetClientRequestProperties());
+
+                    return query.ReadResult(reader);
+                },
+                cancellationToken);
         }
         catch (Exception ex) when (CancellationExceptionUtilities.IsCancellation(ex, cancellationToken))
         {

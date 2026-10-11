@@ -34,3 +34,4 @@ global using Microsoft.Extensions.Logging.Abstractions;
 global using Microsoft.Extensions.Options;
 global using NSubstitute.ExceptionExtensions;
 global using Polly;
+global using Polly.Retry;

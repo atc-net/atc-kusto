@@ -69,6 +69,7 @@ public interface IKustoProcessor
     /// <param name="continuationToken">An optional token to continue fetching results from a previous query execution.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation.The task result contains the paginated result set.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="pageSize"/> is zero or negative.</exception>
     /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is cancelled.</exception>
     Task<PagedResult<T>?> ExecutePagedQuery<T>(
         IKustoQuery<IReadOnlyList<T>> query,

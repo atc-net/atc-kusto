@@ -71,6 +71,12 @@ public sealed class KustoProcessor : IKustoProcessor
     {
         cancellationToken.ThrowIfCancellationRequested();
 
+        // A page size of 0 would return empty pages forever.
+        if (pageSize <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(pageSize), pageSize, "The page size must be at least 1.");
+        }
+
         return pageSize is { } pageSizeValue
             ? await factory
                 .Create(

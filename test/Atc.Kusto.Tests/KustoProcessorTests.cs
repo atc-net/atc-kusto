@@ -405,6 +405,24 @@ public sealed class KustoProcessorTests
         factory.ReceivedCalls().Should().BeEmpty();
     }
 
+    [Theory]
+    [InlineAutoNSubstituteData(0)]
+    [InlineAutoNSubstituteData(-1)]
+    internal async Task ExecutePagedQuery_Throws_For_A_Page_Size_Of_Zero_Or_Less(
+        int pageSize,
+        [Frozen] IScriptHandlerFactory factory,
+        IKustoQuery<IReadOnlyList<TestRecord>> query,
+        KustoProcessor sut)
+    {
+        // Act
+        var act = () => sut.ExecutePagedQuery(query, sessionId: null, pageSize, continuationToken: null);
+
+        // Assert
+        (await act.Should().ThrowAsync<ArgumentOutOfRangeException>())
+            .Which.ParamName.Should().Be("pageSize");
+        factory.ReceivedCalls().Should().BeEmpty();
+    }
+
     [Theory, AutoNSubstituteData]
     internal async Task ExecuteBufferedStreamingQuery_Throws_OperationCanceled_Before_Creating_A_Handler_When_Cancelled(
         [Frozen] IScriptHandlerFactory factory,

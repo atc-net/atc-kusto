@@ -63,6 +63,7 @@ internal sealed class ScriptHandlerFactory : IScriptHandlerFactory
         string? databaseName = null)
         => continuationToken is null
             ? new NewPagedStoredQueryHandler<T>(
+                resiliencePipeline,
                 queryIdProvider,
                 clientProvider.GetAdminClient(
                     connectionName,
