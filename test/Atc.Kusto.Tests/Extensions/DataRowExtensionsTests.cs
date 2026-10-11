@@ -43,7 +43,7 @@ public sealed class DataRowExtensionsTests
         DateOnly EventDate);
 
     [Fact]
-    public void MapDataRow_Should_Return_Correct_Object()
+    public void MapDataRow_Should_Map_Each_Column_To_The_Property_With_The_Same_Name()
     {
         // Arrange
         using var dataTable = new DataTable();
@@ -80,7 +80,7 @@ public sealed class DataRowExtensionsTests
     }
 
     [Fact]
-    public void MapDataRow_Should_Handle_Decimal_Values()
+    public void MapDataRow_Should_Map_A_Decimal_Column_To_A_Decimal_Property()
     {
         // Arrange
         using var dataTable = new DataTable();
@@ -103,7 +103,7 @@ public sealed class DataRowExtensionsTests
     }
 
     [Fact]
-    public void MapDataRow_Should_Handle_SqlDecimal_Values()
+    public void MapDataRow_Should_Convert_A_SqlDecimal_Column_To_A_Decimal_Property()
     {
         // Arrange
         using var dataTable = new DataTable();
@@ -127,7 +127,7 @@ public sealed class DataRowExtensionsTests
     }
 
     [Fact]
-    public void MapDataRow_Should_Handle_DBNull_Values()
+    public void MapDataRow_Should_Map_DBNull_To_Null()
     {
         // Arrange
         using var dataTable = new DataTable();
@@ -150,7 +150,7 @@ public sealed class DataRowExtensionsTests
     }
 
     [Fact]
-    public void MapDataRow_Should_Handle_Mixed_Types()
+    public void MapDataRow_Should_Map_String_Int_SqlDecimal_And_Bool_Columns()
     {
         // Arrange
         using var dataTable = new DataTable();
@@ -180,7 +180,7 @@ public sealed class DataRowExtensionsTests
     }
 
     [Fact]
-    public void MapDataRow_Should_Handle_High_Precision_SqlDecimal()
+    public void MapDataRow_Should_Convert_A_28_Digit_SqlDecimal_To_A_Decimal()
     {
         // Arrange
         using var dataTable = new DataTable();
@@ -207,7 +207,7 @@ public sealed class DataRowExtensionsTests
     }
 
     [Fact]
-    public void MapDataRow_Should_Handle_Simple_JObject()
+    public void MapDataRow_Should_Convert_A_JObject_To_A_JsonElement()
     {
         // Arrange
         using var dataTable = new DataTable();
@@ -237,7 +237,7 @@ public sealed class DataRowExtensionsTests
     }
 
     [Fact]
-    public void MapDataRow_Should_Handle_Nested_JObject()
+    public void MapDataRow_Should_Map_A_JObject_Column_To_A_Nested_Record()
     {
         // Arrange
         using var dataTable = new DataTable();
@@ -264,7 +264,7 @@ public sealed class DataRowExtensionsTests
     }
 
     [Fact]
-    public void MapDataRow_Should_Handle_Mixed_Types_With_JToken()
+    public void MapDataRow_Should_Map_Plain_Columns_Next_To_A_JObject_Column()
     {
         // Arrange
         using var dataTable = new DataTable();
@@ -296,7 +296,7 @@ public sealed class DataRowExtensionsTests
     }
 
     [Fact]
-    public void MapDataRow_Should_Handle_Complex_Nested_JObject()
+    public void MapDataRow_Should_Convert_A_Nested_JObject_With_Arrays_To_A_JsonElement()
     {
         // Arrange
         using var dataTable = new DataTable();
@@ -348,7 +348,7 @@ public sealed class DataRowExtensionsTests
     }
 
     [Fact]
-    public void MapDataRow_Should_Handle_JArray()
+    public void MapDataRow_Should_Convert_A_JArray_To_A_JsonElement_Array()
     {
         // Arrange
         using var dataTable = new DataTable();

@@ -135,7 +135,7 @@ public sealed class NewPagedStoredQueryHandlerTests
     }
 
     [Theory, AutoNSubstituteData]
-    internal async Task Execute_Puts_The_Nonce_Of_The_Stored_Result_In_The_Token_When_There_Is_No_Session(
+    internal async Task Execute_Writes_A_Random_Nonce_In_The_Token_Instead_Of_The_QueryId_When_There_Is_No_Session(
         IDataReader reader)
     {
         // Arrange - a full first page, so there is a next page
@@ -164,7 +164,7 @@ public sealed class NewPagedStoredQueryHandlerTests
     }
 
     [Theory, AutoNSubstituteData]
-    internal async Task Execute_Uses_A_New_Nonce_For_Each_Paging_Run_Without_A_Session(
+    internal async Task Execute_Creates_A_New_Random_Nonce_Each_Time_It_Runs_Without_A_Session(
         IDataReader reader)
     {
         // Arrange

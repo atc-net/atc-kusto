@@ -21,7 +21,7 @@ public sealed record KustoScriptTests : KustoScript
     }
 
     [Fact]
-    public void GetParameters_ShouldReturnCorrectParameters_WhenPropertiesArePresent()
+    public void GetParameters_ShouldReturnPropertyValues_KeyedByCamelCaseName()
     {
         // Arrange
         SampleProperty = "SampleValue";

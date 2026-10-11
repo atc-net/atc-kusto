@@ -313,7 +313,7 @@ public sealed class ProjectionMismatchAnalyzerTests
     }
 
     [Fact]
-    public async Task ReportsMultipleDiagnostics_WhenMultipleFieldsMismatch()
+    public async Task ReportsDiagnostic_ATCK306_And_ATCK307_ForEachUnknownFieldAndMissingProperty()
     {
         const string code = """
                             namespace Atc.Kusto;
@@ -533,7 +533,7 @@ public sealed class ProjectionMismatchAnalyzerTests
     }
 
     [Fact]
-    public async Task MixedDiagnostics_WhenSomeFieldsMatchAndSomeDont()
+    public async Task ReportsDiagnostic_ATCK306_ATCK307_And_ATCK309_WhenProjectionMixesExactSnakeCaseAndUnknownFields()
     {
         const string code = """
                             namespace Atc.Kusto;

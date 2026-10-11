@@ -49,7 +49,7 @@ public sealed class StreamingMappingParityTests
     }
 
     [Fact]
-    public void A_Fragment_Row_Maps_To_The_Captured_Json()
+    public void A_Fragment_Row_Maps_To_The_Json_The_Cluster_Returned()
     {
         // Arrange - the values exactly as the SDK sent them in the TableFragment frame (invariant culture)
         var original = CultureInfo.CurrentCulture;
@@ -92,7 +92,7 @@ public sealed class StreamingMappingParityTests
     }
 
     [Fact]
-    public void A_DataTable_Frame_Row_Maps_To_The_Captured_Json()
+    public void A_DataTable_Frame_Row_Maps_To_The_Json_The_Cluster_Returned()
     {
         // Arrange - the values as the SDK's reader returns them without progressive results
         using var table = CreateDataTable(CapturedColumns);

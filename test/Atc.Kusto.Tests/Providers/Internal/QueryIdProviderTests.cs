@@ -17,7 +17,7 @@ public sealed class QueryIdProviderTests
     }
 
     [Fact]
-    public void Create_Returns_A_Known_QueryId_For_Known_Input()
+    public void Create_Returns_The_Same_Fixed_QueryId_On_Every_Instance_And_Version()
     {
         // Arrange - page 1 and page 2 can be served by different instances, so the same input must
         // always give the same queryId

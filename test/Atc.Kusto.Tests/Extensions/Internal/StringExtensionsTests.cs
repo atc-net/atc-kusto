@@ -16,7 +16,7 @@ public sealed class StringExtensionsTests
     [InlineData("a b c", "abc")]
     [InlineData("1!2@3#4$5%", "12345")]
     [InlineData("A1 B2 C3", "A1B2C3")]
-    public void ToAlphaNumeric_ShouldRemoveNonAlphanumericCharacters(
+    public void ToAlphanumeric_ShouldRemoveNonAlphanumericCharacters(
         string input,
         string expected)
     {
@@ -28,7 +28,7 @@ public sealed class StringExtensionsTests
     }
 
     [Fact]
-    public void ToAlphaNumeric_ShouldReturnEmptyString_WhenInputIsEmpty()
+    public void ToAlphanumeric_ShouldReturnEmptyString_WhenInputIsEmpty()
     {
         // Arrange
         var input = string.Empty;

@@ -67,7 +67,7 @@ public sealed class FrameValueTypeConverterTests
     }
 
     [Fact]
-    public void ConvertToColumnType_Should_Handle_Invalid_String_For_SqlDecimal()
+    public void ConvertToColumnType_Should_Return_The_Original_String_When_It_Is_Not_A_Decimal()
     {
         // Arrange
         const string value = "not-a-number";
@@ -113,7 +113,7 @@ public sealed class FrameValueTypeConverterTests
     }
 
     [Fact]
-    public void ConvertToColumnType_Should_Handle_Numeric_Type_Conversions()
+    public void ConvertToColumnType_Should_Convert_An_Int_To_A_Long()
     {
         // Arrange
         const int value = 42;
@@ -129,7 +129,7 @@ public sealed class FrameValueTypeConverterTests
     }
 
     [Fact]
-    public void ConvertToColumnType_Should_Use_InvariantCulture()
+    public void ConvertToColumnType_Should_Read_A_Decimal_With_The_Invariant_Culture()
     {
         // Arrange - use a decimal string with period (not comma) as decimal separator
         const string value = "1234.56";
@@ -217,7 +217,7 @@ public sealed class FrameValueTypeConverterTests
     }
 
     [Fact]
-    public void ConvertToColumnType_Should_Handle_String_To_DateTime()
+    public void ConvertToColumnType_Should_Convert_A_String_To_A_DateTime()
     {
         // Arrange
         const string value = "2024-01-15T10:30:00Z";
@@ -235,7 +235,7 @@ public sealed class FrameValueTypeConverterTests
     [InlineData("20443.07")]
     [InlineData("12345.6789")]
     [InlineData("0.00")]
-    public void ConvertToColumnType_Should_Handle_Realistic_Kusto_Decimal_Strings(
+    public void ConvertToColumnType_Should_Convert_Kusto_Decimal_Strings_To_SqlDecimal(
         string decimalString)
     {
         // Arrange - this simulates the actual scenario from the Kusto progressive frames

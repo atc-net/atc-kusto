@@ -19,7 +19,7 @@ public sealed class KustoScriptExtensionsTests
 
     [Theory]
     [MemberAutoNSubstituteData(nameof(CslValueTestData))]
-    public void GetClientRequestProperties_ShouldGenerateValidProperties(
+    public void GetClientRequestProperties_ShouldSetClientRequestIdAndCslParameters(
         object data,
         string cslRepresentationData,
         IKustoQuery<TestRecord> query,
@@ -52,7 +52,7 @@ public sealed class KustoScriptExtensionsTests
 
     [Theory]
     [MemberAutoNSubstituteData(nameof(CslValueTestData))]
-    public void GetCslParameters_Returns_Cls_Converted_Query_Parameters(
+    public void GetCslParameters_Returns_The_Query_Parameters_As_Csl_Values(
         object data,
         string cslRepresentationData,
         IKustoQuery<TestRecord> query,
@@ -76,7 +76,7 @@ public sealed class KustoScriptExtensionsTests
 
     [Theory]
     [MemberData(nameof(CslValueTestData))]
-    public void GetClsValue_Returns_Cls_Formatted_String(
+    public void GetCslValue_Returns_The_Csl_Literal_For_Each_Type(
         object input,
         string output)
         => KustoScriptExtensions

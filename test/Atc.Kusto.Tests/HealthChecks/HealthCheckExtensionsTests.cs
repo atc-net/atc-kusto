@@ -3,7 +3,7 @@ namespace Atc.Kusto.Tests.HealthChecks;
 public sealed class HealthCheckExtensionsTests
 {
     [Theory, AutoNSubstituteData]
-    internal void AddKustoClusterDiagnosticsHealthCheck_WithExplicitValues_RegistersCorrectly(
+    internal void AddKustoClusterDiagnosticsHealthCheck_WithExplicitValues_RegistersTheGivenNameFailureStatusAndTags(
         string name,
         string connectionName,
         string databaseName,
@@ -55,7 +55,7 @@ public sealed class HealthCheckExtensionsTests
     }
 
     [Theory, AutoNSubstituteData]
-    internal void AddKustoClusterDiagnosticsHealthCheck_WithDefaults_RegistersCorrectly(
+    internal void AddKustoClusterDiagnosticsHealthCheck_WithDefaults_RegistersACheckNamedKusto(
         IKustoProcessorFactory processorFactory)
     {
         // Arrange

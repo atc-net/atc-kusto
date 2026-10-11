@@ -63,7 +63,7 @@ public sealed class DataReaderExtensionsTests
     }
 
     [Theory, AutoNSubstituteData]
-    public void ReadObjects_Will_Return_Objects_Read_From_DataReader(
+    public void ReadObjects_Returns_An_Object_For_Each_Row(
         List<TestObject> data,
         IDataReader dataReader)
     {
@@ -100,7 +100,7 @@ public sealed class DataReaderExtensionsTests
     }
 
     [Theory, AutoNSubstituteData]
-    public void CanReadObjects(
+    public void ReadObjectsFromNextResult_Moves_To_The_Next_Result_And_Returns_Its_Rows(
         List<TestObject> data,
         IDataReader dataReader)
     {
@@ -145,7 +145,7 @@ public sealed class DataReaderExtensionsTests
     [InlineData(1, 0, true, false)] // Kusto returns 1 for true, 0 for false
     [InlineData(42, 0, true, false)] // Any non-zero value should be true
     [InlineData(-1, 0, true, false)] // Negative non-zero should also be true
-    public void ReadObjects_Should_Convert_Numeric_Boolean_Values_From_Kusto(
+    public void ReadObjects_Should_Convert_Zero_To_False_And_Other_Numbers_To_True(
         int numericTrue,
         int numericFalse,
         bool expectedTrue,

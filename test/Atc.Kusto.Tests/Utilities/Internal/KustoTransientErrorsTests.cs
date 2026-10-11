@@ -42,16 +42,18 @@ public sealed class KustoTransientErrorsTests
 
     [Theory]
     [MemberData(nameof(PermanentErrors))]
-    public void Permanent_Errors_Are_Not_Transient(Exception exception)
+    public void IsTransient_Returns_False_For_Permanent_Errors(
+        Exception exception)
         => KustoTransientErrors.IsTransient(exception).Should().BeFalse();
 
     [Theory]
     [MemberData(nameof(TransientErrors))]
-    public void Transient_Errors_Are_Transient(Exception exception)
+    public void IsTransient_Returns_True_For_Transient_Errors(
+        Exception exception)
         => KustoTransientErrors.IsTransient(exception).Should().BeTrue();
 
     [Fact]
-    public void A_Normally_Transient_Kusto_Error_Is_Not_Transient_When_Marked_Permanent()
+    public void IsTransient_Returns_False_For_A_KustoServiceException_Marked_Permanent()
     {
         // Arrange - KustoServiceException is transient by default; the SDK marks this instance permanent
         var permanentServiceError = new KustoServiceException(

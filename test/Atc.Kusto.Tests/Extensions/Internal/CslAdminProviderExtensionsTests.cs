@@ -3,7 +3,7 @@ namespace Atc.Kusto.Tests.Extensions.Internal;
 public sealed class CslAdminProviderExtensionsTests
 {
     [Theory, AutoNSubstituteData]
-    public async Task RegisterKustoServerSideCancellation_Sends_The_Cancel_Command_When_The_Query_Stops_First(
+    public async Task RegisterKustoServerSideCancellation_Sends_The_Cancel_Command_Even_When_The_Registration_Is_Disposed_While_Cancelling(
         ICslAdminProvider adminProvider,
         IDataReader cancelReader)
     {

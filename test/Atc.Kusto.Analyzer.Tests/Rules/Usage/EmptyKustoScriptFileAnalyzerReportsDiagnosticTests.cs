@@ -227,7 +227,7 @@ public sealed partial class EmptyKustoScriptFileAnalyzerTests
     }
 
     [Fact]
-    public async Task ReportsDiagnostic_CaseInsensitiveParameterDeclaration()
+    public async Task ReportsDiagnostic_OnlyUppercaseParametersDeclaration()
     {
         const string code = """
                             namespace Atc.Kusto;

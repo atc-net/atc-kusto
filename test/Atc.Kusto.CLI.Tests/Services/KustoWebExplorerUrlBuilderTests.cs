@@ -8,7 +8,7 @@ public sealed class KustoWebExplorerUrlBuilderTests
     [InlineData("https://mycluster.kusto.fabric.microsoft.com", "https://dataexplorer.azure.com")]
     [InlineData("https://mycluster.kusto.usgovcloudapi.net", "https://dataexplorer.azure.us")]
     [InlineData("https://mycluster.kusto.chinacloudapi.cn", "https://dataexplorer.azure.cn")]
-    public void Build_RecognizedCluster_ReturnsUrlWithCorrectBase(
+    public void Build_RecognizedCluster_ReturnsUrlOnTheDataExplorerSiteForItsCloud(
         string clusterUrl,
         string expectedBase)
     {
