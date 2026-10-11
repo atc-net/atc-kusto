@@ -166,7 +166,7 @@ internal sealed partial class BufferedStreamingQueryHandler<T> : IScriptHandler<
                         HandleTableProgress(frame);
                         break;
                     case FrameType.DataTable:
-                        HandleDataTable(frame, tablesById, primaryResultRecords);
+                        HandleDataTable(frame, result, tablesById, primaryResultRecords);
                         break;
                     case FrameType.DataSetCompletion:
                         HandleDataSetCompletion(frame, result);
@@ -254,6 +254,17 @@ internal sealed partial class BufferedStreamingQueryHandler<T> : IScriptHandler<
         var table = FrameTable.FromSchemaFrame(tableHeaderFrame);
         tablesById.TryAdd(tableHeaderFrame.TableId, table);
 
+        AddTableSchema(result, table);
+    }
+
+    /// <summary>
+    /// Adds a <see cref="KustoTableSchema" /> for <paramref name="table" /> to <paramref name="result" />
+    /// when <see cref="FrameHeaders.TableHeader" /> was requested.
+    /// </summary>
+    private void AddTableSchema(
+        StreamingQueryResult<T> result,
+        FrameTable table)
+    {
         if (!streamingQueryOptions.OptionalFrames.HasFlag(FrameHeaders.TableHeader))
         {
             return;
@@ -365,15 +376,23 @@ internal sealed partial class BufferedStreamingQueryHandler<T> : IScriptHandler<
     /// Reads a <c>DataTable</c> frame, keeps the table by TableId and keeps its <c>PrimaryResult</c> records.
     /// This frame represents one data table (in all, when progressive results are not used or there's no need for multiple-frames-per-table).
     /// There are usually multiple such tables in the response, differentiated by purpose (TableKind).
+    /// Without progressive results there are no <c>TableHeader</c> frames, so the schema of a <c>PrimaryResult</c>
+    /// table is taken from this frame.
     /// </summary>
-    private static void HandleDataTable(
+    private void HandleDataTable(
         ProgressiveDataSetFrame frame,
+        StreamingQueryResult<T> result,
         Dictionary<int, FrameTable> tablesById,
         List<FrameRecord> primaryResultRecords)
     {
         var dataTableFrame = (ProgressiveDataSetDataTableFrame)frame;
         var table = FrameTable.FromDataTableFrame(dataTableFrame);
         tablesById[dataTableFrame.TableId] = table; // Always update the table with the new data
+
+        if (table.Kind == WellKnownDataSet.PrimaryResult)
+        {
+            AddTableSchema(result, table);
+        }
 
         // Every table, also the ones we don't keep, is read to the end and then closed: the SDK can't move
         // to the next frame before that, and closing a table without reading it silently ends the result.

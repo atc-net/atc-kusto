@@ -306,6 +306,42 @@ public sealed class BufferedStreamingQueryHandlerTests
     }
 
     [Fact]
+    public async Task Execute_Returns_The_Schema_Of_The_Primary_Result_Without_Progressive_Results()
+    {
+        // Arrange - every table in one DataTable frame, without TableHeader frames
+        var frames = ProgressiveDataSetBuilder.BuildDataTableFrames("A");
+
+        using var result = ReturnFrames([.. frames, new CompletionFrameStub()]);
+
+        MapFirstColumn();
+
+        // Act
+        var queryResult = await sut.Execute(CancellationToken.None);
+
+        // Assert
+        queryResult!.TableSchemas.Should().ContainSingle().Which.Should().BeEquivalentTo(
+            new KustoTableSchema(
+                nameof(WellKnownDataSet.PrimaryResult),
+                [new KustoColumn("col", nameof(String))]));
+    }
+
+    [Fact]
+    public async Task Execute_Returns_The_Schema_Of_The_Primary_Result_With_Progressive_Results()
+    {
+        // Arrange - a TableHeader frame, then the fragments
+        using var result = ReturnFrames(ProgressiveDataSetBuilder.BuildProgressiveFrames(
+            new FragmentFrameStub(1, ["A"])));
+
+        MapFirstColumn();
+
+        // Act
+        var queryResult = await sut.Execute(CancellationToken.None);
+
+        // Assert
+        queryResult!.TableSchemas.Should().ContainSingle().Which.TableName.Should().Be(nameof(WellKnownDataSet.PrimaryResult));
+    }
+
+    [Fact]
     public async Task Execute_Keeps_The_Table_Completions_When_The_Data_Set_Completes()
     {
         // Arrange - in progressive mode Kusto sends a completion per table before the data-set completion
@@ -313,6 +349,7 @@ public sealed class BufferedStreamingQueryHandlerTests
             new FragmentFrameStub(1, ["A"]));
 
         using var result = ReturnFrames([.. frames[..^1], new TableCompletionFrameStub(1, rowCount: 1), frames[^1]]);
+
         MapFirstColumn();
 
         // Act
@@ -332,6 +369,7 @@ public sealed class BufferedStreamingQueryHandlerTests
         using var result = ReturnFrames(ProgressiveDataSetBuilder.BuildProgressiveFrames(
             new FragmentFrameStub(1, TableFragmentType.DataAppend, ["A"]),
             new FragmentFrameStub(1, TableFragmentType.DataRemove, ["A"])));
+
         MapFirstColumn();
 
         // Act
@@ -348,6 +386,7 @@ public sealed class BufferedStreamingQueryHandlerTests
         // Arrange - the SDK can't move to the next frame before the current table is read and closed
         var frames = ProgressiveDataSetBuilder.BuildDataTableFrames("A", "B");
         using var result = ReturnFrames([.. frames, new CompletionFrameStub()]);
+
         MapFirstColumn();
 
         // Act
@@ -373,6 +412,7 @@ public sealed class BufferedStreamingQueryHandlerTests
     {
         // Arrange
         using var result = ReturnTrackedResult("A", "B");
+
         MapFirstColumn();
 
         // Act
