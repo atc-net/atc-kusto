@@ -71,7 +71,7 @@ public sealed class DisplayValueFormatterTests
     [InlineData("hello")]
     [InlineData("some text with spaces")]
     [InlineData("2026-02-27")]
-    public void FormatCellValue_NonNumericNonDatetime_ReturnedAsIs(string input)
+    public void FormatCellValue_TextOrDateOnly_ReturnedAsIs(string input)
     {
         DisplayValueFormatter.FormatCellValue(input).Should().Be(input);
     }
@@ -83,7 +83,7 @@ public sealed class DisplayValueFormatterTests
     [InlineData("hello", false)]
     [InlineData("", false)]
     [InlineData(null, false)]
-    public void IsNumericValue_ReturnsExpected(
+    public void IsNumericValue_NumbersAndText_ReturnsTrueOnlyForNumbers(
         string? input,
         bool expected)
     {

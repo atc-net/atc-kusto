@@ -3,7 +3,7 @@ namespace Atc.Kusto.Tests.Extensions;
 public sealed class ClientRequestPropertiesExtensionsTests
 {
     [Fact]
-    public void SetQueryOptions_WithStreamingOptions_SetsProgressiveFlag()
+    public void SetQueryOptions_WithProgressiveEnabled_SetsProgressiveFlag()
     {
         // Arrange
         var props = new ClientRequestProperties();
@@ -33,7 +33,7 @@ public sealed class ClientRequestPropertiesExtensionsTests
     }
 
     [Fact]
-    public void SetQueryOptions_WithBaseOptions_MapsExpectedValues()
+    public void SetQueryOptions_WithBaseOptions_SetsTakeAndTruncationOptions()
     {
         // Arrange
         var props = new ClientRequestProperties();

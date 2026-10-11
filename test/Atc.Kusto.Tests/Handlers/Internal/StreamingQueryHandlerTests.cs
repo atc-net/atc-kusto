@@ -134,7 +134,7 @@ public sealed class StreamingQueryHandlerTests
     }
 
     [Theory, AutoNSubstituteData]
-    public async Task Execute_ShouldYieldEmptyCollection_WhenProviderThrows(
+    public async Task Execute_ShouldRethrowProviderException_WhenProviderThrows(
         string queryText,
         CancellationToken cancellationToken)
     {

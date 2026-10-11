@@ -6,7 +6,7 @@ public sealed class AsyncEnumerableExtensionsTests
     [InlineData(FailingStep.GetEnumerator)]
     [InlineData(FailingStep.MoveNext)]
     [InlineData(FailingStep.Dispose)]
-    internal async Task NormalizeCancellationExceptions_Translates_A_Failure_After_The_Caller_Cancelled(
+    internal async Task NormalizeCancellationExceptions_Throws_OperationCanceledException_For_A_Failure_After_The_Caller_Cancelled(
         FailingStep step)
     {
         // Arrange

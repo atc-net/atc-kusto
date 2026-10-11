@@ -201,7 +201,7 @@ public sealed class BufferedStreamingQueryHandlerTests
     }
 
     [Theory, AutoNSubstituteData]
-    public async Task Execute_ShouldSetError_WhenProviderThrows(
+    public async Task Execute_ShouldReportProviderErrorInCompletion_WhenProviderThrows(
         string queryText,
         CancellationToken cancellationToken)
     {

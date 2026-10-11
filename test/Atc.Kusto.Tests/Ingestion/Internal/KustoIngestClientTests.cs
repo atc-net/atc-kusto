@@ -7,7 +7,7 @@ public sealed class KustoIngestClientTests
     [Theory]
     [InlineData(IngestionMethod.Streaming, KustoIngestionStatus.Succeeded)]
     [InlineData(IngestionMethod.Queued, KustoIngestionStatus.Queued)]
-    public void ToIngestionStatus_Maps_From_The_Method_The_Service_Used(
+    public void ToIngestionStatus_Returns_Succeeded_For_Streaming_And_Queued_For_Queued(
         IngestionMethod method,
         KustoIngestionStatus expected)
         => KustoIngestClient.ToIngestionStatus(method).Should().Be(expected);
@@ -68,7 +68,8 @@ public sealed class KustoIngestClientTests
     [InlineData("da-DK")]
     [InlineData("en-DK")]
     [InlineData("en-US")]
-    public void OperationHandle_Round_Trips_Under_Any_Culture(string culture)
+    public void SerializeOperation_Writes_A_Handle_That_ParseOperationHandle_Reads_In_Any_Culture(
+        string culture)
     {
         // Arrange: a handle contains the operation's startTime. V2's ToJsonString writes it with the
         // current culture's time separator ("20.33.00" under da-DK/en-DK), which FromJsonString can't read.

@@ -88,7 +88,7 @@ public sealed class KustoClientProviderIngestTests
     }
 
     [Theory, AutoNSubstituteDataWithAtcKustoOptions(withCredential: true)]
-    internal void GetIngestClient_Ignores_Database_So_Cache_Is_Not_Duplicated(
+    internal void GetIngestClient_Returns_The_Same_Client_When_Only_The_Database_Changes(
         [Frozen] IOptionsMonitor<AtcKustoOptions> monitor,
         AtcKustoOptions options,
         KustoClientProvider sut)

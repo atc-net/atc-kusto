@@ -95,7 +95,7 @@ public sealed class KustoDateOnlyJsonConverterTests
     [Theory]
     [InlineData("""{"EventDate":"2024-01-15T00:00:00Z","Count":42}""", 2024, 1, 15, 42)] // Kusto datetime string
     [InlineData("""{"EventDate":"2024-03-20","Count":7}""", 2024, 3, 20, 7)] // Date-only string
-    public void Converter_Should_Work_With_JsonSerializer(
+    public void Converter_Should_Deserialize_A_Date_Or_Kusto_DateTime_String_To_DateOnly(
         string json,
         int expectedYear,
         int expectedMonth,

@@ -54,7 +54,7 @@ public sealed class FrameRecordTests
     }
 
     [Fact]
-    public void Describes_The_Columns_Of_The_Table()
+    public void GetName_GetFieldType_And_GetDataTypeName_Return_The_Column_Name_And_Type()
     {
         // Arrange
         var record = CreateTable(("id", typeof(Guid)), ("count", typeof(long)))

@@ -111,7 +111,7 @@ public sealed class ExistingPagedStoredQueryHandlerTests
     }
 
     [Fact]
-    public async Task Execute_Rejects_A_Token_That_Contains_A_QueryId()
+    public async Task Execute_Returns_Null_For_A_Token_That_Contains_A_QueryId()
     {
         // Arrange - a token in the format "{queryId};{items returned}"
         var handler = CreateHandler($"{queryId};5");

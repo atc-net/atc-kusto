@@ -3,7 +3,8 @@ namespace Atc.Kusto.Tests.Factories.Internal;
 public sealed class KustoProcessorFactoryTests
 {
     [Theory, AutoNSubstituteData]
-    public void Can_Create_Processor(KustoProcessorFactory sut)
+    public void Create_Without_Arguments_Returns_A_Processor_Without_Connection_Or_Database(
+        KustoProcessorFactory sut)
     {
         // Act
         var processor = sut.Create();
@@ -15,7 +16,7 @@ public sealed class KustoProcessorFactoryTests
     }
 
     [Theory, AutoNSubstituteData]
-    public void Can_Create_Processor_With_Connection_And_Database(
+    public void Create_Returns_A_Processor_For_The_Given_Connection_And_Database(
         KustoProcessorFactory sut,
         string connectionName,
         string databaseName)

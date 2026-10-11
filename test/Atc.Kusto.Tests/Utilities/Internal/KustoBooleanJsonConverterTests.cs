@@ -173,7 +173,7 @@ public sealed class KustoBooleanJsonConverterTests
     }
 
     [Fact]
-    public void Converter_Should_Work_With_JsonSerializer_For_Numeric_Boolean()
+    public void Converter_Should_Deserialize_1_And_0_As_True_And_False()
     {
         // Arrange - end-to-end test with JsonSerializer using the converter
         const string json = "{\"IsActive\":1,\"IsEnabled\":0}";
@@ -192,7 +192,7 @@ public sealed class KustoBooleanJsonConverterTests
     }
 
     [Fact]
-    public void Converter_Should_Work_With_JsonSerializer_For_Standard_Boolean()
+    public void Converter_Should_Deserialize_Json_True_And_False()
     {
         // Arrange - verify it still works with standard JSON booleans
         const string json = "{\"IsActive\":true,\"IsEnabled\":false}";

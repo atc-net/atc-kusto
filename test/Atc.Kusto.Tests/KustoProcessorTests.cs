@@ -3,7 +3,7 @@ namespace Atc.Kusto.Tests;
 public sealed class KustoProcessorTests
 {
     [Theory, AutoNSubstituteData]
-    public void Can_Specify_Connection_And_Database(
+    public void Ctor_Sets_ConnectionName_And_DatabaseName(
         IScriptHandlerFactory factory,
         string connectionName,
         string databaseName)

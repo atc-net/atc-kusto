@@ -451,7 +451,7 @@ public sealed class KustoClientProviderTests
     [InlineAutoNSubstituteData(true, false)]
     [InlineAutoNSubstituteData(false, true)]
     [InlineAutoNSubstituteData(false, false)]
-    internal void GetClient_With_ConnectionString_Uses_Database_Passed_Per_Call(
+    internal void GetQueryClient_And_GetAdminClient_With_ConnectionString_Use_The_Database_Passed_Per_Call(
         bool optionsHasDatabase,
         bool admin,
         [Frozen] IOptionsMonitor<AtcKustoOptions> monitor,

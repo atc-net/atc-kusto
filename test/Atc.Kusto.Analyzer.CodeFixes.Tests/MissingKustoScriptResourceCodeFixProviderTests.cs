@@ -5,7 +5,7 @@ namespace Atc.Kusto.Analyzer.CodeFixes.Tests;
 public class MissingKustoScriptResourceCodeFixProviderTests
 {
     [Fact]
-    public async Task CodeFixProvider_HasCorrectFixableDiagnosticIds()
+    public async Task CodeFixProvider_FixesOnlyATCK301()
     {
         var codeFixProvider = new MissingKustoScriptResourceCodeFixProvider();
         var fixableIds = codeFixProvider.FixableDiagnosticIds;

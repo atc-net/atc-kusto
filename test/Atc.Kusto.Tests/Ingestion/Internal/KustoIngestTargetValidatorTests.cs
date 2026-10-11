@@ -68,7 +68,7 @@ public sealed class KustoIngestTargetValidatorTests
     }
 
     [Fact]
-    public void Validate_Throws_When_Streaming_Payload_Over_Cap()
+    public void Validate_Throws_When_A_Streaming_Payload_Is_Over_10_MB()
     {
         var act = () => KustoIngestTargetValidator.Validate(
             Target(),
@@ -80,7 +80,7 @@ public sealed class KustoIngestTargetValidatorTests
     }
 
     [Fact]
-    public void Validate_Allows_Streaming_Payload_At_Cap()
+    public void Validate_Allows_A_Streaming_Payload_Of_Exactly_10_MB()
     {
         var act = () => KustoIngestTargetValidator.Validate(
             Target(),
@@ -119,7 +119,7 @@ public sealed class KustoIngestTargetValidatorTests
     }
 
     [Fact]
-    public void Validate_Throws_When_Tracking_On_Pure_Streaming()
+    public void Validate_Throws_When_Tracking_Is_Enabled_In_Streaming_Mode()
     {
         var act = () => KustoIngestTargetValidator.Validate(
             Target(enableTracking: true),

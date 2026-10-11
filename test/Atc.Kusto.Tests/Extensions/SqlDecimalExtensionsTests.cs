@@ -10,7 +10,8 @@ public sealed class SqlDecimalExtensionsTests
     [InlineData(0.01)]
     [InlineData(0.001)]
     [InlineData(0.0001)]
-    public void ToDecimal_Should_Convert_Values_Correctly(decimal value)
+    public void ToDecimal_Should_Return_The_Same_Value_For_Ordinary_Decimals(
+        decimal value)
     {
         // Arrange
         var sqlDecimal = new SqlDecimal(value);
@@ -125,7 +126,7 @@ public sealed class SqlDecimalExtensionsTests
     }
 
     [Fact]
-    public void ToDecimal_Should_Handle_SqlDecimal_With_High_Scale()
+    public void ToDecimal_Should_Convert_A_Tiny_Value_With_18_Decimal_Places()
     {
         // Arrange - High scale relative to precision
         var sqlDecimal = new SqlDecimal(20, 18, true, 12345678, 0, 0, 0); // Very small number with many decimals
@@ -180,7 +181,7 @@ public sealed class SqlDecimalExtensionsTests
     }
 
     [Fact]
-    public void ToDecimal_Should_Be_Idempotent()
+    public void ToDecimal_Should_Return_The_Same_Value_When_Called_Twice()
     {
         // Arrange
         const decimal value = 12345.6789m;

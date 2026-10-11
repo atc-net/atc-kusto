@@ -38,11 +38,11 @@ public sealed class PagedContinuationTokenTests
     [InlineData("v3;abc;5")]
     [InlineData("V2;abc;5")]
     [InlineData("")]
-    public void Parse_Rejects_An_Invalid_Token(string token)
+    public void Parse_Returns_Null_For_An_Invalid_Token(string token)
         => PagedContinuationToken.Parse(token).Should().BeNull();
 
     [Fact]
-    public void Parse_Rejects_A_Nonce_Longer_Than_64_Characters()
+    public void Parse_Accepts_A_64_Character_Nonce_And_Returns_Null_For_A_Longer_One()
     {
         // Act & Assert
         PagedContinuationToken.Parse($"v2;{new string('a', 64)};5").Should().NotBeNull();
@@ -52,7 +52,7 @@ public sealed class PagedContinuationTokenTests
     [Theory]
     [InlineData("abc123", 1234567, "v2;abc123;1234567")]
     [InlineData(null, 40, "v2;;40")]
-    public void ToString_Writes_The_Token_In_Any_Culture(
+    public void ToString_Writes_A_Token_That_Parse_Reads_Back_In_Any_Culture(
         string? nonce,
         long itemsReturned,
         string expected)

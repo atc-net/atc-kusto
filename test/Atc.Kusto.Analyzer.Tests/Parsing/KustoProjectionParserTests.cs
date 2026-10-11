@@ -239,7 +239,7 @@ public sealed class KustoProjectionParserTests
     }
 
     [Fact]
-    public void ParseFinalProjection_NestedParentheses_HandlesCorrectly()
+    public void ParseFinalProjection_NestedParentheses_SplitsOnlyOnTopLevelCommas()
     {
         // Arrange - function calls with nested parentheses
         const string kustoContent = """
@@ -402,7 +402,7 @@ public sealed class KustoProjectionParserTests
     }
 
     [Fact]
-    public void ParseFinalProjection_TrailingComma_HandlesGracefully()
+    public void ParseFinalProjection_TrailingComma_IgnoresTheEmptyField()
     {
         // Arrange - trailing comma (common copy-paste issue)
         const string kustoContent = """
