@@ -4,8 +4,9 @@ namespace Atc.Kusto.Handlers.Internal;
 /// A simple query handler that executes a Kusto query and returns a result of type <typeparamref name="T"/>.
 /// </summary>
 /// <typeparam name="T">The type of the result returned by the query.</typeparam>
-internal sealed partial class SimpleQueryHandler<T> : IScriptHandler<T>
+internal sealed class SimpleQueryHandler<T> : IScriptHandler<T>
 {
+    private readonly ILogger<SimpleQueryHandler<T>> logger;
     private readonly ResiliencePipeline resiliencePipeline;
     private readonly ICslAdminProvider? adminProvider;
     private readonly ICslQueryProvider queryProvider;
@@ -57,8 +58,13 @@ internal sealed partial class SimpleQueryHandler<T> : IScriptHandler<T>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>
     /// A task that represents the asynchronous operation.
-    /// The task result contains the query result of type <typeparamref name="T"/> or null if the result is not available.
+    /// The task result contains the query result of type <typeparamref name="T"/>, or null when
+    /// <see cref="IKustoQuery{T}.ReadResult"/> returns null.
     /// </returns>
+    /// <remarks>
+    /// Temporary errors are retried by the resilience pipeline. Any other error, or an error that remains after
+    /// the retries, is thrown to the caller.
+    /// </remarks>
     public async Task<T?> Execute(CancellationToken cancellationToken)
     {
         using var activity = KustoDiagnostics.Source.StartActivity(
@@ -106,41 +112,10 @@ internal sealed partial class SimpleQueryHandler<T> : IScriptHandler<T>
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
             throw CancellationExceptionUtilities.NormalizeCancellationException(ex, cancellationToken);
         }
-        catch (KustoServicePartialQueryFailureException ex)
-        {
-            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-            LogKustoServicePartialQueryFailureException(
-                ex,
-                ex.ClientRequestId,
-                ex.Query);
-
-            return default;
-        }
-        catch (KustoServiceException ex)
-        {
-            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-            LogKustoServiceException(
-                ex,
-                ex.ClientRequestId);
-
-            return default;
-        }
-        catch (SemanticException ex)
-        {
-            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-            LogSemanticException(
-                ex,
-                ex.ClientRequestId,
-                ex.Text,
-                ex.SemanticErrors);
-
-            return default;
-        }
         catch (Exception ex)
         {
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-            LogUnhandledException(ex);
-            return default;
+            throw;
         }
     }
 }

@@ -38,7 +38,13 @@ public interface IKustoProcessor
     /// <param name="query">The Kusto query to be executed.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation.
-    /// The task result contains the query result of type <typeparamref name="T"/> or null if no result is available.</returns>
+    /// The task result contains the query result of type <typeparamref name="T"/>, or null when the query's
+    /// <see cref="IKustoQuery{T}.ReadResult"/> returns null.</returns>
+    /// <exception cref="KustoException">
+    /// Thrown when the query fails, for example with a <see cref="SemanticException"/> for an unknown column, or a
+    /// <see cref="KustoServiceException"/> when the cluster can't be reached. Temporary errors are retried first
+    /// (see the README's Retries section); the exception that remains is thrown as it is.
+    /// </exception>
     /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is cancelled.</exception>
     Task<T?> ExecuteQuery<T>(
         IKustoQuery<T> query,
@@ -52,7 +58,13 @@ public interface IKustoProcessor
     /// <param name="options">The query options, or <see langword="null"/> to use the defaults.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation.
-    /// The task result contains the query result of type <typeparamref name="T"/> or null if no result is available.</returns>
+    /// The task result contains the query result of type <typeparamref name="T"/>, or null when the query's
+    /// <see cref="IKustoQuery{T}.ReadResult"/> returns null.</returns>
+    /// <exception cref="KustoException">
+    /// Thrown when the query fails, for example with a <see cref="SemanticException"/> for an unknown column, or a
+    /// <see cref="KustoServiceException"/> when the cluster can't be reached. Temporary errors are retried first
+    /// (see the README's Retries section); the exception that remains is thrown as it is.
+    /// </exception>
     /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is cancelled.</exception>
     Task<T?> ExecuteQuery<T>(
         IKustoQuery<T> query,
@@ -68,8 +80,16 @@ public interface IKustoProcessor
     /// <param name="pageSize">The number of items per page in the result set.</param>
     /// <param name="continuationToken">An optional token to continue fetching results from a previous query execution.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>A task representing the asynchronous operation.The task result contains the paginated result set.</returns>
+    /// <returns>
+    /// A task representing the asynchronous operation. The task result contains the page, or null when
+    /// <paramref name="continuationToken"/> is not a valid continuation token.
+    /// </returns>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="pageSize"/> is zero or negative.</exception>
+    /// <exception cref="KustoException">
+    /// Thrown when the query fails, for example with a <see cref="SemanticException"/> for an unknown column, or a
+    /// <see cref="KustoServiceException"/> when the cluster can't be reached. Temporary errors are retried first
+    /// (see the README's Retries section); the exception that remains is thrown as it is.
+    /// </exception>
     /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is cancelled.</exception>
     Task<PagedResult<T>?> ExecutePagedQuery<T>(
         IKustoQuery<IReadOnlyList<T>> query,
@@ -88,8 +108,16 @@ public interface IKustoProcessor
     /// <param name="continuationToken">An optional token to continue fetching results from a previous query execution.</param>
     /// <param name="options">The paged query options, e.g. to include the total count, or <see langword="null"/> to use the defaults.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>A task representing the asynchronous operation. The task result contains the paginated result set.</returns>
+    /// <returns>
+    /// A task representing the asynchronous operation. The task result contains the page, or null when
+    /// <paramref name="continuationToken"/> is not a valid continuation token.
+    /// </returns>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="pageSize"/> is zero or negative.</exception>
+    /// <exception cref="KustoException">
+    /// Thrown when the query fails, for example with a <see cref="SemanticException"/> for an unknown column, or a
+    /// <see cref="KustoServiceException"/> when the cluster can't be reached. Temporary errors are retried first
+    /// (see the README's Retries section); the exception that remains is thrown as it is.
+    /// </exception>
     /// <exception cref="OperationCanceledException">Thrown when <paramref name="cancellationToken"/> is cancelled.</exception>
     Task<PagedResult<T>?> ExecutePagedQuery<T>(
         IKustoQuery<IReadOnlyList<T>> query,
