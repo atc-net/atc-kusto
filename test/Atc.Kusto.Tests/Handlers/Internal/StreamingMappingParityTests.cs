@@ -1,8 +1,8 @@
 namespace Atc.Kusto.Tests.Handlers.Internal;
 
 /// <summary>
-/// Streaming queries map rows from <see cref="IDataRecord"/> instead of <see cref="DataRow"/>.
-/// These tests pin that a row still maps to the same result as before.
+/// Streaming queries map each row from an <see cref="IDataRecord"/>.
+/// These tests pin that a row maps to the JSON the cluster returned, and to the same object in every path.
 /// </summary>
 public sealed class StreamingMappingParityTests
 {
