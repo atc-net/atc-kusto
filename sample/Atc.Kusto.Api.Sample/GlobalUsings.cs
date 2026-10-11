@@ -7,3 +7,4 @@ global using Atc.Kusto.Options;
 global using Azure.Identity;
 global using Microsoft.AspNetCore.Http.HttpResults;
 global using Microsoft.AspNetCore.Mvc;
+global using Scalar.AspNetCore;

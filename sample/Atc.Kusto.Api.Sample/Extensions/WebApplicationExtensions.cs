@@ -2,7 +2,7 @@ namespace Atc.Kusto.Api.Sample.Extensions;
 
 public static class WebApplicationExtensions
 {
-    public static IApplicationBuilder ConfigureSwagger(this WebApplication app)
+    public static IApplicationBuilder ConfigureScalar(this WebApplication app)
     {
         ArgumentNullException.ThrowIfNull(app);
 
@@ -11,12 +11,11 @@ public static class WebApplicationExtensions
             return app;
         }
 
-        app.UseSwagger();
-        app.UseSwaggerUI(options =>
+        app.MapOpenApi();
+        app.MapScalarApiReference("/scalar", options =>
         {
-            options.EnableTryItOutByDefault();
-            options.InjectStylesheet("/swagger-ui/SwaggerDark.css");
-            options.InjectJavascript("/swagger-ui/main.js");
+            options.Title = "Atc.Kusto Api Sample";
+            options.WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
         });
 
         return app;

@@ -430,8 +430,7 @@ app.MapGet(
                 [{ } customer] => TypedResults.Ok((object?)customer),
                 _ => TypedResults.NotFound(),
             }))
-    .WithName("GetCustomerById")
-    .WithOpenApi();
+    .WithName("GetCustomerById");
 ```
 
 #### When a query fails
@@ -484,8 +483,7 @@ app.MapGet(
             pageSize ?? 100,
             continuationToken,
             cancellationToken))
-    .WithName("GetCustomers")
-    .WithOpenApi();
+    .WithName("GetCustomers");
 ```
 
 - `pageSize` is the number of items per page, and must be at least 1 (otherwise `ArgumentOutOfRangeException`). `null` runs the query once and returns every item in one page.
