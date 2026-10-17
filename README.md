@@ -43,6 +43,12 @@ The library provides a streamlined interface for handling Kusto operations, maki
   - [KustoIngestTarget](#kustoingesttarget)
   - [Tracking queued ingestion](#tracking-queued-ingestion)
   - [Retries and duplicates](#retries-and-duplicates)
+  - [IKustoIngestor or an Event Hubs data connection?](#ikustoingestor-or-an-event-hubs-data-connection)
+    - [How they differ](#how-they-differ)
+    - [Use IKustoIngestor when](#use-ikustoingestor-when)
+    - [Use an Event Hubs data connection when](#use-an-event-hubs-data-connection-when)
+    - [Data volume and frequency](#data-volume-and-frequency)
+    - [Further reading](#further-reading)
   - [Private endpoints: upload containers](#private-endpoints-upload-containers)
   - [Dependencies](#dependencies)
 - [Health checks](#health-checks)
@@ -707,6 +713,8 @@ var result = await kustoProcessor.ExecuteBufferedStreamingQuery(
 
 `IKustoIngestor` writes data into a Kusto table. It is registered automatically by `ConfigureAzureDataExplorer(...)` — there is no separate opt-in — and supports three sources: in-memory rows, a `Stream`, and a blob.
 
+Not sure whether your app should write to Kusto itself, or send events through Azure Event Hubs? See [IKustoIngestor or an Event Hubs data connection?](#ikustoingestor-or-an-event-hubs-data-connection).
+
 > **Requirements**
 >
 > - The connection must be configured with **both `HostAddress` and a `Credential`**. A `ConnectionString`-only or credential-less connection can query but not ingest; the first ingest call throws `InvalidOperationException`.
@@ -969,9 +977,80 @@ Kusto ingestion is **at-least-once**. A `Failed` result means the library did no
   }
   ```
 
-- For **infrequent, queued** batch loads only, Kusto's `ingest-by:` extent tags with `ingestIfNotExists` can skip a batch that already landed. They aren't supported for streaming ingestion, and Microsoft warns that a unique tag per call hurts performance, so don't use them for frequent telemetry batches.
+- Kusto's `ingest-by:` extent tags with `ingestIfNotExists` can skip a batch that already landed. Atc.Kusto doesn't set extent tags, because they only fit infrequent, queued batch loads:
+  - they can't be set on streaming ingestion;
+  - a tagged ingestion isn't batched with other data, and Microsoft warns that a unique tag per call can significantly hurt performance;
+  - the tags stay on the data until they are removed, so Microsoft recommends removing tags that were only needed during ingestion, with an [extent tags retention policy](https://learn.microsoft.com/kusto/management/extent-tags-retention-policy);
+  - Microsoft's own advice is to remove duplicates in the pipeline before ingestion, where possible.
 
 The library itself does not retry ingestion on top of the SDK: the Ingest V2 SDK already retries transient failures, and a second retry layer would only add duplicates.
+
+### IKustoIngestor or an Event Hubs data connection?
+
+There are two common ways to get data from your own services into a Kusto table:
+
+```text
+IKustoIngestor:        your app ──► cluster ──► table
+Event Hubs connection: your app ──► event hub ──► cluster reads the events ──► table
+```
+
+- With **`IKustoIngestor`**, your app calls the cluster. Microsoft calls this *custom ingestion* with the Kusto client libraries.
+- With an **Event Hubs data connection**, your app sends events to an event hub, and the cluster reads them from there on its own. An IoT Hub data connection works the same way for device messages.
+
+Neither one is better in general. The choice depends on how much data you send, how often, how many producers send it, and what should happen when the cluster can't be reached.
+
+#### How they differ
+
+| | `IKustoIngestor` | Event Hubs data connection |
+|---|---|---|
+| **What you run** | Your app and the cluster. | Your app, an Event Hubs namespace, a consumer group for each data connection, and the data connection on the cluster. |
+| **Setup** | A table and a mapping, plus a streaming policy for streaming. | The same, plus the event hub and the data connection (portal, ARM/Bicep or SDK). The cluster's managed identity needs *Azure Event Hubs Data Receiver*. |
+| **Time until the data can be queried** | Seconds with streaming. With queued, the batching policy decides (by default up to 5 minutes). | Streaming, if the table has a streaming policy, or queued, where Microsoft recommends a batching time of 30 seconds. The extra hop through the event hub adds a little. |
+| **When the cluster can't be reached** | The call returns `Failed`. Your app decides whether to retry, buffer or drop the data. | The events wait in the event hub, for up to its retention period (7 days on Standard, 90 days on Premium). The cluster catches up later. |
+| **How you learn about failures** | From each call: `Succeeded`, `Queued` or `Failed`, plus [tracking](#tracking-queued-ingestion) for queued ingestion. | Sending to the event hub succeeds even when the data can't be ingested later, for example because of a missing mapping. Such failures only show up in the cluster's ingestion metrics and logs. |
+| **Size limits** | 4 MB per streaming request. Queued ingestion works best with 100 MB to 1 GB (uncompressed) per call. | 1 MB per event (Standard and Premium tiers). Put many rows in one event (`MultiJson`) instead of sending one event per row. |
+| **Routing** | Per call: database, table, mapping and mode. | Fixed per data connection, or per event via the `Table`, `Format` and `IngestionMappingReference` event properties. Routing to another database needs a multi-database connection. |
+| **Other consumers** | Only Kusto gets the data. | Other services can read the same events, each through its own consumer group, for example Azure Functions or Stream Analytics. |
+| **Duplicates** | At least once, see [Retries and duplicates](#retries-and-duplicates). | Also not exactly once. Plan for duplicates in the same way. |
+| **Cost** | The cluster. | The cluster plus the Event Hubs throughput or processing units. |
+
+Microsoft sums up the trade-off like this: a data connection is fast to set up without development work, but adds delay; custom ingestion is faster, but you have to handle errors and data consistency yourself. `IKustoIngestor` takes over part of that work (results instead of exceptions, the managed streaming fallback, telemetry). Retrying, buffering and duplicates remain your app's decision.
+
+#### Use IKustoIngestor when
+
+- **Your app already has the data and writes it in batches.** For example, an API that stores what it receives, or a worker that writes a batch every few seconds or minutes.
+- **The caller needs to know whether the write worked**, for example an endpoint that returns 200, 202 or 502 based on the result.
+- **The data must be queryable right after the call** (read-your-own-writes, tests). Use `Streaming` or `ManagedStreaming`.
+- **You load files, exports or backfills.** Use `Queued`, or `IngestFromBlobAsync` for data that is already in blob storage, ideally with 100 MB to 1 GB per call.
+- **You don't want to run another Azure resource**, with its own security, monitoring and cost.
+
+#### Use an Event Hubs data connection when
+
+- **Many producers send a continuous stream of individual events**: devices, or many instances of a service, each sending small messages all the time.
+- **The producers must keep working while the cluster is unavailable**, or while it is being scaled or upgraded. The event hub buffers the events, and nothing is lost as long as the cluster catches up within the retention period.
+- **Other services need the same events**, or you want to archive them with Event Hubs Capture.
+- **The producers can't call Kusto themselves**, for example devices without a Microsoft Entra identity for the cluster, or services that already publish to Kafka or Event Hubs.
+
+#### Data volume and frequency
+
+| Your data | A good fit |
+|---|---|
+| A few rows per request that must be queryable at once | `IKustoIngestor` with `ManagedStreaming` (the default) or `Streaming` |
+| Small batches every few seconds or minutes, from one or a few app instances | `IKustoIngestor` with `ManagedStreaming` |
+| Large batches, such as files, exports or backfills | `IKustoIngestor` with `Queued` |
+| A continuous stream of single events from many producers | An Event Hubs (or IoT Hub) data connection |
+| More than about 4 GB per hour into one table | Queued ingestion, in either way. Microsoft recommends streaming only below about 4 GB per hour per table. |
+
+A warning sign: if you would call `IngestAsync` once for every single event, all day, buffer the events in your app and send them in batches, or use an Event Hubs data connection, which batches for you. Each queued call becomes at least one separate blob, and Microsoft's advice for cost and throughput is to send fewer, larger chunks.
+
+#### Further reading
+
+- [Azure Data Explorer data ingestion overview](https://learn.microsoft.com/azure/data-explorer/ingest-data-overview)
+- [Azure Event Hubs data connection](https://learn.microsoft.com/azure/data-explorer/ingest-data-event-hub-overview)
+- [Configure streaming ingestion](https://learn.microsoft.com/azure/data-explorer/ingest-data-streaming)
+- [Ingestion batching policy](https://learn.microsoft.com/kusto/management/batching-policy)
+- [Best practices for the Kusto Ingest library](https://learn.microsoft.com/kusto/api/netfx/kusto-ingest-best-practices)
+- [Extent tags](https://learn.microsoft.com/kusto/management/extent-tags)
 
 ### Private endpoints: upload containers
 
