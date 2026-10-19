@@ -1414,6 +1414,8 @@ The `atc-kusto` CLI tool provides interactive Kusto query execution, schema expo
 
 ### Installation
 
+The tool needs the .NET 10 runtime or later.
+
 ```bash
 dotnet tool install --global atc-kusto
 ```
