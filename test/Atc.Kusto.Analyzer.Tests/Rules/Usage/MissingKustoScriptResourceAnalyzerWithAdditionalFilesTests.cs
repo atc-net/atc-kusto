@@ -35,7 +35,7 @@ public sealed class MissingKustoScriptResourceAnalyzerWithAdditionalFilesTests
         // Must match the test file name which defaults to Test0.cs, so we need Test0.kusto
         test.TestState.AdditionalFiles.Add(("/0/Test0.kusto", kustoFileContent));
 
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -61,7 +61,7 @@ public sealed class MissingKustoScriptResourceAnalyzerWithAdditionalFilesTests
 
         //// No AdditionalFiles added - should report diagnostic
 
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -94,7 +94,7 @@ public sealed class MissingKustoScriptResourceAnalyzerWithAdditionalFilesTests
         // Test file is Test0.cs, so we need Test0.kusto for both classes in the same file
         test.TestState.AdditionalFiles.Add(("/0/Test0.kusto", kustoFileContent));
 
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -136,6 +136,6 @@ public sealed class MissingKustoScriptResourceAnalyzerWithAdditionalFilesTests
         // Add only Test0.kusto (for FirstQuery) - Test1.kusto (for SecondQuery) is missing
         test.TestState.AdditionalFiles.Add(("/0/Test0.kusto", firstKustoFile));
 
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 }

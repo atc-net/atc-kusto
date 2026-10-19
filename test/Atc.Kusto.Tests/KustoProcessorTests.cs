@@ -157,7 +157,7 @@ public sealed class KustoProcessorTests
             .Returns(expectedResult);
 
         // Act
-        var actualResult = await sut.ExecuteQuery(query);
+        var actualResult = await sut.ExecuteQuery(query, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         actualResult.Should().Be(expectedResult);
@@ -185,7 +185,7 @@ public sealed class KustoProcessorTests
             .Returns(expectedResult);
 
         // Act
-        var actualResult = await sut.ExecuteBufferedStreamingQuery(query);
+        var actualResult = await sut.ExecuteBufferedStreamingQuery(query, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         actualResult.Should().Be(expectedResult);
@@ -214,7 +214,7 @@ public sealed class KustoProcessorTests
 
         // Act
         var results = new List<TestRecord>();
-        await foreach (var item in sut.ExecuteStreamingQuery(query))
+        await foreach (var item in sut.ExecuteStreamingQuery(query, cancellationToken: TestContext.Current.CancellationToken))
         {
             results.Add(item);
         }
@@ -418,7 +418,7 @@ public sealed class KustoProcessorTests
         };
 
         // Act
-        await sut.ExecutePagedQuery(query, sessionId: null, pageSize: 10, continuationToken: null, options);
+        await sut.ExecutePagedQuery(query, sessionId: null, pageSize: 10, continuationToken: null, options, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         factory
@@ -456,7 +456,7 @@ public sealed class KustoProcessorTests
         };
 
         // Act
-        var result = await sut.ExecutePagedQuery(query, sessionId: null, pageSize: null, continuationToken: null, options);
+        var result = await sut.ExecutePagedQuery(query, sessionId: null, pageSize: null, continuationToken: null, options, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         result!.Items.Should().BeEquivalentTo(items);

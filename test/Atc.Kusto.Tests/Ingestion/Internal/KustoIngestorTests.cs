@@ -31,7 +31,7 @@ public sealed class KustoIngestorTests
     public async Task IngestAsync_Rows_Returns_The_Client_Result_And_Passes_The_Request_Through()
     {
         // Act
-        var result = await sut.IngestAsync([new Row("a")], JsonTarget() with { DatabaseName = "OtherDb" });
+        var result = await sut.IngestAsync([new Row("a")], JsonTarget() with { DatabaseName = "OtherDb" }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         result.Status.Should().Be(KustoIngestionStatus.Succeeded);
@@ -68,7 +68,7 @@ public sealed class KustoIngestorTests
             });
 
         // Act
-        await sut.IngestAsync([new Row("a"), new Row("b")], JsonTarget());
+        await sut.IngestAsync([new Row("a"), new Row("b")], JsonTarget(), cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         payload.Should().Be("{\"name\":\"a\"}\n{\"name\":\"b\"}\n");
@@ -81,7 +81,7 @@ public sealed class KustoIngestorTests
         options.DefaultIngestionMode = IngestionMode.Queued;
 
         // Act
-        await sut.IngestAsync([new Row("a")], JsonTarget());
+        await sut.IngestAsync([new Row("a")], JsonTarget(), cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         provider.Received(1).GetIngestClient(IngestionMode.Queued);
@@ -94,7 +94,7 @@ public sealed class KustoIngestorTests
         options.DefaultIngestionMode = IngestionMode.Queued;
 
         // Act
-        await sut.IngestAsync([new Row("a")], JsonTarget() with { Mode = IngestionMode.Streaming });
+        await sut.IngestAsync([new Row("a")], JsonTarget() with { Mode = IngestionMode.Streaming }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         provider.Received(1).GetIngestClient(IngestionMode.Streaming);
@@ -107,7 +107,7 @@ public sealed class KustoIngestorTests
         ReturnsFromClient(KustoIngestionStatus.Queued);
 
         // Act
-        var result = await sut.IngestAsync([new Row("a")], JsonTarget());
+        var result = await sut.IngestAsync([new Row("a")], JsonTarget(), cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         result.Status.Should().Be(KustoIngestionStatus.Queued);
@@ -130,7 +130,7 @@ public sealed class KustoIngestorTests
             .ThrowsAsyncForAnyArgs(new InvalidOperationException("boom"));
 
         // Act
-        var result = await sut.IngestAsync([new Row("a")], JsonTarget());
+        var result = await sut.IngestAsync([new Row("a")], JsonTarget(), cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         result.Status.Should().Be(KustoIngestionStatus.Failed);
@@ -147,7 +147,7 @@ public sealed class KustoIngestorTests
             .Throws(new InvalidOperationException("token unavailable"));
 
         // Act
-        var result = await sut.IngestAsync([new Row("a")], JsonTarget());
+        var result = await sut.IngestAsync([new Row("a")], JsonTarget(), cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         result.Status.Should().Be(KustoIngestionStatus.Failed);
@@ -195,7 +195,7 @@ public sealed class KustoIngestorTests
     public async Task IngestAsync_Rows_Returns_Skipped_For_No_Rows_Without_Calling_The_Cluster()
     {
         // Act
-        var result = await sut.IngestAsync(Array.Empty<Row>(), JsonTarget());
+        var result = await sut.IngestAsync(Array.Empty<Row>(), JsonTarget(), cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         result.Status.Should().Be(KustoIngestionStatus.Skipped);
@@ -210,7 +210,7 @@ public sealed class KustoIngestorTests
         data.Position = data.Length;
 
         // Act
-        var result = await sut.IngestAsync(data, CsvTarget());
+        var result = await sut.IngestAsync(data, CsvTarget(), cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         result.Status.Should().Be(KustoIngestionStatus.Skipped);
@@ -303,11 +303,11 @@ public sealed class KustoIngestorTests
                 mappingReference: null,
                 enableTracking: false,
                 mode: default,
-                cancellationToken: default)
+                cancellationToken: CancellationToken.None)
             .ThrowsAsyncForAnyArgs(new TaskCanceledException("timed out"));
 
         // Act
-        var result = await sut.IngestAsync([new Row("a")], JsonTarget());
+        var result = await sut.IngestAsync([new Row("a")], JsonTarget(), cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         result.Status.Should().Be(KustoIngestionStatus.Failed);
@@ -327,11 +327,11 @@ public sealed class KustoIngestorTests
                 mappingReference: null,
                 enableTracking: false,
                 mode: default,
-                cancellationToken: default)
+                cancellationToken: CancellationToken.None)
             .ReturnsForAnyArgs(Result(KustoIngestionStatus.Queued));
 
         // Act
-        var result = await sut.IngestFromBlobAsync(blobUri, CsvTarget());
+        var result = await sut.IngestFromBlobAsync(blobUri, CsvTarget(), cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         result.Status.Should().Be(KustoIngestionStatus.Queued);
@@ -369,7 +369,7 @@ public sealed class KustoIngestorTests
             .ReturnsForAnyArgs(expected);
 
         // Act
-        var result = await sut.GetIngestionStatusAsync(handle, "Sales");
+        var result = await sut.GetIngestionStatusAsync(handle, "Sales", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         result.Should().BeSameAs(expected);
@@ -489,7 +489,7 @@ public sealed class KustoIngestorTests
         var payload = CapturePayload();
 
         // Act
-        await sut.IngestAsync([new Row("a")], JsonTarget());
+        await sut.IngestAsync([new Row("a")], JsonTarget(), cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         payload().Should().Be("{\"Name\":\"a\"}\n");
@@ -504,7 +504,7 @@ public sealed class KustoIngestorTests
         var snakeCaseSerializerOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower };
 
         // Act
-        await sut.IngestAsync([new Row("a")], JsonTarget(), snakeCaseSerializerOptions);
+        await sut.IngestAsync([new Row("a")], JsonTarget(), snakeCaseSerializerOptions, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         payload().Should().Be("{\"name\":\"a\"}\n");

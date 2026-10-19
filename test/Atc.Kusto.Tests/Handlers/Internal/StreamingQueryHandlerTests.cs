@@ -343,7 +343,7 @@ public sealed class StreamingQueryHandlerTests
         MapFirstColumn();
 
         // Act - read the first row, then stop
-        await using (var rows = sut.Execute(CancellationToken.None).GetAsyncEnumerator())
+        await using (var rows = sut.Execute(CancellationToken.None).GetAsyncEnumerator(TestContext.Current.CancellationToken))
         {
             (await rows.MoveNextAsync()).Should().BeTrue();
             rows.Current.Should().Be("A");
