@@ -10,7 +10,11 @@
 ### New features
 
 * **cli:** require the .NET 10 runtime ([dcac82b](https://github.com/atc-net/atc-kusto/commit/dcac82b48d43d53710c09d8cd42719c183c6dc52))
-* **ingestion:** add Kusto Ingest V2 package reference ([bc3962c](https://github.com/atc-net/atc-kusto/commit/bc3962ca8ab71f33078dfd5adc83625d376d80c7))
+
+### Upgrades
+
+* **deps:** Azure.Identity 1.21.0 ([bc3962c](https://github.com/atc-net/atc-kusto/commit/bc3962ca8ab71f33078dfd5adc83625d376d80c7))
+* **deps:** Atc and Atc.Console.Spectre 4.0.0, Microsoft.Extensions.* 10.0.13, Microsoft.Azure.Kusto.Language 12.4.1 ([477f7f2](https://github.com/atc-net/atc-kusto/commit/477f7f22d71a414feb545fa03fa6f5388b3b1634))
 
 
 ### Bug fixes
