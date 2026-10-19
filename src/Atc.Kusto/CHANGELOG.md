@@ -1,5 +1,67 @@
 # Changelog
 
+## [4.0.0](https://github.com/atc-net/atc-kusto/compare/Atc.Kusto@v3.5.0...Atc.Kusto@v4.0.0) (2026-10-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* **query:** ExecuteQuery and ExecutePagedQuery (every page, also without a page size) throw the Kusto SDK's exception when a query fails, instead of logging it and returning null. null now only means that the query's ReadResult returned null, or (paged) that the continuation token can't be read. The error log event ids 10000-10030 and 20000-20030 are removed; StoredQueryResultNotFound is now 20000.
+* **serialization:** IKustoQuery<T>.ReadResult and IKustoStreamingQuery<T>.MapRecord take a second JsonSerializerOptions parameter with the connection's settings, and ReadObjects, ReadObject and ReadObjectsFromNextResult require the settings. Add the parameter to custom ReadResult/MapRecord implementations and pass it on, e.g. reader.ReadObjects<Team>(serializerOptions).
+* **paging:** continuation tokens are now "v2;{nonce};{itemsReturned}" and no longer contain the queryId. Tokens from earlier versions are rejected (ExecutePagedQuery returns null); they expire within an hour anyway.
+* **streaming:** AtcStreamingQueryOptions.ProgressiveEnabled now defaults to false. With progressive mode on, a DataReplace after rows were returned ends a direct stream with InvalidOperationException (buffered streaming applies it), and DataRemove is rejected. See the README section "Progressive mode".
+* **streaming:** IKustoStreamingQuery<T>.MapDataRow(DataRow) is replaced by MapRecord(IDataRecord). Rename MapDataRow overrides to MapRecord; see the README section "Custom row mapping".
+* **health:** IKustoClusterDiagnosticsHealthCheck.CheckHealthAsync throws OperationCanceledException when its token is cancelled instead of returning an unhealthy result.
+* **cancellation:** cancelling a query, paged query or buffered streaming query now throws OperationCanceledException instead of returning null.
+
+### New features
+
+* **health:** make the cluster health check injectable and fix its docs ([6283360](https://github.com/atc-net/atc-kusto/commit/6283360ccc0d04d50ad05f5b5b0c255c96db9e58))
+* **ingestion:** add ingest client seam and provider integration ([656bd1f](https://github.com/atc-net/atc-kusto/commit/656bd1fe308c2d8bc068588afae8a9655b1380e2))
+* **ingestion:** add ingest target validation ([f4baaf1](https://github.com/atc-net/atc-kusto/commit/f4baaf17f9469b93ee719a93011eba4bb57ac290))
+* **ingestion:** add ingestion status polling ([941a929](https://github.com/atc-net/atc-kusto/commit/941a929af8b5bbaf75ec3b0d5f80c430e21c00a2))
+* **ingestion:** add ingestion status, event ids and diagnostics activity ([10ecb6b](https://github.com/atc-net/atc-kusto/commit/10ecb6b82ec9b19a34131e6ae7945cd20520e8e8))
+* **ingestion:** add IngestionMode, KustoIngestFormat and KustoIngestionStatus enums ([4c618d0](https://github.com/atc-net/atc-kusto/commit/4c618d06c4043d305f445ad9562aceb0450ad8c6))
+* **ingestion:** add Kusto Ingest V2 package reference ([bc3962c](https://github.com/atc-net/atc-kusto/commit/bc3962ca8ab71f33078dfd5adc83625d376d80c7))
+* **ingestion:** add KustoIngestFormat to DataSourceFormat mapping ([51139f4](https://github.com/atc-net/atc-kusto/commit/51139f43a0cdc50c2bcfaa67939d91941bd02fb2))
+* **ingestion:** add KustoIngestor orchestrator ([ee17692](https://github.com/atc-net/atc-kusto/commit/ee17692088f91d01ef7a0f94892e3b6ec3c7d6c1))
+* **ingestion:** add KustoIngestTarget, KustoIngestionResult and IKustoIngestor ([10b1b84](https://github.com/atc-net/atc-kusto/commit/10b1b84072ea154c159831f86d1c9065c1ccfd51))
+* **ingestion:** add multijson row serializer ([e6fef40](https://github.com/atc-net/atc-kusto/commit/e6fef402effaedc0e8638c323cf10b16df225b7a))
+* **ingestion:** implement V2-backed ingest client ([6388c76](https://github.com/atc-net/atc-kusto/commit/6388c765c87ceeb9e4d17cfe684888a1c35d982b))
+* **ingestion:** make ingest client cache concurrency-safe ([cf23030](https://github.com/atc-net/atc-kusto/commit/cf2303099f1ad2cc328559dbd64d58c707d2bd10))
+* **ingestion:** register IKustoIngestor and share the client provider ([ea27ebc](https://github.com/atc-net/atc-kusto/commit/ea27ebcb6dc8bb7f7cf535c125658eb42b6b4a57))
+* **paging:** make the lifetime of stored query results configurable ([9a85d99](https://github.com/atc-net/atc-kusto/commit/9a85d9902babdff646b1d37c511997bf68cdee09))
+* **paging:** return the total count on request ([6a94f5f](https://github.com/atc-net/atc-kusto/commit/6a94f5f0a123d31567879ec8125d72b0b704af9f))
+* **paging:** run the query again when the stored result has expired ([bc16231](https://github.com/atc-net/atc-kusto/commit/bc16231d8166e13ad39463cd6de3fac9caea0b32))
+* **serialization:** give each connection its own JSON serializer settings ([c57b357](https://github.com/atc-net/atc-kusto/commit/c57b357e1ac8af7163d4b4c6f42466705e09b60f))
+* **streaming:** map streaming rows from IDataRecord instead of DataRow ([372e759](https://github.com/atc-net/atc-kusto/commit/372e759e981eb047e6029d1394228be8f4ca1f45))
+* **timing:** use the registered TimeProvider for retry delays and durations ([6cd9f05](https://github.com/atc-net/atc-kusto/commit/6cd9f0526d758878f7ae94da161b4da940d6c7af))
+
+
+### Bug fixes
+
+* **cancellation:** always send the server-side cancel once the token is cancelled ([a619149](https://github.com/atc-net/atc-kusto/commit/a619149b0d31ce94c4e2771dd9e160609f44535b))
+* **cancellation:** check the token before creating the handler ([cb1c6ea](https://github.com/atc-net/atc-kusto/commit/cb1c6ea9bfb520f009ba7df1ac1a813553822ac9))
+* **cancellation:** report caller cancellation as OperationCanceledException ([5f59bc0](https://github.com/atc-net/atc-kusto/commit/5f59bc06e9d941637d60e25365abbe86bdd485b2))
+* **client:** create one query and admin client per key under concurrency ([9597bc7](https://github.com/atc-net/atc-kusto/commit/9597bc7b29b1df9d20d6cf46543092fb1b70f466))
+* **client:** honour per-call database for connection-string configurations ([28520e0](https://github.com/atc-net/atc-kusto/commit/28520e046c8619276b7df624dba74f4ce01fdd77))
+* **health:** let cancellation through the health checks ([31de7e6](https://github.com/atc-net/atc-kusto/commit/31de7e6546400a8229165677562f742834d2f160))
+* **ingestion:** keep the caller's stream open when it is ingested queued ([a373eef](https://github.com/atc-net/atc-kusto/commit/a373eef869dd0179a2ea516c12baf1758aa2d436))
+* **paging:** calculate the queryId on the server and bind it to the query ([b0d8a97](https://github.com/atc-net/atc-kusto/commit/b0d8a9707dae155bb4d0df74de529bcc3d500729))
+* **paging:** reject a page size below 1 and retry temporary errors on the first page ([1fc3eae](https://github.com/atc-net/atc-kusto/commit/1fc3eae172c5b4219ae785493f1ceb6d766ac51f))
+* **processor:** allow calling the query methods with only the query ([f6b5d29](https://github.com/atc-net/atc-kusto/commit/f6b5d29467dd9b8fd6ccf4d1bfd5612eb3aded01))
+* **query:** retry only transient errors ([f799bbc](https://github.com/atc-net/atc-kusto/commit/f799bbcb1d1ca7789076c294db6f0a6e40e82db0))
+* **query:** throw query errors instead of returning null ([df35a34](https://github.com/atc-net/atc-kusto/commit/df35a3464554cf0c193ad531efd245f4ca61b782))
+* **streaming:** dispose the result stream when reading ends ([7b5b50e](https://github.com/atc-net/atc-kusto/commit/7b5b50efb6ecdc94bed1567e7346269d065e9dff))
+* **streaming:** keep the table completions of a buffered streaming query ([01834da](https://github.com/atc-net/atc-kusto/commit/01834da78c2ab535a3088bcffdf8bffc917511fd))
+* **streaming:** read real values in progressive mode with the culture they were written in ([5b76345](https://github.com/atc-net/atc-kusto/commit/5b76345a84013a7e84bc2b71b3f395cc3e004137))
+* **streaming:** return the table schemas of a buffered query without progressive results ([fd00746](https://github.com/atc-net/atc-kusto/commit/fd007463e62cf47f83553fd3ad9193c10d94cd23))
+* **streaming:** turn progressive mode off by default and handle replaced rows ([459b652](https://github.com/atc-net/atc-kusto/commit/459b6528486fe33cf715a583cd4e5f2effd7ce31))
+
+
+### Performance improvements
+
+* **streaming:** stop yielding after every row in the progressive loop ([7d169ce](https://github.com/atc-net/atc-kusto/commit/7d169ce98e7abd62734aeb6c31bae7c2d7e62037))
+
 ## [3.3.1](https://github.com/atc-net/atc-kusto/compare/v3.3.0...v3.3.1) (2026-03-06)
 
 
