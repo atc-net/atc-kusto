@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
+      id-token: write  # required for NuGet Trusted Publishing (OIDC)
 
     steps:
       - name: 🛒 Checkout repository
@@ -35,8 +35,12 @@ jobs:
       - name: 🗳️ Pack CLI for release
         run: dotnet pack src/Atc.Kusto.CLI/Atc.Kusto.CLI.csproj -c Release --no-restore -o ${GITHUB_WORKSPACE}/packages /p:PublicRelease=true
 
+      - name: 🔑 NuGet login (OIDC → short-lived API key)
+        id: nuget-login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
       - name: 📦 Push package to NuGet
-        env:
-          NUGET_KEY: ${{ secrets.NUGET_KEY }}
         run: |
-          dotnet nuget push ${GITHUB_WORKSPACE}/packages/atc-kusto*.nupkg -k "$NUGET_KEY" -s https://api.nuget.org/v3/index.json --skip-duplicate --no-symbols
+          dotnet nuget push ${GITHUB_WORKSPACE}/packages/atc-kusto*.nupkg -k "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" -s https://api.nuget.org/v3/index.json --skip-duplicate --no-symbols
