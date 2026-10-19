@@ -17,7 +17,7 @@ internal static class CSharpAnalyzerVerifier<TAnalyzer>
     {
         var test = new CSharpAnalyzerTest<TAnalyzer, DefaultVerifier>
         {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net100,
             TestCode = source,
         };
 
@@ -37,7 +37,7 @@ internal static class CSharpAnalyzerVerifier<TAnalyzer>
     {
         var test = new CSharpAnalyzerTest<TAnalyzer, DefaultVerifier>
         {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net100,
             TestCode = source,
         };
 

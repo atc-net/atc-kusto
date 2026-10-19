@@ -33,7 +33,7 @@ public sealed class ProjectionMismatchAnalyzerTests
 
         var test = new CSharpAnalyzerTest<ProjectionMismatchAnalyzer, DefaultVerifier>
         {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net100,
             TestCode = code,
         };
 
@@ -67,7 +67,7 @@ public sealed class ProjectionMismatchAnalyzerTests
 
         var test = new CSharpAnalyzerTest<ProjectionMismatchAnalyzer, DefaultVerifier>
         {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net100,
             TestCode = code,
         };
 
@@ -95,7 +95,7 @@ public sealed class ProjectionMismatchAnalyzerTests
 
         var test = new CSharpAnalyzerTest<ProjectionMismatchAnalyzer, DefaultVerifier>
         {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net100,
             TestCode = code,
         };
 
@@ -148,7 +148,7 @@ public sealed class ProjectionMismatchAnalyzerTests
 
         var test = new CSharpAnalyzerTest<ProjectionMismatchAnalyzer, DefaultVerifier>
         {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net100,
             TestCode = code,
         };
 
@@ -187,7 +187,7 @@ public sealed class ProjectionMismatchAnalyzerTests
 
         var test = new CSharpAnalyzerTest<ProjectionMismatchAnalyzer, DefaultVerifier>
         {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net100,
             TestCode = code,
             ExpectedDiagnostics = { expected },
         };
@@ -226,7 +226,7 @@ public sealed class ProjectionMismatchAnalyzerTests
 
         var test = new CSharpAnalyzerTest<ProjectionMismatchAnalyzer, DefaultVerifier>
         {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net100,
             TestCode = code,
             ExpectedDiagnostics = { expected },
         };
@@ -264,7 +264,7 @@ public sealed class ProjectionMismatchAnalyzerTests
 
         var test = new CSharpAnalyzerTest<ProjectionMismatchAnalyzer, DefaultVerifier>
         {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net100,
             TestCode = code,
             ExpectedDiagnostics = { expected },
         };
@@ -302,7 +302,7 @@ public sealed class ProjectionMismatchAnalyzerTests
 
         var test = new CSharpAnalyzerTest<ProjectionMismatchAnalyzer, DefaultVerifier>
         {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net100,
             TestCode = code,
             ExpectedDiagnostics = { expected },
         };
@@ -354,7 +354,7 @@ public sealed class ProjectionMismatchAnalyzerTests
 
         var test = new CSharpAnalyzerTest<ProjectionMismatchAnalyzer, DefaultVerifier>
         {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net100,
             TestCode = code,
             ExpectedDiagnostics = { expected1, expected2, expected3, expected4 },
         };
@@ -389,7 +389,7 @@ public sealed class ProjectionMismatchAnalyzerTests
 
         var test = new CSharpAnalyzerTest<ProjectionMismatchAnalyzer, DefaultVerifier>
         {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net100,
             TestCode = code,
         };
 
@@ -436,7 +436,7 @@ public sealed class ProjectionMismatchAnalyzerTests
 
         var test = new CSharpAnalyzerTest<ProjectionMismatchAnalyzer, DefaultVerifier>
         {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net100,
             TestCode = code,
             ExpectedDiagnostics = { expected1, expected2, expected3 },
         };
@@ -477,7 +477,7 @@ public sealed class ProjectionMismatchAnalyzerTests
 
         var test = new CSharpAnalyzerTest<ProjectionMismatchAnalyzer, DefaultVerifier>
         {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net100,
             TestCode = code,
             ExpectedDiagnostics = { expected },
         };
@@ -529,7 +529,7 @@ public sealed class ProjectionMismatchAnalyzerTests
 
         var test = new CSharpAnalyzerTest<ProjectionMismatchAnalyzer, DefaultVerifier>
         {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net100,
             TestCode = code,
             ExpectedDiagnostics = { expected1, expected2, expected3 },
         };

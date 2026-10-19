@@ -93,7 +93,7 @@ public sealed partial class EmptyKustoScriptFileAnalyzerTests
 
         var test = new CSharpAnalyzerTest<EmptyKustoScriptFileAnalyzer, DefaultVerifier>
         {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net100,
             TestCode = code,
         };
 
@@ -126,7 +126,7 @@ public sealed partial class EmptyKustoScriptFileAnalyzerTests
 
         var test = new CSharpAnalyzerTest<EmptyKustoScriptFileAnalyzer, DefaultVerifier>
         {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net100,
             TestCode = code,
         };
 
@@ -159,7 +159,7 @@ public sealed partial class EmptyKustoScriptFileAnalyzerTests
 
         var test = new CSharpAnalyzerTest<EmptyKustoScriptFileAnalyzer, DefaultVerifier>
         {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net100,
             TestCode = code,
         };
 
@@ -192,7 +192,7 @@ public sealed partial class EmptyKustoScriptFileAnalyzerTests
 
         var test = new CSharpAnalyzerTest<EmptyKustoScriptFileAnalyzer, DefaultVerifier>
         {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net100,
             TestCode = code,
         };
 
@@ -222,7 +222,7 @@ public sealed partial class EmptyKustoScriptFileAnalyzerTests
 
         var test = new CSharpAnalyzerTest<EmptyKustoScriptFileAnalyzer, DefaultVerifier>
         {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net100,
             TestCode = code,
         };
 
