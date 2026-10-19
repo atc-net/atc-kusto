@@ -8,16 +8,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Build all projects
 dotnet build
 
-# Run all tests
+# Run all tests (Microsoft.Testing.Platform with xUnit v3, selected in global.json)
 dotnet test
 
-# Run specific test class or method
-dotnet test --filter "FullyQualifiedName~SimpleQueryHandler"
-
 # Run tests from specific project
-dotnet test test/Atc.Kusto.Tests/Atc.Kusto.Tests.csproj
-dotnet test test/Atc.Kusto.Analyzer.Tests/Atc.Kusto.Analyzer.Tests.csproj
+dotnet test --project test/Atc.Kusto.Tests/Atc.Kusto.Tests.csproj
+dotnet test --project test/Atc.Kusto.Analyzer.Tests/Atc.Kusto.Analyzer.Tests.csproj
+
+# Run specific test class or method - pass --project, because a filtered run over the whole
+# solution exits with code 8 when another test project runs no tests
+dotnet test --project test/Atc.Kusto.Tests/Atc.Kusto.Tests.csproj --filter "FullyQualifiedName~SimpleQueryHandler"
 ```
+
+The solution targets .NET 10 (`net10.0`, set in `Directory.Build.props`); the analyzer projects target `netstandard2.0`.
 
 ## Architecture Overview
 
@@ -36,6 +39,12 @@ dotnet test test/Atc.Kusto.Analyzer.Tests/Atc.Kusto.Analyzer.Tests.csproj
    - `ExistingPagedStoredQueryHandler` / `NewPagedStoredQueryHandler` - Pagination
 
 3. **Factory Pattern**: `ScriptHandlerFactory` creates handlers, `KustoProcessorFactory` creates processors, `KustoClientProvider` manages client instances
+
+4. **Ingestion**: `IKustoIngestor` writes in-memory rows (as multijson), streams and blobs to a table, in `Streaming`, `Queued` or `ManagedStreaming` mode, and checks the status of a tracked queued ingestion. Implementation in `src/Atc.Kusto/Ingestion/Internal/`:
+   - `KustoIngestor` - validation, serialization, logging and turning SDK errors into a `KustoIngestionResult` (failures are returned, not thrown)
+   - `KustoIngestClient` - the only file that uses Kusto Ingest V2 types (`Microsoft.Azure.Kusto.Ingest.V2`, pinned to an exact pre-1.0 version). Its class remarks list the SDK behaviours it works around; re-check them when upgrading the package
+   - A test guards that no `Kusto.Ingest` types appear in the public API
+   - Unit tests replace the SDK with a fake, so SDK behaviour is only verified by running `sample/Atc.Kusto.Ingestion.Sample` against a writable cluster
 
 ### Roslyn Analyzer (`src/Atc.Kusto.Analyzer/`)
 
@@ -61,6 +70,8 @@ Bundled analyzer providing compile-time validation. Targets `netstandard2.0` for
 
 - `src/Atc.Kusto/` - Main library
 - `src/Atc.Kusto.Analyzer/` - Roslyn analyzer (bundled in NuGet package)
+- `src/Atc.Kusto.CLI/` - The `atc-kusto` dotnet tool (queries, cluster/database/table browsing, schema export), released separately; it uses the Kusto SDK directly, not the library's processor or ingestor
 - `sample/Atc.Kusto.Analyzer.Sample/` - Analyzer rule demonstrations
+- `sample/Atc.Kusto.Ingestion.Sample/` - Every ingestion scenario against a real cluster (see its README and `setup.kql`)
 - `test/Atc.Kusto.Tests/` - Library unit tests
 - `test/Atc.Kusto.Analyzer.Tests/` - Analyzer unit tests
