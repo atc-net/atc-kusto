@@ -33,7 +33,7 @@ public sealed partial class KustoParameterMismatchAnalyzerTests
 
         var test = new CSharpAnalyzerTest<KustoParameterMismatchAnalyzer, DefaultVerifier>
         {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net100,
             TestCode = code,
             ExpectedDiagnostics = { expected },
         };
@@ -72,7 +72,7 @@ public sealed partial class KustoParameterMismatchAnalyzerTests
 
         var test = new CSharpAnalyzerTest<KustoParameterMismatchAnalyzer, DefaultVerifier>
         {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net100,
             TestCode = code,
             ExpectedDiagnostics = { expected },
         };
@@ -107,7 +107,7 @@ public sealed partial class KustoParameterMismatchAnalyzerTests
 
         var test = new CSharpAnalyzerTest<KustoParameterMismatchAnalyzer, DefaultVerifier>
         {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net100,
             TestCode = code,
             ExpectedDiagnostics = { expected },
         };
@@ -146,7 +146,7 @@ public sealed partial class KustoParameterMismatchAnalyzerTests
 
         var test = new CSharpAnalyzerTest<KustoParameterMismatchAnalyzer, DefaultVerifier>
         {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net100,
             TestCode = code,
             ExpectedDiagnostics = { expected },
         };
@@ -184,7 +184,7 @@ public sealed partial class KustoParameterMismatchAnalyzerTests
 
         var test = new CSharpAnalyzerTest<KustoParameterMismatchAnalyzer, DefaultVerifier>
         {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net100,
             TestCode = code,
             ExpectedDiagnostics = { expected },
         };
@@ -223,7 +223,7 @@ public sealed partial class KustoParameterMismatchAnalyzerTests
 
         var test = new CSharpAnalyzerTest<KustoParameterMismatchAnalyzer, DefaultVerifier>
         {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net100,
             TestCode = code,
             ExpectedDiagnostics = { expected },
         };
@@ -262,7 +262,7 @@ public sealed partial class KustoParameterMismatchAnalyzerTests
 
         var test = new CSharpAnalyzerTest<KustoParameterMismatchAnalyzer, DefaultVerifier>
         {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net100,
             TestCode = code,
             ExpectedDiagnostics = { expected },
         };
@@ -302,7 +302,7 @@ public sealed partial class KustoParameterMismatchAnalyzerTests
 
         var test = new CSharpAnalyzerTest<KustoParameterMismatchAnalyzer, DefaultVerifier>
         {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net100,
             TestCode = code,
             ExpectedDiagnostics = { expected },
         };

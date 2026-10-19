@@ -27,7 +27,7 @@ public sealed class MissingKustoScriptResourceAnalyzerWithAdditionalFilesTests
 
         var test = new CSharpAnalyzerTest<MissingKustoScriptResourceAnalyzer, DefaultVerifier>
         {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net100,
             TestCode = code,
         };
 
@@ -55,7 +55,7 @@ public sealed class MissingKustoScriptResourceAnalyzerWithAdditionalFilesTests
 
         var test = new CSharpAnalyzerTest<MissingKustoScriptResourceAnalyzer, DefaultVerifier>
         {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net100,
             TestCode = code,
         };
 
@@ -87,7 +87,7 @@ public sealed class MissingKustoScriptResourceAnalyzerWithAdditionalFilesTests
 
         var test = new CSharpAnalyzerTest<MissingKustoScriptResourceAnalyzer, DefaultVerifier>
         {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net100,
             TestCode = code,
         };
 
@@ -126,7 +126,7 @@ public sealed class MissingKustoScriptResourceAnalyzerWithAdditionalFilesTests
 
         var test = new CSharpAnalyzerTest<MissingKustoScriptResourceAnalyzer, DefaultVerifier>
         {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net100,
             TestCode = firstFile,
         };
 

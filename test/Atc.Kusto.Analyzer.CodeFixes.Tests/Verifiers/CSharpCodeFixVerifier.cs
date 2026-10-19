@@ -25,7 +25,7 @@ internal static class CSharpCodeFixVerifier<TAnalyzer, TCodeFix>
 
         var test = new CSharpCodeFixTest<TAnalyzer, TCodeFix, DefaultVerifier>
         {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net100,
             TestCode = normalizedSource,
             FixedCode = normalizedFixedSource,
         };
@@ -54,7 +54,7 @@ internal static class CSharpCodeFixVerifier<TAnalyzer, TCodeFix>
 
         var test = new CSharpCodeFixTest<TAnalyzer, TCodeFix, DefaultVerifier>
         {
-            ReferenceAssemblies = ReferenceAssemblies.Net.Net90,
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net100,
             TestCode = normalizedSource,
             FixedCode = normalizedFixedSource,
         };
