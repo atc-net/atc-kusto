@@ -93,6 +93,7 @@ The library provides a streamlined interface for handling Kusto operations, maki
   - [Analyzer Rules](#analyzer-rules)
 - [Samples](#samples)
 - [Requirements](#requirements)
+- [Wiki - Documentation](#wiki---documentation)
 - [How to contribute](#how-to-contribute)
 
 ## Features
@@ -1717,6 +1718,33 @@ The query samples use the "ContosoSales" and "Samples" databases of the Microsof
 ## Requirements
 
 - .NET 10 or later (the package targets `net10.0`).
+
+## Wiki - Documentation
+
+Read the full documentation on the [wiki](https://github.com/atc-net/atc-kusto/wiki).
+
+| Page | Description |
+| --- | --- |
+| [🚀 Getting Started](https://github.com/atc-net/atc-kusto/wiki/Getting-Started-with-Basic) | From an empty project to a running query |
+| [🖥️ Getting Started with CLI](https://github.com/atc-net/atc-kusto/wiki/Getting-Started-with-CLI) | Install the `atc-kusto` tool and run a first query |
+| [⬆️ Upgrading to v4](https://github.com/atc-net/atc-kusto/wiki/Upgrading-to-v4) | Breaking changes from 3.x |
+| [🔧 Working with Configuration](https://github.com/atc-net/atc-kusto/wiki/Working-with-Configuration) | Connections, named connections, per-call databases, JSON settings |
+| [📝 Working with Queries](https://github.com/atc-net/atc-kusto/wiki/Working-with-Queries) | Scripts, parameters, custom result readers, failures |
+| [📄 Working with Paged Queries](https://github.com/atc-net/atc-kusto/wiki/Working-with-Paged-Queries) | Stored results, continuation tokens, total count |
+| [🌊 Working with Streaming Queries](https://github.com/atc-net/atc-kusto/wiki/Working-with-Streaming-Queries) | Direct and buffered streaming, progressive mode |
+| [🎛️ Working with Query Options](https://github.com/atc-net/atc-kusto/wiki/Working-with-Query-Options) | Timeouts and result limits per call |
+| [📥 Working with Ingestion](https://github.com/atc-net/atc-kusto/wiki/Working-with-Ingestion) | `IKustoIngestor`: modes, mappings, tracking, duplicates |
+| [🔀 IKustoIngestor or Event Hubs](https://github.com/atc-net/atc-kusto/wiki/Working-with-Ingestion-or-Event-Hubs) | Choosing between custom ingestion and an Event Hubs data connection |
+| [🔄 Working with Retries](https://github.com/atc-net/atc-kusto/wiki/Working-with-Retries) | What is retried, and the clock behind it |
+| [🛑 Working with Cancellation](https://github.com/atc-net/atc-kusto/wiki/Working-with-Cancellation) | Cancellation and server-side cancel |
+| [💓 Working with Health Checks](https://github.com/atc-net/atc-kusto/wiki/Working-with-Health-Checks) | The cluster health check |
+| [📡 Working with Telemetry](https://github.com/atc-net/atc-kusto/wiki/Working-with-Telemetry) | OpenTelemetry spans and attributes |
+| [🖥️ Working with CLI](https://github.com/atc-net/atc-kusto/wiki/Working-with-CLI) | Full CLI command reference |
+| [📖 API Reference](https://github.com/atc-net/atc-kusto/wiki/API-Reference) | Public types and signatures |
+| [📊 Analyzer Rules](https://github.com/atc-net/atc-kusto/wiki/Analyzer-Rules) | ATCK301–ATCK309 |
+| [🧪 Samples](https://github.com/atc-net/atc-kusto/wiki/Samples) | The runnable samples |
+| [❓ FAQ & Troubleshooting](https://github.com/atc-net/atc-kusto/wiki/FAQ-and-Troubleshooting) | Common issues and solutions |
+| [🔧 Development Notes](https://github.com/atc-net/atc-kusto/wiki/Development-Notes) | For contributors |
 
 ## How to contribute
 
