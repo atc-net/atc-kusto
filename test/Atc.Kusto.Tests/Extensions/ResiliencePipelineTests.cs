@@ -126,7 +126,7 @@ public sealed class ResiliencePipelineTests
         for (var step = 0; step < 1_000 && !execution.IsCompleted; step++)
         {
             timeProvider.Advance(TimeSpan.FromSeconds(1));
-            await Task.Delay(TimeSpan.FromMilliseconds(1));
+            await Task.Delay(TimeSpan.FromMilliseconds(1), cancellationToken: TestContext.Current.CancellationToken);
         }
 
         // Assert

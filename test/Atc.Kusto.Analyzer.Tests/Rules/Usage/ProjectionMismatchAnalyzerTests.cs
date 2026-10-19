@@ -39,7 +39,7 @@ public sealed class ProjectionMismatchAnalyzerTests
 
         test.TestState.AdditionalFiles.Add(("/0/Test0.kusto", kustoFileContent));
 
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -73,7 +73,7 @@ public sealed class ProjectionMismatchAnalyzerTests
 
         test.TestState.AdditionalFiles.Add(("/0/Test0.kusto", kustoFileContent));
 
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -101,7 +101,7 @@ public sealed class ProjectionMismatchAnalyzerTests
 
         test.TestState.AdditionalFiles.Add(("/0/Test0.kusto", kustoFileContent));
 
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -154,7 +154,7 @@ public sealed class ProjectionMismatchAnalyzerTests
 
         test.TestState.AdditionalFiles.Add(("/0/Test0.kusto", kustoFileContent));
 
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -194,7 +194,7 @@ public sealed class ProjectionMismatchAnalyzerTests
 
         test.TestState.AdditionalFiles.Add(("/0/Test0.kusto", kustoFileContent));
 
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -233,7 +233,7 @@ public sealed class ProjectionMismatchAnalyzerTests
 
         test.TestState.AdditionalFiles.Add(("/0/Test0.kusto", kustoFileContent));
 
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -271,7 +271,7 @@ public sealed class ProjectionMismatchAnalyzerTests
 
         test.TestState.AdditionalFiles.Add(("/0/Test0.kusto", kustoFileContent));
 
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -309,7 +309,7 @@ public sealed class ProjectionMismatchAnalyzerTests
 
         test.TestState.AdditionalFiles.Add(("/0/Test0.kusto", kustoFileContent));
 
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -361,7 +361,7 @@ public sealed class ProjectionMismatchAnalyzerTests
 
         test.TestState.AdditionalFiles.Add(("/0/Test0.kusto", kustoFileContent));
 
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -395,7 +395,7 @@ public sealed class ProjectionMismatchAnalyzerTests
 
         test.TestState.AdditionalFiles.Add(("/0/Test0.kusto", kustoFileContent));
 
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -443,7 +443,7 @@ public sealed class ProjectionMismatchAnalyzerTests
 
         test.TestState.AdditionalFiles.Add(("/0/Test0.kusto", kustoFileContent));
 
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -484,7 +484,7 @@ public sealed class ProjectionMismatchAnalyzerTests
 
         test.TestState.AdditionalFiles.Add(("/0/Test0.kusto", kustoFileContent));
 
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -536,6 +536,6 @@ public sealed class ProjectionMismatchAnalyzerTests
 
         test.TestState.AdditionalFiles.Add(("/0/Test0.kusto", kustoFileContent));
 
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 }

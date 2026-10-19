@@ -40,7 +40,7 @@ public sealed partial class KustoParameterMismatchAnalyzerTests
 
         test.TestState.AdditionalFiles.Add(("/0/Test0.kusto", kustoFileContent));
 
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -79,7 +79,7 @@ public sealed partial class KustoParameterMismatchAnalyzerTests
 
         test.TestState.AdditionalFiles.Add(("/0/Test0.kusto", kustoFileContent));
 
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -114,7 +114,7 @@ public sealed partial class KustoParameterMismatchAnalyzerTests
 
         test.TestState.AdditionalFiles.Add(("/0/Test0.kusto", kustoFileContent));
 
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -153,7 +153,7 @@ public sealed partial class KustoParameterMismatchAnalyzerTests
 
         test.TestState.AdditionalFiles.Add(("/0/Test0.kusto", kustoFileContent));
 
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -191,7 +191,7 @@ public sealed partial class KustoParameterMismatchAnalyzerTests
 
         test.TestState.AdditionalFiles.Add(("/0/Test0.kusto", kustoFileContent));
 
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -230,7 +230,7 @@ public sealed partial class KustoParameterMismatchAnalyzerTests
 
         test.TestState.AdditionalFiles.Add(("/0/Test0.kusto", kustoFileContent));
 
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -269,7 +269,7 @@ public sealed partial class KustoParameterMismatchAnalyzerTests
 
         test.TestState.AdditionalFiles.Add(("/0/Test0.kusto", kustoFileContent));
 
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -309,6 +309,6 @@ public sealed partial class KustoParameterMismatchAnalyzerTests
 
         test.TestState.AdditionalFiles.Add(("/0/Test0.kusto", kustoFileContent));
 
-        await test.RunAsync();
+        await test.RunAsync(TestContext.Current.CancellationToken);
     }
 }
