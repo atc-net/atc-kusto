@@ -2,7 +2,7 @@ name: Build & Publish atc-kusto CLI
 
 on:
   push:
-    tags: [ 'atc-kusto@v*.*.*' ]
+    tags: [ 'atc-kusto-cli@v*.*.*' ]
 
 jobs:
   build-and-publish:
