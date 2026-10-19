@@ -202,12 +202,14 @@ public sealed class IngestionScenarios
             pascalCase,
             cancellationToken);
 
-        logger.LogInformation("Status {Status} - no error, but look at the columns:", result.Status);
-
-        if (result.Status == KustoIngestionStatus.Succeeded)
+        if (!result.IsSuccess)
         {
-            await LogRowsAsync("mismatch", cancellationToken);
+            logger.LogWarning("Ingestion failed (is streaming enabled on the cluster and table?): {Error}", result.ErrorMessage);
+            return;
         }
+
+        logger.LogInformation("Status {Status} - no error, but look at the columns:", result.Status);
+        await LogRowsAsync("mismatch", cancellationToken);
     }
 
     /// <summary>
