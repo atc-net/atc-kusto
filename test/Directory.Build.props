@@ -16,9 +16,19 @@
     <TestingPlatformShowTestsFailure>true</TestingPlatformShowTestsFailure>
   </PropertyGroup>
 
+  <ItemGroup Label="Temporary">
+    <!--
+        System.Security.Cryptography.Xml v10.0.10 is pulled in by Microsoft.Identity.Web v4.16.1
+        and has known vulnerabilities: https://github.com/advisories/GHSA-7hqp-7c5m-4vq6,
+        https://github.com/advisories/GHSA-c399-9853-6jmj and https://github.com/advisories/GHSA-r955-8q5j-3h83
+        We need to pin the patched version with a direct reference until Microsoft.Identity.Web releases a patched package.
+      -->
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.13" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Atc.Test" Version="3.1.1" />
-    <PackageReference Include="Atc.XUnit" Version="3.0.186" />
+    <PackageReference Include="Atc.XUnit" Version="4.0.0" />
     <PackageReference Include="NSubstitute.Analyzers.CSharp" Version="1.0.17" PrivateAssets="All" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.12.0" />
