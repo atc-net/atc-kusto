@@ -58,25 +58,29 @@ internal static class CslAdminProviderExtensions
                 {
                     var cancelCommand = CslCommandGenerator.GenerateQueryCancelCommand(originalClientRequestId);
 
-                    _ = Task.Run(async () =>
-                    {
-                        try
+                    // CancellationToken.None: this runs because the token was cancelled, so passing it
+                    // would stop Task.Run from starting the cancel command.
+                    _ = Task.Run(
+                        async () =>
                         {
-                            var cancelProps = new ClientRequestProperties
+                            try
                             {
-                                ClientRequestId = Guid.NewGuid().ToString(),
-                            };
+                                var cancelProps = new ClientRequestProperties
+                                {
+                                    ClientRequestId = Guid.NewGuid().ToString(),
+                                };
 
-                            // Set request options to not obfuscate client request parameters for debugging purposes
-                            cancelProps.SetOption(ClientRequestProperties.OptionQueryLogQueryParameters, value: true);
+                                // Set request options to not obfuscate client request parameters for debugging purposes
+                                cancelProps.SetOption(ClientRequestProperties.OptionQueryLogQueryParameters, value: true);
 
-                            using var reader = await admin.ExecuteControlCommandAsync(db, cancelCommand, cancelProps).ConfigureAwait(false);
-                        }
-                        catch (Exception ex)
-                        {
-                            logger.LogKustoCancelCommandFailed(ex);
-                        }
-                    });
+                                using var reader = await admin.ExecuteControlCommandAsync(db, cancelCommand, cancelProps).ConfigureAwait(false);
+                            }
+                            catch (Exception ex)
+                            {
+                                logger.LogKustoCancelCommandFailed(ex);
+                            }
+                        },
+                        CancellationToken.None);
                 }
                 catch (Exception ex)
                 {
