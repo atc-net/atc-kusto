@@ -1,5 +1,22 @@
 # Changelog
 
+## [4.0.0](https://github.com/atc-net/atc-kusto/compare/atc-kusto-cli@v3.5.1...atc-kusto-cli@v4.0.0) (2026-10-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* **cli:** the atc-kusto tool needs the .NET 10 runtime; it no longer runs on .NET 9.
+
+### New features
+
+* **cli:** require the .NET 10 runtime ([dcac82b](https://github.com/atc-net/atc-kusto/commit/dcac82b48d43d53710c09d8cd42719c183c6dc52))
+* **ingestion:** add Kusto Ingest V2 package reference ([bc3962c](https://github.com/atc-net/atc-kusto/commit/bc3962ca8ab71f33078dfd5adc83625d376d80c7))
+
+
+### Bug fixes
+
+* **cli:** reference the Kusto SDK directly instead of the Atc.Kusto library ([7f324b8](https://github.com/atc-net/atc-kusto/commit/7f324b86135e2a084d398ee5713c282429adcac5))
+
 ## [3.5.1](https://github.com/atc-net/atc-kusto/compare/atc-kusto@v3.5.0...atc-kusto@v3.5.1) (2026-04-18)
 
 
