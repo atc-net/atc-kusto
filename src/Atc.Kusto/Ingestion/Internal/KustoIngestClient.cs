@@ -42,6 +42,11 @@ namespace Atc.Kusto.Ingestion.Internal;
 ///   <c>IngestionOperation</c> carries no status; how the request was handled is read from
 ///   <c>IngestionMethod</c> (<see cref="ToIngestionStatus"/>).
 ///   </description></item>
+///   <item><description>
+///   Queued ingestion (also a managed streaming fallback) closes a <c>StreamSource</c>'s stream even with
+///   <c>leaveOpen: true</c>; streaming leaves it open. The caller's stream is passed wrapped in a
+///   <see cref="NonClosingStream"/> (<see cref="IngestStreamAsync"/>).
+///   </description></item>
 /// </list>
 /// </remarks>
 internal sealed class KustoIngestClient : IKustoIngestClient
@@ -105,9 +110,10 @@ internal sealed class KustoIngestClient : IKustoIngestClient
         IngestionMode mode,
         CancellationToken cancellationToken)
     {
-        // leaveOpen: the caller owns the stream; disposing the source must not close it.
+        // The caller owns the stream, so disposing the source must not close it. leaveOpen alone is
+        // not enough: the SDK closes the stream when it ingests it queued (see the class remarks).
         using var source = new StreamSource(
-            data,
+            new NonClosingStream(data),
             DataSourceCompressionType.None,
             format.ToDataSourceFormat(),
             leaveOpen: true);
