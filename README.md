@@ -1347,9 +1347,11 @@ If you don't add `KustoDiagnostics.SourceName` to your OpenTelemetry configurati
 
 ## Upgrading to 4.0
 
-4.0 changes a few extension points, and how failures and cancellation are reported. Go through this list when you upgrade from 3.x.
+4.0 requires .NET 10, changes a few extension points, and changes how failures and cancellation are reported. Go through this list when you upgrade from 3.x.
 
 ### Changes that need code changes
+
+**.NET 10 is required.** 4.0 targets `net10.0` (3.x targeted `net9.0`), so an app on .NET 9 has to move to .NET 10 before it can use 4.0.
 
 **Custom `ReadResult` implementations.** `IKustoQuery<T>.ReadResult` gets the connection's [JSON serializer settings](#json-serializer-settings) as a second parameter, and `ReadObjects<T>` and `ReadObjectsFromNextResult<T>` (like the new `ReadObject<T>`) require them. Queries that inherit `KustoQuery<T>` need no change.
 
@@ -1712,7 +1714,7 @@ The query samples use the "ContosoSales" and "Samples" databases of the Microsof
 
 ## Requirements
 
-- .NET 9 or later (the package targets `net9.0`).
+- .NET 10 or later (the package targets `net10.0`).
 
 ## How to contribute
 
