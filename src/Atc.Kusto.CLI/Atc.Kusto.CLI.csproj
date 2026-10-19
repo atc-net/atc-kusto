@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- The target framework (net10.0) comes from Directory.Build.props, so the tool needs the .NET 10 runtime. -->
   <PropertyGroup>
     <PackageId>atc-kusto</PackageId>
     <PackageTags>adx;kusto;azure;cli</PackageTags>
